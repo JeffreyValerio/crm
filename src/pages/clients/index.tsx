@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Eye, Upload, Download } from 'lucide-react';
-import Image from 'next/image';
+import { CldImage } from 'next-cloudinary';
 import jsPDF from 'jspdf';
 
 interface ProductType {
@@ -287,6 +287,20 @@ export default function ClientsPage() {
 
       setUploadingImage(field);
       try {
+        // Eliminar imagen anterior si existe y es de Cloudinary
+        const currentUrl = watch(field);
+        if (currentUrl && currentUrl.includes('cloudinary.com')) {
+          try {
+            await fetch('/api/clients/delete-image', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ public_id: currentUrl }),
+            });
+          } catch (error) {
+            console.error('Error al eliminar imagen anterior:', error);
+          }
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 
@@ -309,6 +323,22 @@ export default function ClientsPage() {
       }
     };
     input.click();
+  }
+
+  // Función helper para extraer public_id de una URL de Cloudinary
+  function getCloudinaryPublicId(url: string | null): string | null {
+    if (!url || !url.includes('cloudinary.com')) return null;
+    try {
+      // Extraer public_id de la URL de Cloudinary
+      // Formato: https://res.cloudinary.com/{cloud_name}/image/upload/{version}/{public_id}.{ext}
+      const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+      if (match && match[1]) {
+        return match[1];
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
   }
 
   const onSubmit = async (data: ClientFormData) => {
@@ -684,13 +714,25 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">Cédula Frontal *</label>
                     {watch('cedulaFrontalUrl') ? (
                       <div className="relative">
-                        <Image
-                          src={watch('cedulaFrontalUrl')}
-                          alt="Cédula Frontal"
-                          width={200}
-                          height={150}
-                          className="rounded-md border"
-                        />
+                        {watch('cedulaFrontalUrl').includes('cloudinary.com') ? (
+                          <CldImage
+                            src={getCloudinaryPublicId(watch('cedulaFrontalUrl')) || watch('cedulaFrontalUrl')}
+                            alt="Cédula Frontal"
+                            width={200}
+                            height={150}
+                            className="rounded-md border"
+                            crop={{
+                              type: 'auto',
+                              source: true
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={watch('cedulaFrontalUrl')}
+                            alt="Cédula Frontal"
+                            className="rounded-md border w-[200px] h-[150px] object-cover"
+                          />
+                        )}
                         <Button
                           type="button"
                           variant="outline"
@@ -726,13 +768,25 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">Cédula Trasera *</label>
                     {watch('cedulaTraseraUrl') ? (
                       <div className="relative">
-                        <Image
-                          src={watch('cedulaTraseraUrl')}
-                          alt="Cédula Trasera"
-                          width={200}
-                          height={150}
-                          className="rounded-md border"
-                        />
+                        {watch('cedulaTraseraUrl').includes('cloudinary.com') ? (
+                          <CldImage
+                            src={getCloudinaryPublicId(watch('cedulaTraseraUrl')) || watch('cedulaTraseraUrl')}
+                            alt="Cédula Trasera"
+                            width={200}
+                            height={150}
+                            className="rounded-md border"
+                            crop={{
+                              type: 'auto',
+                              source: true
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={watch('cedulaTraseraUrl')}
+                            alt="Cédula Trasera"
+                            className="rounded-md border w-[200px] h-[150px] object-cover"
+                          />
+                        )}
                         <Button
                           type="button"
                           variant="outline"
@@ -768,13 +822,25 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">Selfie *</label>
                     {watch('selfieUrl') ? (
                       <div className="relative">
-                        <Image
-                          src={watch('selfieUrl')}
-                          alt="Selfie"
-                          width={200}
-                          height={150}
-                          className="rounded-md border"
-                        />
+                        {watch('selfieUrl').includes('cloudinary.com') ? (
+                          <CldImage
+                            src={getCloudinaryPublicId(watch('selfieUrl')) || watch('selfieUrl')}
+                            alt="Selfie"
+                            width={200}
+                            height={150}
+                            className="rounded-md border"
+                            crop={{
+                              type: 'auto',
+                              source: true
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={watch('selfieUrl')}
+                            alt="Selfie"
+                            className="rounded-md border w-[200px] h-[150px] object-cover"
+                          />
+                        )}
                         <Button
                           type="button"
                           variant="outline"
@@ -1096,37 +1162,73 @@ export default function ClientsPage() {
                     {viewingClient.cedulaFrontalUrl && (
                       <div>
                         <label className="text-sm font-medium mb-2 block">Cédula Frontal</label>
-                        <Image
-                          src={viewingClient.cedulaFrontalUrl}
-                          alt="Cédula Frontal"
-                          width={200}
-                          height={150}
-                          className="rounded-md border"
-                        />
+                        {viewingClient.cedulaFrontalUrl.includes('cloudinary.com') ? (
+                          <CldImage
+                            src={getCloudinaryPublicId(viewingClient.cedulaFrontalUrl) || viewingClient.cedulaFrontalUrl}
+                            alt="Cédula Frontal"
+                            width={200}
+                            height={150}
+                            className="rounded-md border"
+                            crop={{
+                              type: 'auto',
+                              source: true
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={viewingClient.cedulaFrontalUrl}
+                            alt="Cédula Frontal"
+                            className="rounded-md border w-[200px] h-[150px] object-cover"
+                          />
+                        )}
                       </div>
                     )}
                     {viewingClient.cedulaTraseraUrl && (
                       <div>
                         <label className="text-sm font-medium mb-2 block">Cédula Trasera</label>
-                        <Image
-                          src={viewingClient.cedulaTraseraUrl}
-                          alt="Cédula Trasera"
-                          width={200}
-                          height={150}
-                          className="rounded-md border"
-                        />
+                        {viewingClient.cedulaTraseraUrl.includes('cloudinary.com') ? (
+                          <CldImage
+                            src={getCloudinaryPublicId(viewingClient.cedulaTraseraUrl) || viewingClient.cedulaTraseraUrl}
+                            alt="Cédula Trasera"
+                            width={200}
+                            height={150}
+                            className="rounded-md border"
+                            crop={{
+                              type: 'auto',
+                              source: true
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={viewingClient.cedulaTraseraUrl}
+                            alt="Cédula Trasera"
+                            className="rounded-md border w-[200px] h-[150px] object-cover"
+                          />
+                        )}
                       </div>
                     )}
                     {viewingClient.selfieUrl && (
                       <div>
                         <label className="text-sm font-medium mb-2 block">Selfie</label>
-                        <Image
-                          src={viewingClient.selfieUrl}
-                          alt="Selfie"
-                          width={200}
-                          height={150}
-                          className="rounded-md border"
-                        />
+                        {viewingClient.selfieUrl.includes('cloudinary.com') ? (
+                          <CldImage
+                            src={getCloudinaryPublicId(viewingClient.selfieUrl) || viewingClient.selfieUrl}
+                            alt="Selfie"
+                            width={200}
+                            height={150}
+                            className="rounded-md border"
+                            crop={{
+                              type: 'auto',
+                              source: true
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={viewingClient.selfieUrl}
+                            alt="Selfie"
+                            className="rounded-md border w-[200px] h-[150px] object-cover"
+                          />
+                        )}
                       </div>
                     )}
                   </div>

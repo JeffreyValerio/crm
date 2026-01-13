@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import cloudinary from '@/lib/cloudinary';
 
 export default async function handler(
   req: NextApiRequest,
@@ -110,10 +111,46 @@ export default async function handler(
         planId: planId || null,
       };
 
-      // Actualizar URLs de imágenes solo si se proporcionan
-      if (cedulaFrontalUrl !== undefined) updateData.cedulaFrontalUrl = cedulaFrontalUrl || null;
-      if (cedulaTraseraUrl !== undefined) updateData.cedulaTraseraUrl = cedulaTraseraUrl || null;
-      if (selfieUrl !== undefined) updateData.selfieUrl = selfieUrl || null;
+      // Función helper para eliminar imagen de Cloudinary
+      const deleteCloudinaryImage = async (url: string | null) => {
+        if (!url || !url.includes('cloudinary.com')) return;
+        try {
+          const urlParts = url.split('/');
+          const uploadIndex = urlParts.findIndex(part => part === 'upload');
+          if (uploadIndex === -1) return;
+          
+          const afterUpload = urlParts.slice(uploadIndex + 1);
+          const versionIndex = afterUpload.findIndex(part => part.match(/^v\d+$/));
+          
+          if (versionIndex !== -1) {
+            const publicIdParts = afterUpload.slice(versionIndex + 1);
+            const publicId = publicIdParts.join('/').split('.')[0];
+            await cloudinary.uploader.destroy(publicId);
+          }
+        } catch (error) {
+          console.error('Error al eliminar imagen de Cloudinary:', error);
+        }
+      };
+
+      // Actualizar URLs de imágenes solo si se proporcionan y eliminar las antiguas
+      if (cedulaFrontalUrl !== undefined) {
+        if (currentClient.cedulaFrontalUrl && currentClient.cedulaFrontalUrl !== cedulaFrontalUrl) {
+          await deleteCloudinaryImage(currentClient.cedulaFrontalUrl);
+        }
+        updateData.cedulaFrontalUrl = cedulaFrontalUrl || null;
+      }
+      if (cedulaTraseraUrl !== undefined) {
+        if (currentClient.cedulaTraseraUrl && currentClient.cedulaTraseraUrl !== cedulaTraseraUrl) {
+          await deleteCloudinaryImage(currentClient.cedulaTraseraUrl);
+        }
+        updateData.cedulaTraseraUrl = cedulaTraseraUrl || null;
+      }
+      if (selfieUrl !== undefined) {
+        if (currentClient.selfieUrl && currentClient.selfieUrl !== selfieUrl) {
+          await deleteCloudinaryImage(currentClient.selfieUrl);
+        }
+        updateData.selfieUrl = selfieUrl || null;
+      }
 
       // Manejar cambio de estado de validación
       if (validationStatus && validationStatus !== currentClient.validationStatus) {
@@ -200,6 +237,42 @@ export default async function handler(
 
   if (req.method === 'DELETE') {
     try {
+      const client = await prisma.client.findUnique({
+        where: { id: id as string },
+      });
+
+      if (!client) {
+        return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      // Función helper para eliminar imagen de Cloudinary
+      const deleteCloudinaryImage = async (url: string | null) => {
+        if (!url || !url.includes('cloudinary.com')) return;
+        try {
+          const urlParts = url.split('/');
+          const uploadIndex = urlParts.findIndex(part => part === 'upload');
+          if (uploadIndex === -1) return;
+          
+          const afterUpload = urlParts.slice(uploadIndex + 1);
+          const versionIndex = afterUpload.findIndex(part => part.match(/^v\d+$/));
+          
+          if (versionIndex !== -1) {
+            const publicIdParts = afterUpload.slice(versionIndex + 1);
+            const publicId = publicIdParts.join('/').split('.')[0];
+            await cloudinary.uploader.destroy(publicId);
+          }
+        } catch (error) {
+          console.error('Error al eliminar imagen de Cloudinary:', error);
+        }
+      };
+
+      // Eliminar todas las imágenes de Cloudinary antes de eliminar el cliente
+      await Promise.all([
+        deleteCloudinaryImage(client.cedulaFrontalUrl),
+        deleteCloudinaryImage(client.cedulaTraseraUrl),
+        deleteCloudinaryImage(client.selfieUrl),
+      ]);
+
       await prisma.client.delete({
         where: { id: id as string },
       });
