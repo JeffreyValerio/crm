@@ -40,12 +40,17 @@ Aplicación CRM desarrollada con Next.js, Tailwind CSS, Prisma y Docker.
 ## Scripts disponibles
 
 - `npm run dev`: Inicia el servidor de desarrollo
-- `npm run build`: Construye la aplicación para producción
+- `npm run build`: Construye la aplicación para producción (incluye generación de Prisma y creación de tablas)
 - `npm run start`: Inicia el servidor de producción
 - `npm run db:generate`: Genera el cliente de Prisma
 - `npm run db:push`: Sincroniza el esquema con la base de datos
+- `npm run db:deploy`: Genera Prisma y crea/actualiza tablas (útil para producción)
 - `npm run db:migrate`: Ejecuta migraciones
 - `npm run db:seed`: Ejecuta el seed para poblar datos iniciales
+
+## Despliegue en Vercel
+
+El proyecto está configurado para crear automáticamente las tablas de Prisma durante el build en Vercel. Asegúrate de configurar la variable de entorno `DATABASE_URL` en Vercel con la URL de tu base de datos PostgreSQL.
 
 ## Características
 
