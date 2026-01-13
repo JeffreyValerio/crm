@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String?
+  role        String    @default("user")
+  inviteToken String?   @unique
+  invitedAt   DateTime?
+  invitedBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  clients     Client[]
+  statusComments StatusComment[]
+}
+
+model ProductType {
+  id          String   @id @default(cuid())
+  nombre      String   @unique
+  descripcion String?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  products    Plan[]
+}
+
+model Plan {
+  id            String      @id @default(cuid())
+  nombre        String
+  descripcion   String?
+  activo        Boolean      @default(true)
+  productTypeId String?
+  productType   ProductType? @relation(fields: [productTypeId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  clients       Client[]
+}
+
+enum TipoIdentificacion {
+  NACIONAL
+  DIMEX
+  PASAPORTE
+  JURIDICA
+}
+
+enum ValidationStatus {
+  EN_PROCESO_VALIDACION
+  APROBADA
+  REQUIERE_DEPOSITO
+  NO_APLICA
+  INCOBRABLE
+  DEUDA_MENOR_ANIO
+}
+
+enum SaleStatus {
+  PENDIENTE_INSTALACION
+  INSTALADA
+  CANCELADA
+}
+
+model Client {
+  id                    String             @id @default(cuid())
+  // Fotos
+  cedulaFrontalUrl      String?
+  cedulaTraseraUrl      String?
+  selfieUrl             String?
+  // Datos personales
+  nombres               String
+  apellidos             String
+  tipoIdentificacion    TipoIdentificacion
+  numeroIdentificacion  String
+  // Contacto
+  email                 String?
+  telefono              String?
+  // Ubicación
+  provincia             String
+  canton                String
+  distrito              String
+  senasExactas          String
+  coordenadasLat        String?
+  coordenadasLng        String?
+  // Técnico
+  numeroMedidor         String?
+  // Plan
+  planId                String?
+  plan                  Plan?              @relation(fields: [planId], references: [id])
+  // Estados
+  validationStatus      ValidationStatus?  @default(EN_PROCESO_VALIDACION)
+  validationComment     String?
+  saleStatus            SaleStatus?
+  saleComment           String?
+  // Metadatos
+  createdBy             String
+  creator               User               @relation(fields: [createdBy], references: [id])
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  statusComments        StatusComment[]
+}
+
+model StatusComment {
+  id            String   @id @default(cuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tipo          String   // "VALIDACION" o "VENTA"
+  estadoAnterior String?
+  estadoNuevo   String
+  comentario    String
+  createdBy     String
+  creator       User     @relation(fields: [createdBy], references: [id])
+  createdAt     DateTime @default(now())
+}
