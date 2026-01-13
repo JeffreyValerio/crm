@@ -32,8 +32,15 @@ Aplicación CRM desarrollada con Next.js, Tailwind CSS, Prisma y Docker.
 7. Ejecutar seed para crear usuario admin: `npm run db:seed`
 8. Correr el proyecto en desarrollo: `npm run dev`
 
-## Usuario por defecto
+## Configuración Inicial
 
+Si es la primera vez que ejecutas la aplicación y no hay usuarios en la base de datos:
+
+1. Al acceder a `/login`, serás redirigido automáticamente a `/setup`
+2. Completa el formulario para crear el primer usuario administrador
+3. Una vez creado, podrás iniciar sesión con esas credenciales
+
+**Nota:** Si ejecutaste el seed (`npm run db:seed`), ya existe un usuario admin con:
 - Email: `admin@admin.com`
 - Contraseña: `admin`
 

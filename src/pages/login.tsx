@@ -1,9 +1,30 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState('');
+  const [checkingSetup, setCheckingSetup] = useState(true);
+
+  useEffect(() => {
+    // Verificar si el sistema necesita configuración inicial
+    async function checkSetup() {
+      try {
+        const response = await fetch('/api/setup/check');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.needsSetup) {
+            router.push('/setup');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking setup:', error);
+      } finally {
+        setCheckingSetup(false);
+      }
+    }
+    checkSetup();
+  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,6 +46,16 @@ export default function LoginPage() {
       const data = await response.json();
       setError(data.error || 'Error al iniciar sesión');
     }
+  }
+
+  if (checkingSetup) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-gray-600">Verificando configuración...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
