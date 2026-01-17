@@ -18,6 +18,7 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
+  userOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -81,6 +82,9 @@ export function Sidebar() {
 
   const filteredNavItems = navItems.filter((item) => {
     if (item.adminOnly && userRole !== 'admin') {
+      return false;
+    }
+    if (item.userOnly && userRole === 'admin') {
       return false;
     }
     return true;
