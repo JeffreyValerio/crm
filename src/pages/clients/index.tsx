@@ -47,6 +47,8 @@ interface Client {
   apellidos: string;
   tipoIdentificacion: string;
   numeroIdentificacion: string;
+  fechaNacimiento: string | null;
+  stb: number | null;
   email: string | null;
   telefono: string | null;
   provincia: string;
@@ -79,6 +81,8 @@ interface ClientFormData {
   apellidos: string;
   tipoIdentificacion: string;
   numeroIdentificacion: string;
+  fechaNacimiento: string;
+  stb: string;
   email: string;
   telefono: string;
   provincia: string;
@@ -137,6 +141,8 @@ export default function ClientsPage() {
       apellidos: '',
       tipoIdentificacion: 'NACIONAL',
       numeroIdentificacion: '',
+      fechaNacimiento: '',
+      stb: '',
       email: '',
       telefono: '',
       provincia: '',
@@ -357,6 +363,8 @@ export default function ClientsPage() {
         apellidos: client.apellidos,
         tipoIdentificacion: client.tipoIdentificacion,
         numeroIdentificacion: client.numeroIdentificacion,
+        fechaNacimiento: client.fechaNacimiento ? new Date(client.fechaNacimiento).toISOString().split('T')[0] : '',
+        stb: client.stb?.toString() || '',
         email: client.email || '',
         telefono: client.telefono || '',
         provincia: client.provincia || '',
@@ -391,6 +399,8 @@ export default function ClientsPage() {
         apellidos: '',
         tipoIdentificacion: 'NACIONAL',
         numeroIdentificacion: '',
+        fechaNacimiento: '',
+        stb: '',
         email: '',
         telefono: '',
         provincia: '',
@@ -487,10 +497,17 @@ export default function ClientsPage() {
       const url = editingClient ? `/api/clients/${editingClient.id}` : '/api/clients';
       const method = editingClient ? 'PUT' : 'POST';
 
+      // Preparar datos para enviar
+      const submitData = {
+        ...data,
+        stb: data.stb ? parseInt(data.stb) : null,
+        fechaNacimiento: data.fechaNacimiento || null,
+      };
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(submitData),
       });
 
       const result = await response.json();
@@ -1108,6 +1125,18 @@ export default function ClientsPage() {
                       <p className="text-sm text-destructive mt-1">{errors.numeroIdentificacion.message}</p>
                     )}
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Fecha de Nacimiento <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      type="date"
+                      {...register('fechaNacimiento', { required: 'La fecha de nacimiento es obligatoria' })}
+                    />
+                    {errors.fechaNacimiento && (
+                      <p className="text-sm text-destructive mt-1">{errors.fechaNacimiento.message}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1338,6 +1367,24 @@ export default function ClientsPage() {
                       <p className="text-sm text-destructive mt-1">{errors.planId.message}</p>
                     )}
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      STB <span className="text-destructive">*</span>
+                    </label>
+                    <Select
+                      {...register('stb', { required: 'El STB es obligatorio' })}
+                    >
+                      <option value="">Seleccione STB</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                    </Select>
+                    {errors.stb && (
+                      <p className="text-sm text-destructive mt-1">{errors.stb.message}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1515,6 +1562,18 @@ export default function ClientsPage() {
                       <label className="text-sm font-medium text-muted-foreground">Número de Identificación</label>
                       <p className="text-sm">{viewingClient.numeroIdentificacion}</p>
                     </div>
+                    {viewingClient.fechaNacimiento && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Fecha de Nacimiento</label>
+                        <p className="text-sm">{new Date(viewingClient.fechaNacimiento).toLocaleDateString('es-CR')}</p>
+                      </div>
+                    )}
+                    {viewingClient.stb && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">STB</label>
+                        <p className="text-sm">{viewingClient.stb}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
