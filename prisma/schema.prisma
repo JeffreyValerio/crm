@@ -11,17 +11,21 @@ datasource db {
 }
 
 model User {
-  id          String    @id @default(cuid())
-  email       String    @unique
-  password    String?
-  role        String    @default("user")
-  inviteToken String?   @unique
-  invitedAt   DateTime?
-  invitedBy   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  clients     Client[]
-  statusComments StatusComment[]
+  id                String    @id @default(cuid())
+  email             String    @unique
+  password          String?
+  role              String    @default("user")
+  inviteToken       String?   @unique
+  invitedAt         DateTime?
+  invitedBy         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  clients           Client[]
+  statusComments    StatusComment[]
+  payrolls          Payroll[]
+  approvedPayrolls  Payroll[] @relation("PayrollApprover")
+  advances          Advance[]
+  approvedAdvances  Advance[] @relation("AdvanceApprover")
 }
 
 model ProductType {
@@ -68,6 +72,20 @@ enum SaleStatus {
   CANCELADA
 }
 
+enum PayrollStatus {
+  PENDIENTE
+  APROBADO
+  PAGADO
+}
+
+enum AdvanceStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+  EN_COBRO
+  COMPLETADO
+}
+
 model Client {
   id                    String             @id @default(cuid())
   // Fotos
@@ -79,6 +97,8 @@ model Client {
   apellidos             String
   tipoIdentificacion    TipoIdentificacion
   numeroIdentificacion  String
+  fechaNacimiento       DateTime?
+  stb                   Int?
   // Contacto
   email                 String?
   telefono              String?
@@ -118,4 +138,52 @@ model StatusComment {
   createdBy     String
   creator       User     @relation(fields: [createdBy], references: [id])
   createdAt     DateTime @default(now())
+}
+
+model Payroll {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  periodo         String        // Formato: "YYYY-MM" (ej: "2025-01")
+  quincena        Int           // 1 o 2
+  diasEsperados   Int                            // Días laborables esperados en la quincena
+  diasTrabajados  Int                            // Días realmente trabajados (editable por admin)
+  salarioBase     Decimal                       // Salario por quincena en colones
+  montoDiario     Decimal                       // Calculado: salarioBase / diasTrabajados
+  total           Decimal       // Calculado: salarioBase
+  estado          PayrollStatus @default(PENDIENTE)
+  aprobadoPor     String?
+  aprobador       User?         @relation("PayrollApprover", fields: [aprobadoPor], references: [id])
+  aprobadoAt      DateTime?
+  fechaPago       DateTime?
+  comprobanteUrl  String?
+  observaciones   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([userId, periodo, quincena])
+  @@index([userId])
+  @@index([periodo])
+  @@index([estado])
+}
+
+model Advance {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  monto           Decimal       // Monto solicitado en colones
+  quincenas       Int           @default(1) // En cuántas quincenas se cobrará
+  montoRestante   Decimal       // Monto que falta por cobrar
+  estado          AdvanceStatus @default(PENDIENTE)
+  observaciones   String?       // Observaciones de la solicitud
+  aprobadoPor     String?
+  aprobador       User?         @relation("AdvanceApprover", fields: [aprobadoPor], references: [id])
+  aprobadoAt      DateTime?
+  rechazadoAt     DateTime?
+  completadoAt    DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([estado])
 }
