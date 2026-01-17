@@ -51,6 +51,11 @@ export default async function handler(
         return res.status(404).json({ error: 'Cliente no encontrado' });
       }
 
+      // Usuarios no admin solo pueden ver sus propios clientes
+      if (session.role !== 'admin' && client.createdBy !== session.userId) {
+        return res.status(403).json({ error: 'No tienes permiso para ver este cliente' });
+      }
+
       return res.status(200).json({ client });
     } catch (error) {
       console.error('Error fetching client:', error);
@@ -91,6 +96,11 @@ export default async function handler(
 
       if (!currentClient) {
         return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      // Usuarios no admin solo pueden editar sus propios clientes
+      if (session.role !== 'admin' && currentClient.createdBy !== session.userId) {
+        return res.status(403).json({ error: 'No tienes permiso para editar este cliente' });
       }
 
       // Preparar datos para actualizar
@@ -152,45 +162,48 @@ export default async function handler(
         updateData.selfieUrl = selfieUrl || null;
       }
 
-      // Manejar cambio de estado de validación
-      if (validationStatus && validationStatus !== currentClient.validationStatus) {
-        updateData.validationStatus = validationStatus;
-        updateData.validationComment = validationComment?.trim() || null;
+      // Manejar cambio de estado de validación - Solo para admin
+      if (session.role === 'admin') {
+        if (validationStatus && validationStatus !== currentClient.validationStatus) {
+          updateData.validationStatus = validationStatus;
+          updateData.validationComment = validationComment?.trim() || null;
 
-        // Crear comentario de estado
-        await prisma.statusComment.create({
-          data: {
-            clientId: id as string,
-            tipo: 'VALIDACION',
-            estadoAnterior: currentClient.validationStatus || '',
-            estadoNuevo: validationStatus,
-            comentario: validationComment?.trim() || '',
-            createdBy: session.userId,
-          },
-        });
-      } else if (validationComment) {
-        updateData.validationComment = validationComment.trim();
+          // Crear comentario de estado
+          await prisma.statusComment.create({
+            data: {
+              clientId: id as string,
+              tipo: 'VALIDACION',
+              estadoAnterior: currentClient.validationStatus || '',
+              estadoNuevo: validationStatus,
+              comentario: validationComment?.trim() || '',
+              createdBy: session.userId,
+            },
+          });
+        } else if (validationComment !== undefined) {
+          updateData.validationComment = validationComment.trim();
+        }
+
+        // Manejar cambio de estado de venta - Solo para admin
+        if (saleStatus && saleStatus !== currentClient.saleStatus) {
+          updateData.saleStatus = saleStatus;
+          updateData.saleComment = saleComment?.trim() || null;
+
+          // Crear comentario de estado
+          await prisma.statusComment.create({
+            data: {
+              clientId: id as string,
+              tipo: 'VENTA',
+              estadoAnterior: currentClient.saleStatus || '',
+              estadoNuevo: saleStatus,
+              comentario: saleComment?.trim() || '',
+              createdBy: session.userId,
+            },
+          });
+        } else if (saleComment !== undefined) {
+          updateData.saleComment = saleComment.trim();
+        }
       }
-
-      // Manejar cambio de estado de venta
-      if (saleStatus && saleStatus !== currentClient.saleStatus) {
-        updateData.saleStatus = saleStatus;
-        updateData.saleComment = saleComment?.trim() || null;
-
-        // Crear comentario de estado
-        await prisma.statusComment.create({
-          data: {
-            clientId: id as string,
-            tipo: 'VENTA',
-            estadoAnterior: currentClient.saleStatus || '',
-            estadoNuevo: saleStatus,
-            comentario: saleComment?.trim() || '',
-            createdBy: session.userId,
-          },
-        });
-      } else if (saleComment) {
-        updateData.saleComment = saleComment.trim();
-      }
+      // Si no es admin, ignoramos los cambios de estado y mantenemos los valores actuales
 
       const client = await prisma.client.update({
         where: { id: id as string },
@@ -243,6 +256,11 @@ export default async function handler(
 
       if (!client) {
         return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      // Usuarios no admin solo pueden eliminar sus propios clientes
+      if (session.role !== 'admin' && client.createdBy !== session.userId) {
+        return res.status(403).json({ error: 'No tienes permiso para eliminar este cliente' });
       }
 
       // Función helper para eliminar imagen de Cloudinary

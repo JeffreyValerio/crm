@@ -65,6 +65,10 @@ interface Client {
   saleComment: string | null;
   planId: string | null;
   plan: Plan | null;
+  creator?: {
+    id: string;
+    email: string;
+  };
   statusComments?: StatusComment[];
   createdAt: string;
   updatedAt: string;
@@ -107,9 +111,18 @@ export default function ClientsPage() {
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [filterValidationStatus, setFilterValidationStatus] = useState<string>('');
   const [filterSaleStatus, setFilterSaleStatus] = useState<string>('');
+  const [filterCreatedBy, setFilterCreatedBy] = useState<string>('');
+  const [users, setUsers] = useState<{ id: string; email: string }[]>([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ role?: string } | null>(null);
+  const [provinces, setProvinces] = useState<string[]>([]);
+  const [cantones, setCantones] = useState<string[]>([]);
+  const [distritos, setDistritos] = useState<string[]>([]);
+  const [loadingCantones, setLoadingCantones] = useState(false);
+  const [loadingDistritos, setLoadingDistritos] = useState(false);
+  const [initializingForm, setInitializingForm] = useState(false);
 
   const {
     register,
@@ -147,9 +160,63 @@ export default function ClientsPage() {
 
   const formData = watch();
   const selectedProductType = watch('productTypeId');
+  const selectedProvince = watch('provincia');
+  const selectedCanton = watch('canton');
   const filteredPlans = selectedProductType
     ? plans.filter((p) => p.productTypeId === selectedProductType && p.activo)
     : [];
+
+  // Cargar provincias al iniciar
+  useEffect(() => {
+    loadProvinces();
+  }, []);
+
+  // Cargar cantones cuando cambia la provincia
+  useEffect(() => {
+    // No ejecutar durante la inicialización del formulario
+    if (initializingForm) return;
+    
+    if (selectedProvince) {
+      loadCantones(selectedProvince);
+    } else {
+      setCantones([]);
+      setDistritos([]);
+    }
+  }, [selectedProvince, initializingForm]);
+
+  // Cargar distritos cuando cambia el cantón
+  useEffect(() => {
+    // No ejecutar durante la inicialización del formulario
+    if (initializingForm) return;
+    
+    if (selectedProvince && selectedCanton) {
+      loadDistritos(selectedProvince, selectedCanton);
+    } else {
+      setDistritos([]);
+    }
+  }, [selectedProvince, selectedCanton, initializingForm]);
+
+  // Efecto para establecer valores cuando se cargan cantones/distritos durante edición
+  // Este efecto se ejecuta cuando las opciones están disponibles y hay un cliente en edición
+  useEffect(() => {
+    if (initializingForm && editingClient) {
+      // Si los cantones están cargados y el cliente tiene un cantón válido, establecerlo
+      if (cantones.length > 0 && editingClient.canton) {
+        const cantonExists = cantones.includes(editingClient.canton);
+        if (cantonExists) {
+          setValue('canton', editingClient.canton, { shouldValidate: false, shouldDirty: false, shouldTouch: false });
+        }
+      }
+      
+      // Si los distritos están cargados y el cliente tiene un distrito válido, establecerlo
+      if (distritos.length > 0 && editingClient.distrito) {
+        const distritoExists = distritos.includes(editingClient.distrito);
+        if (distritoExists) {
+          setValue('distrito', editingClient.distrito, { shouldValidate: false, shouldDirty: false, shouldTouch: false });
+        }
+      }
+    }
+  }, [cantones, distritos, initializingForm, editingClient, setValue]);
 
   // Efecto para cargar productos cuando cambia el tipo de producto seleccionado
   useEffect(() => {
@@ -170,12 +237,21 @@ export default function ClientsPage() {
       if (!response.ok) {
         router.push('/login');
       } else {
-        // Cargar filtros desde query params si existen
-        if (router.query.validationStatus) {
-          setFilterValidationStatus(router.query.validationStatus as string);
-        }
-        if (router.query.saleStatus) {
-          setFilterSaleStatus(router.query.saleStatus as string);
+        const data = await response.json();
+        setCurrentUser(data.user);
+        
+        // Cargar filtros desde query params si existen (solo para admin)
+        if (data.user?.role === 'admin') {
+          if (router.query.validationStatus) {
+            setFilterValidationStatus(router.query.validationStatus as string);
+          }
+          if (router.query.saleStatus) {
+            setFilterSaleStatus(router.query.saleStatus as string);
+          }
+          if (router.query.createdBy) {
+            setFilterCreatedBy(router.query.createdBy as string);
+          }
+          await loadUsers();
         }
         
         await Promise.all([loadPlans(), loadProductTypes()]);
@@ -186,20 +262,32 @@ export default function ClientsPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && currentUser) {
       loadClients();
     }
-  }, [filterValidationStatus, filterSaleStatus, loading]);
+  }, [filterValidationStatus, filterSaleStatus, filterCreatedBy, loading, currentUser]);
 
   async function loadClients() {
     const params = new URLSearchParams();
-    if (filterValidationStatus) params.append('validationStatus', filterValidationStatus);
-    if (filterSaleStatus) params.append('saleStatus', filterSaleStatus);
+    // Solo aplicar filtros de estado y creador si el usuario es admin
+    if (currentUser?.role === 'admin') {
+      if (filterValidationStatus) params.append('validationStatus', filterValidationStatus);
+      if (filterSaleStatus) params.append('saleStatus', filterSaleStatus);
+      if (filterCreatedBy) params.append('createdBy', filterCreatedBy);
+    }
 
     const response = await fetch(`/api/clients?${params.toString()}`);
     if (response.ok) {
       const data = await response.json();
       setClients(data.clients || []);
+    }
+  }
+
+  async function loadUsers() {
+    const response = await fetch('/api/users');
+    if (response.ok) {
+      const data = await response.json();
+      setUsers(data.users?.map((u: { id: string; email: string }) => ({ id: u.id, email: u.email })) || []);
     }
   }
 
@@ -219,9 +307,51 @@ export default function ClientsPage() {
     }
   }
 
-  function handleOpenDialog(client?: Client) {
+  async function loadProvinces() {
+    const response = await fetch('/api/geo/provinces');
+    if (response.ok) {
+      const data = await response.json();
+      setProvinces(data.provinces || []);
+    }
+  }
+
+  async function loadCantones(province: string) {
+    setLoadingCantones(true);
+    const response = await fetch(`/api/geo/provinces?province=${encodeURIComponent(province)}`);
+    if (response.ok) {
+      const data = await response.json();
+      setCantones(data.cantones || []);
+    }
+    setLoadingCantones(false);
+  }
+
+  async function loadDistritos(province: string, canton: string) {
+    setLoadingDistritos(true);
+    const response = await fetch(`/api/geo/provinces?province=${encodeURIComponent(province)}&canton=${encodeURIComponent(canton)}`);
+    if (response.ok) {
+      const data = await response.json();
+      setDistritos(data.distritos || []);
+    }
+    setLoadingDistritos(false);
+  }
+
+  async function handleOpenDialog(client?: Client) {
     if (client) {
       setEditingClient(client);
+      // Activar flag de inicialización para evitar que los useEffect limpien los valores
+      setInitializingForm(true);
+      
+      // PRIMERO: Cargar todas las opciones necesarias antes de hacer reset
+      if (client.provincia) {
+        await loadCantones(client.provincia);
+        
+        if (client.canton) {
+          await loadDistritos(client.provincia, client.canton);
+        }
+      }
+      
+      // SEGUNDO: Hacer reset DESPUÉS de que todas las opciones estén cargadas
+      // Esto asegura que cuando el formulario se renderice, los selects tienen sus opciones disponibles
       reset({
         nombres: client.nombres,
         apellidos: client.apellidos,
@@ -229,9 +359,9 @@ export default function ClientsPage() {
         numeroIdentificacion: client.numeroIdentificacion,
         email: client.email || '',
         telefono: client.telefono || '',
-        provincia: client.provincia,
-        canton: client.canton,
-        distrito: client.distrito,
+        provincia: client.provincia || '',
+        canton: client.canton || '',
+        distrito: client.distrito || '',
         senasExactas: client.senasExactas,
         coordenadasLat: client.coordenadasLat || '',
         coordenadasLng: client.coordenadasLng || '',
@@ -245,9 +375,17 @@ export default function ClientsPage() {
         validationComment: client.validationComment || '',
         saleStatus: client.saleStatus || '',
         saleComment: client.saleComment || '',
-      });
+      }, { keepDefaultValues: false });
+      
+      // Desactivar flag de inicialización después de un pequeño delay
+      setTimeout(() => {
+        setInitializingForm(false);
+      }, 100);
     } else {
       setEditingClient(null);
+      // Limpiar cantones y distritos para nuevo cliente
+      setCantones([]);
+      setDistritos([]);
       reset({
         nombres: '',
         apellidos: '',
@@ -573,42 +711,58 @@ export default function ClientsPage() {
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Filtros</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Estado de Validación</label>
-                <Select
-                  value={filterValidationStatus}
-                  onChange={(e) => setFilterValidationStatus(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  <option value="EN_PROCESO_VALIDACION">En validación</option>
-                  <option value="APROBADA">Aprobada</option>
-                  <option value="REQUIERE_DEPOSITO">Requiere Depósito</option>
-                  <option value="NO_APLICA">No Aplica</option>
-                  <option value="INCOBRABLE">Incobrable</option>
-                  <option value="DEUDA_MENOR_ANIO">Deuda Menor a un Año</option>
-                </Select>
+        {currentUser?.role === 'admin' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Filtros</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Estado de Validación</label>
+                  <Select
+                    value={filterValidationStatus}
+                    onChange={(e) => setFilterValidationStatus(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    <option value="EN_PROCESO_VALIDACION">En validación</option>
+                    <option value="APROBADA">Aprobada</option>
+                    <option value="REQUIERE_DEPOSITO">Requiere Depósito</option>
+                    <option value="NO_APLICA">No Aplica</option>
+                    <option value="INCOBRABLE">Incobrable</option>
+                    <option value="DEUDA_MENOR_ANIO">Deuda Menor a un Año</option>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Estado de Venta</label>
+                  <Select
+                    value={filterSaleStatus}
+                    onChange={(e) => setFilterSaleStatus(e.target.value)}
+                  >
+                    <option value="">Todos</option>
+                    <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
+                    <option value="INSTALADA">Instalada</option>
+                    <option value="CANCELADA">Cancelada</option>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Creado Por</label>
+                  <Select
+                    value={filterCreatedBy}
+                    onChange={(e) => setFilterCreatedBy(e.target.value)}
+                  >
+                    <option value="">Todos los usuarios</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.email}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Estado de Venta</label>
-                <Select
-                  value={filterSaleStatus}
-                  onChange={(e) => setFilterSaleStatus(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
-                  <option value="INSTALADA">Instalada</option>
-                  <option value="CANCELADA">Cancelada</option>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -625,15 +779,20 @@ export default function ClientsPage() {
                   <TableHead>Identificación</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead>Estado Validación</TableHead>
-                  <TableHead>Estado Venta</TableHead>
+                  {currentUser?.role === 'admin' && (
+                    <>
+                      <TableHead>Estado Validación</TableHead>
+                      <TableHead>Estado Venta</TableHead>
+                      <TableHead>Creado Por</TableHead>
+                    </>
+                  )}
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {clients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={currentUser?.role === 'admin' ? 8 : 5} className="text-center text-muted-foreground">
                       No hay clientes registrados
                     </TableCell>
                   </TableRow>
@@ -644,8 +803,13 @@ export default function ClientsPage() {
                       <TableCell>{client.numeroIdentificacion}</TableCell>
                       <TableCell>{client.telefono || 'N/A'}</TableCell>
                       <TableCell>{client.plan?.nombre || 'N/A'}</TableCell>
-                      <TableCell>{getValidationStatusLabel(client.validationStatus)}</TableCell>
-                      <TableCell>{getSaleStatusLabel(client.saleStatus)}</TableCell>
+                      {currentUser?.role === 'admin' && (
+                        <>
+                          <TableCell>{getValidationStatusLabel(client.validationStatus)}</TableCell>
+                          <TableCell>{getSaleStatusLabel(client.saleStatus)}</TableCell>
+                          <TableCell>{client.creator?.email || 'N/A'}</TableCell>
+                        </>
+                      )}
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
@@ -670,13 +834,15 @@ export default function ClientsPage() {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(client.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {currentUser?.role === 'admin' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(client.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -707,8 +873,11 @@ export default function ClientsPage() {
               )}
 
               {/* Fotos */}
-              <div className="space-y-4">
-                <h3 className="font-semibold">Fotos *</h3>
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  <span className="text-primary">📷</span>
+                  Documentos y Fotos
+                </h3>
                 <div className="grid gap-4 md:grid-cols-3">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Cédula Frontal *</label>
@@ -765,7 +934,9 @@ export default function ClientsPage() {
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Cédula Trasera *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Cédula Trasera <span className="text-destructive">*</span>
+                    </label>
                     {watch('cedulaTraseraUrl') ? (
                       <div className="relative">
                         {watch('cedulaTraseraUrl').includes('cloudinary.com') ? (
@@ -819,7 +990,9 @@ export default function ClientsPage() {
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Selfie *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Selfie <span className="text-destructive">*</span>
+                    </label>
                     {watch('selfieUrl') ? (
                       <div className="relative">
                         {watch('selfieUrl').includes('cloudinary.com') ? (
@@ -876,32 +1049,44 @@ export default function ClientsPage() {
               </div>
 
               {/* Datos personales */}
-              <div className="space-y-4">
-                <h3 className="font-semibold">Datos Personales</h3>
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  <span className="text-primary">👤</span>
+                  Datos Personales
+                </h3>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Nombres *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Nombres <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       {...register('nombres', { required: 'Los nombres son obligatorios' })}
+                      placeholder="Ingrese los nombres"
                     />
                     {errors.nombres && (
                       <p className="text-sm text-destructive mt-1">{errors.nombres.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Apellidos *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Apellidos <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       {...register('apellidos', { required: 'Los apellidos son obligatorios' })}
+                      placeholder="Ingrese los apellidos"
                     />
                     {errors.apellidos && (
                       <p className="text-sm text-destructive mt-1">{errors.apellidos.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Tipo de Identificación *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Tipo de Identificación <span className="text-destructive">*</span>
+                    </label>
                     <Select
                       {...register('tipoIdentificacion', { required: 'El tipo de identificación es obligatorio' })}
                     >
+                      <option value="">Seleccione un tipo</option>
                       <option value="NACIONAL">Nacional</option>
                       <option value="DIMEX">DIMEX</option>
                       <option value="PASAPORTE">Pasaporte</option>
@@ -912,9 +1097,12 @@ export default function ClientsPage() {
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Número de Identificación *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Número de Identificación <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       {...register('numeroIdentificacion', { required: 'El número de identificación es obligatorio' })}
+                      placeholder="Ingrese el número de identificación"
                     />
                     {errors.numeroIdentificacion && (
                       <p className="text-sm text-destructive mt-1">{errors.numeroIdentificacion.message}</p>
@@ -924,11 +1112,16 @@ export default function ClientsPage() {
               </div>
 
               {/* Contacto */}
-              <div className="space-y-4">
-                <h3 className="font-semibold">Contacto</h3>
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  <span className="text-primary">📧</span>
+                  Contacto
+                </h3>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Email *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Email <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       type="email"
                       {...register('email', { 
@@ -938,15 +1131,19 @@ export default function ClientsPage() {
                           message: 'Email inválido'
                         }
                       })}
+                      placeholder="ejemplo@correo.com"
                     />
                     {errors.email && (
                       <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Teléfono *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Teléfono <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       {...register('telefono', { required: 'El teléfono es obligatorio' })}
+                      placeholder="8888-8888"
                     />
                     {errors.telefono && (
                       <p className="text-sm text-destructive mt-1">{errors.telefono.message}</p>
@@ -956,41 +1153,87 @@ export default function ClientsPage() {
               </div>
 
               {/* Ubicación */}
-              <div className="space-y-4">
-                <h3 className="font-semibold">Ubicación *</h3>
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  <span className="text-primary">📍</span>
+                  Ubicación
+                </h3>
                 <div className="grid gap-4 md:grid-cols-3">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Provincia *</label>
-                    <Input
-                      {...register('provincia', { required: 'La provincia es obligatoria' })}
-                    />
+                    <label className="text-sm font-medium mb-2 block">
+                      Provincia <span className="text-destructive">*</span>
+                    </label>
+                    <Select
+                      {...register('provincia', { 
+                        required: 'La provincia es obligatoria',
+                        onChange: () => {
+                          setValue('canton', '');
+                          setValue('distrito', '');
+                        }
+                      })}
+                    >
+                      <option value="">Seleccione una provincia</option>
+                      {provinces.map((province) => (
+                        <option key={province} value={province}>
+                          {province}
+                        </option>
+                      ))}
+                    </Select>
                     {errors.provincia && (
                       <p className="text-sm text-destructive mt-1">{errors.provincia.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Cantón *</label>
-                    <Input
-                      {...register('canton', { required: 'El cantón es obligatorio' })}
-                    />
+                    <label className="text-sm font-medium mb-2 block">
+                      Cantón <span className="text-destructive">*</span>
+                    </label>
+                    <Select
+                      {...register('canton', { 
+                        required: 'El cantón es obligatorio',
+                        onChange: () => {
+                          setValue('distrito', '');
+                        }
+                      })}
+                      disabled={!selectedProvince || loadingCantones}
+                    >
+                      <option value="">{loadingCantones ? 'Cargando...' : 'Seleccione un cantón'}</option>
+                      {cantones.map((canton) => (
+                        <option key={canton} value={canton}>
+                          {canton}
+                        </option>
+                      ))}
+                    </Select>
                     {errors.canton && (
                       <p className="text-sm text-destructive mt-1">{errors.canton.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Distrito *</label>
-                    <Input
+                    <label className="text-sm font-medium mb-2 block">
+                      Distrito <span className="text-destructive">*</span>
+                    </label>
+                    <Select
                       {...register('distrito', { required: 'El distrito es obligatorio' })}
-                    />
+                      disabled={!selectedCanton || loadingDistritos}
+                    >
+                      <option value="">{loadingDistritos ? 'Cargando...' : 'Seleccione un distrito'}</option>
+                      {distritos.map((distrito) => (
+                        <option key={distrito} value={distrito}>
+                          {distrito}
+                        </option>
+                      ))}
+                    </Select>
                     {errors.distrito && (
                       <p className="text-sm text-destructive mt-1">{errors.distrito.message}</p>
                     )}
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Señas Exactas *</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Señas Exactas <span className="text-destructive">*</span>
+                  </label>
                   <Input
                     {...register('senasExactas', { required: 'Las señas exactas son obligatorias' })}
+                    placeholder="Descripción detallada de la ubicación"
                   />
                   {errors.senasExactas && (
                     <p className="text-sm text-destructive mt-1">{errors.senasExactas.message}</p>
@@ -998,20 +1241,28 @@ export default function ClientsPage() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Coordenadas Latitud *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Coordenadas Latitud <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       {...register('coordenadasLat', { required: 'Las coordenadas de latitud son obligatorias' })}
                       placeholder="Ej: 9.9281"
+                      type="number"
+                      step="any"
                     />
                     {errors.coordenadasLat && (
                       <p className="text-sm text-destructive mt-1">{errors.coordenadasLat.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Coordenadas Longitud *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Coordenadas Longitud <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       {...register('coordenadasLng', { required: 'Las coordenadas de longitud son obligatorias' })}
                       placeholder="Ej: -84.0907"
+                      type="number"
+                      step="any"
                     />
                     {errors.coordenadasLng && (
                       <p className="text-sm text-destructive mt-1">{errors.coordenadasLng.message}</p>
@@ -1021,13 +1272,19 @@ export default function ClientsPage() {
               </div>
 
               {/* Técnico y Plan */}
-              <div className="space-y-4">
-                <h3 className="font-semibold">Información Técnica</h3>
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  <span className="text-primary">⚙️</span>
+                  Información Técnica
+                </h3>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Número de Medidor *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Número de Medidor <span className="text-destructive">*</span>
+                    </label>
                     <Input
                       {...register('numeroMedidor', { required: 'El número de medidor es obligatorio' })}
+                      placeholder="Ingrese el número de medidor"
                     />
                     {errors.numeroMedidor && (
                       <p className="text-sm text-destructive mt-1">{errors.numeroMedidor.message}</p>
@@ -1036,7 +1293,9 @@ export default function ClientsPage() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Tipo de Producto *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Tipo de Producto <span className="text-destructive">*</span>
+                    </label>
                     <Select
                       {...register('productTypeId', { 
                         required: 'El tipo de producto es obligatorio',
@@ -1045,7 +1304,7 @@ export default function ClientsPage() {
                         }
                       })}
                     >
-                      <option value="">Seleccionar tipo de producto</option>
+                      <option value="">Seleccione un tipo de producto</option>
                       {productTypes
                         .filter((type) => type.activo)
                         .map((type) => (
@@ -1059,13 +1318,15 @@ export default function ClientsPage() {
                     )}
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Producto *</label>
+                    <label className="text-sm font-medium mb-2 block">
+                      Producto <span className="text-destructive">*</span>
+                    </label>
                     <Select
                       {...register('planId', { required: 'El producto es obligatorio' })}
                       disabled={!selectedProductType}
                     >
                       <option value="">
-                        {selectedProductType ? 'Seleccionar producto' : 'Seleccione primero un tipo de producto'}
+                        {selectedProductType ? 'Seleccione un producto' : 'Seleccione primero un tipo de producto'}
                       </option>
                       {filteredPlans.map((plan) => (
                         <option key={plan.id} value={plan.id}>
@@ -1080,8 +1341,8 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {/* Estados - Solo en edición */}
-              {editingClient && (
+              {/* Estados - Solo en edición y solo para admin */}
+              {editingClient && currentUser?.role === 'admin' && (
                 <div className="space-y-4">
                   <h3 className="font-semibold">Estados</h3>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -1324,32 +1585,51 @@ export default function ClientsPage() {
                   </div>
                 </div>
 
-                {/* Estados */}
-                <div>
-                  <h3 className="font-semibold mb-3">Estados</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Estado de Validación</label>
-                      <p className="text-sm">{getValidationStatusLabel(viewingClient.validationStatus)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Estado de Venta</label>
-                      <p className="text-sm">{getSaleStatusLabel(viewingClient.saleStatus)}</p>
+                {/* Metadatos - Solo para admin */}
+                {currentUser?.role === 'admin' && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Información del Sistema</h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Creado Por</label>
+                        <p className="text-sm">{viewingClient.creator?.email || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Fecha de Creación</label>
+                        <p className="text-sm">{new Date(viewingClient.createdAt).toLocaleString('es-CR')}</p>
+                      </div>
                     </div>
                   </div>
-                  {viewingClient.validationComment && (
-                    <div className="mt-3">
-                      <label className="text-sm font-medium text-muted-foreground">Comentario de Validación</label>
-                      <p className="text-sm bg-muted p-2 rounded">{viewingClient.validationComment}</p>
+                )}
+
+                {/* Estados - Solo para admin */}
+                {currentUser?.role === 'admin' && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Estados</h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Estado de Validación</label>
+                        <p className="text-sm">{getValidationStatusLabel(viewingClient.validationStatus)}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Estado de Venta</label>
+                        <p className="text-sm">{getSaleStatusLabel(viewingClient.saleStatus)}</p>
+                      </div>
                     </div>
-                  )}
-                  {viewingClient.saleComment && (
-                    <div className="mt-3">
-                      <label className="text-sm font-medium text-muted-foreground">Comentario de Venta</label>
-                      <p className="text-sm bg-muted p-2 rounded">{viewingClient.saleComment}</p>
-                    </div>
-                  )}
-                </div>
+                    {viewingClient.validationComment && (
+                      <div className="mt-3">
+                        <label className="text-sm font-medium text-muted-foreground">Comentario de Validación</label>
+                        <p className="text-sm bg-muted p-2 rounded">{viewingClient.validationComment}</p>
+                      </div>
+                    )}
+                    {viewingClient.saleComment && (
+                      <div className="mt-3">
+                        <label className="text-sm font-medium text-muted-foreground">Comentario de Venta</label>
+                        <p className="text-sm bg-muted p-2 rounded">{viewingClient.saleComment}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Historial de Comentarios de Estado */}
                 {viewingClient.statusComments && viewingClient.statusComments.length > 0 && (

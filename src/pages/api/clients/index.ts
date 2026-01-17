@@ -14,16 +14,26 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
-      const { validationStatus, saleStatus } = req.query;
+      const { validationStatus, saleStatus, createdBy } = req.query;
 
       const where: any = {};
 
-      if (validationStatus) {
-        where.validationStatus = validationStatus;
-      }
+      // Solo permitir filtros de estado y creador si el usuario es admin
+      if (session.role === 'admin') {
+        if (validationStatus) {
+          where.validationStatus = validationStatus;
+        }
 
-      if (saleStatus) {
-        where.saleStatus = saleStatus;
+        if (saleStatus) {
+          where.saleStatus = saleStatus;
+        }
+
+        if (createdBy) {
+          where.createdBy = createdBy;
+        }
+      } else {
+        // Usuarios no admin solo ven sus propios clientes
+        where.createdBy = session.userId;
       }
 
       const clients = await prisma.client.findMany({

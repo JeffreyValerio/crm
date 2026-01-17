@@ -8,7 +8,9 @@ import {
   Settings,
   LogOut,
   Package,
-  UserCircle
+  UserCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface NavItem {
@@ -46,6 +48,14 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const router = useRouter();
   const [userRole, setUserRole] = React.useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = React.useState(() => {
+    // Cargar el estado desde localStorage, por defecto false (expandido)
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebarCollapsed');
+      return saved === 'true';
+    }
+    return false;
+  });
 
   React.useEffect(() => {
     async function checkRole() {
@@ -57,6 +67,12 @@ export function Sidebar() {
     }
     checkRole();
   }, []);
+
+  const toggleSidebar = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem('sidebarCollapsed', String(newState));
+  };
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -71,9 +87,29 @@ export function Sidebar() {
   });
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r bg-card">
-      <div className="flex h-16 items-center border-b px-6">
-        <h1 className="text-xl font-bold text-primary">CRM</h1>
+    <div className={cn(
+      "flex h-screen flex-col border-r bg-card transition-all duration-300",
+      isCollapsed ? "w-20" : "w-64"
+    )}>
+      <div className={cn(
+        "flex h-16 items-center border-b px-4",
+        isCollapsed ? "justify-center" : "justify-between"
+      )}>
+        {!isCollapsed && (
+          <h1 className="text-xl font-bold text-primary">CRM</h1>
+        )}
+        <button
+          onClick={toggleSidebar}
+          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors"
+          aria-label={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+          title={isCollapsed ? "Expandir" : "Colapsar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-5 w-5 text-white" />
+          ) : (
+            <ChevronLeft className="h-5 w-5 text-white" />
+          )}
+        </button>
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {filteredNavItems.map((item) => {
@@ -84,14 +120,18 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                isCollapsed ? 'justify-center' : 'gap-3',
                 isActive
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  : 'text-white hover:bg-accent hover:text-accent-foreground'
               )}
+              title={isCollapsed ? item.title : undefined}
             >
-              <Icon className="h-5 w-5" />
-              {item.title}
+              <Icon className="h-5 w-5 flex-shrink-0 text-white" />
+              {!isCollapsed && (
+                <span className="whitespace-nowrap">{item.title}</span>
+              )}
             </Link>
           );
         })}
@@ -99,10 +139,16 @@ export function Sidebar() {
       <div className="border-t p-4">
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          className={cn(
+            "flex items-center rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent hover:text-accent-foreground w-full",
+            isCollapsed ? "justify-center" : "gap-3"
+          )}
+          title={isCollapsed ? "Cerrar sesión" : undefined}
         >
-          <LogOut className="h-5 w-5" />
-          Cerrar sesión
+          <LogOut className="h-5 w-5 flex-shrink-0 text-white" />
+          {!isCollapsed && (
+            <span className="whitespace-nowrap">Cerrar sesión</span>
+          )}
         </button>
       </div>
     </div>
