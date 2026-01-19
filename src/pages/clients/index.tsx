@@ -502,6 +502,8 @@ export default function ClientsPage() {
         ...data,
         stb: data.stb ? parseInt(data.stb) : null,
         fechaNacimiento: data.fechaNacimiento || null,
+        coordenadasLat: data.coordenadasLat?.trim() || null,
+        coordenadasLng: data.coordenadasLng?.trim() || null,
       };
 
       const response = await fetch(url, {
@@ -1276,8 +1278,7 @@ export default function ClientsPage() {
                     <Input
                       {...register('coordenadasLat', { required: 'Las coordenadas de latitud son obligatorias' })}
                       placeholder="Ej: 9.9281"
-                      type="number"
-                      step="any"
+                      type="text"
                     />
                     {errors.coordenadasLat && (
                       <p className="text-sm text-destructive mt-1">{errors.coordenadasLat.message}</p>
@@ -1290,8 +1291,7 @@ export default function ClientsPage() {
                     <Input
                       {...register('coordenadasLng', { required: 'Las coordenadas de longitud son obligatorias' })}
                       placeholder="Ej: -84.0907"
-                      type="number"
-                      step="any"
+                      type="text"
                     />
                     {errors.coordenadasLng && (
                       <p className="text-sm text-destructive mt-1">{errors.coordenadasLng.message}</p>
