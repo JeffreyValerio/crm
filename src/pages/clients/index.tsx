@@ -142,7 +142,7 @@ export default function ClientsPage() {
       tipoIdentificacion: 'NACIONAL',
       numeroIdentificacion: '',
       fechaNacimiento: '',
-      stb: '',
+      stb: '0',
       email: '',
       telefono: '',
       provincia: '',
@@ -364,7 +364,7 @@ export default function ClientsPage() {
         tipoIdentificacion: client.tipoIdentificacion,
         numeroIdentificacion: client.numeroIdentificacion,
         fechaNacimiento: client.fechaNacimiento ? new Date(client.fechaNacimiento).toISOString().split('T')[0] : '',
-        stb: client.stb?.toString() || '',
+        stb: client.stb?.toString() || '0',
         email: client.email || '',
         telefono: client.telefono || '',
         provincia: client.provincia || '',
@@ -400,7 +400,7 @@ export default function ClientsPage() {
         tipoIdentificacion: 'NACIONAL',
         numeroIdentificacion: '',
         fechaNacimiento: '',
-        stb: '',
+        stb: '0',
         email: '',
         telefono: '',
         provincia: '',
@@ -1374,7 +1374,7 @@ export default function ClientsPage() {
                     <Select
                       {...register('stb', { required: 'El STB es obligatorio' })}
                     >
-                      <option value="">Seleccione STB</option>
+                      <option value="0">0</option>
                       <option value="1">1</option>
                       <option value="2">2</option>
                       <option value="3">3</option>
