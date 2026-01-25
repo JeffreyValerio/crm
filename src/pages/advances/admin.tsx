@@ -36,17 +36,23 @@ interface Advance {
   user: {
     id: string;
     email: string;
+    nombre: string | null;
+    apellidos: string | null;
     role: string;
   };
   aprobador: {
     id: string;
     email: string;
+    nombre: string | null;
+    apellidos: string | null;
   } | null;
 }
 
 interface User {
   id: string;
   email: string;
+  nombre?: string | null;
+  apellidos?: string | null;
 }
 
 export default function AdvancesAdminPage() {
@@ -248,6 +254,14 @@ export default function AdvancesAdminPage() {
     }
   }
 
+  function getUserDisplayName(user: { nombre?: string | null; apellidos?: string | null; email?: string } | null | undefined): string {
+    if (!user) return 'N/A';
+    if (user.nombre && user.apellidos) {
+      return `${user.nombre} ${user.apellidos}`;
+    }
+    return user.email || 'N/A';
+  }
+
   function formatearColones(monto: number | string) {
     const num = typeof monto === 'string' ? parseFloat(monto) : monto;
     return `₡${num.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -305,11 +319,14 @@ export default function AdvancesAdminPage() {
                   onChange={(e) => setFilterUserId(e.target.value)}
                 >
                   <option value="">Todos los usuarios</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.email}
-                    </option>
-                  ))}
+                    {users.map((user) => {
+                      const displayName = getUserDisplayName(user);
+                      return (
+                        <option key={user.id} value={user.id}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
                 </Select>
               </div>
             </div>
@@ -347,7 +364,7 @@ export default function AdvancesAdminPage() {
                 ) : (
                   advances.map((advance) => (
                     <TableRow key={advance.id}>
-                      <TableCell className="font-medium">{advance.user.email}</TableCell>
+                      <TableCell className="font-medium">{getUserDisplayName(advance.user)}</TableCell>
                       <TableCell className="font-medium">{formatearColones(advance.monto)}</TableCell>
                       <TableCell>
                         {advance.estado === 'PENDIENTE' 
@@ -433,7 +450,7 @@ export default function AdvancesAdminPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Usuario</label>
-                    <p className="text-sm font-medium">{viewingAdvance.user.email}</p>
+                    <p className="text-sm font-medium">{getUserDisplayName(viewingAdvance.user)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Monto Solicitado</label>

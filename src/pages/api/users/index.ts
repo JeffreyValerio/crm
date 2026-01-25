@@ -22,6 +22,8 @@ export default async function handler(
         select: {
           id: true,
           email: true,
+          nombre: true,
+          apellidos: true,
           role: true,
           password: true,
           inviteToken: true,

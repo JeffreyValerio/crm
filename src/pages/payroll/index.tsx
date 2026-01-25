@@ -53,11 +53,15 @@ interface Payroll {
   user: {
     id: string;
     email: string;
+    nombre: string | null;
+    apellidos: string | null;
     role: string;
   };
   aprobador: {
     id: string;
     email: string;
+    nombre: string | null;
+    apellidos: string | null;
   } | null;
   adelantosDesglose?: AdvanceDetail[];
 }
@@ -65,6 +69,8 @@ interface Payroll {
 interface User {
   id: string;
   email: string;
+  nombre?: string | null;
+  apellidos?: string | null;
 }
 
 export default function PayrollPage() {
@@ -395,6 +401,14 @@ export default function PayrollPage() {
     return `${meses[parseInt(mes) - 1]} ${año}`;
   }
 
+  function getUserDisplayName(user: { nombre?: string | null; apellidos?: string | null; email?: string } | null | undefined): string {
+    if (!user) return 'N/A';
+    if (user.nombre && user.apellidos) {
+      return `${user.nombre} ${user.apellidos}`;
+    }
+    return user.email || 'N/A';
+  }
+
   if (loading) {
     return (
       <MainLayout>
@@ -460,11 +474,14 @@ export default function PayrollPage() {
                   onChange={(e) => setFilterUserId(e.target.value)}
                 >
                   <option value="">Todos los vendedores</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.email}
-                    </option>
-                  ))}
+                  {users.map((user) => {
+                    const displayName = getUserDisplayName(user);
+                    return (
+                      <option key={user.id} value={user.id}>
+                        {displayName}
+                      </option>
+                    );
+                  })}
                 </Select>
               </div>
             </div>
@@ -509,7 +526,7 @@ export default function PayrollPage() {
                     
                     return (
                       <TableRow key={payroll.id}>
-                        <TableCell className="font-medium">{payroll.user.email}</TableCell>
+                        <TableCell className="font-medium">{getUserDisplayName(payroll.user)}</TableCell>
                         <TableCell>{formatearPeriodo(payroll.periodo)}</TableCell>
                         <TableCell>Q{payroll.quincena}</TableCell>
                         <TableCell>{payroll.diasTrabajados} días</TableCell>
@@ -683,7 +700,7 @@ export default function PayrollPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Vendedor</label>
-                    <p className="text-sm font-medium">{viewingPayroll.user.email}</p>
+                    <p className="text-sm font-medium">{getUserDisplayName(viewingPayroll.user)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Período</label>
@@ -777,7 +794,7 @@ export default function PayrollPage() {
                       {viewingPayroll.aprobador && (
                         <div>
                           <label className="text-sm font-medium text-muted-foreground">Aprobado Por</label>
-                          <p className="text-sm font-medium">{viewingPayroll.aprobador.email}</p>
+                          <p className="text-sm font-medium">{getUserDisplayName(viewingPayroll.aprobador)}</p>
                         </div>
                       )}
                     </>

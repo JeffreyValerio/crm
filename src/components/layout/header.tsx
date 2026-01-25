@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export function Header() {
-  const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
+  const router = useRouter();
+  const [user, setUser] = useState<{ email?: string; role?: string; nombre?: string; apellidos?: string } | null>(null);
 
   useEffect(() => {
     async function fetchUser() {
@@ -15,6 +17,10 @@ export function Header() {
     fetchUser();
   }, []);
 
+  const displayName = user?.nombre && user?.apellidos 
+    ? `${user.nombre} ${user.apellidos}` 
+    : user?.email || 'Usuario';
+
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-6">
       <div className="flex items-center gap-4">
@@ -23,7 +29,12 @@ export function Header() {
       <div className="flex items-center gap-4">
         <ThemeToggle />
         <div className="text-right">
-          <p className="text-sm font-medium">{user?.email}</p>
+          <button
+            onClick={() => router.push('/profile')}
+            className="text-sm font-medium hover:text-primary transition-colors cursor-pointer"
+          >
+            {displayName}
+          </button>
           <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
         </div>
       </div>

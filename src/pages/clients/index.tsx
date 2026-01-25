@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Eye, Upload, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle } from 'lucide-react';
 import { CldImage } from 'next-cloudinary';
 import jsPDF from 'jspdf';
+import { toast } from 'sonner';
 
 interface ProductType {
   id: string;
@@ -65,11 +66,14 @@ interface Client {
   validationComment: string | null;
   saleStatus: string | null;
   saleComment: string | null;
+  formulario: string | null;
   planId: string | null;
   plan: Plan | null;
   creator?: {
     id: string;
     email: string;
+    nombre: string | null;
+    apellidos: string | null;
   };
   statusComments?: StatusComment[];
   createdAt: string;
@@ -101,6 +105,7 @@ interface ClientFormData {
   validationComment: string;
   saleStatus: string;
   saleComment: string;
+  formulario: string;
 }
 
 export default function ClientsPage() {
@@ -116,8 +121,7 @@ export default function ClientsPage() {
   const [filterValidationStatus, setFilterValidationStatus] = useState<string>('');
   const [filterSaleStatus, setFilterSaleStatus] = useState<string>('');
   const [filterCreatedBy, setFilterCreatedBy] = useState<string>('');
-  const [users, setUsers] = useState<{ id: string; email: string }[]>([]);
-  const [error, setError] = useState('');
+  const [users, setUsers] = useState<{ id: string; email: string; nombre?: string | null; apellidos?: string | null }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ role?: string } | null>(null);
@@ -127,6 +131,9 @@ export default function ClientsPage() {
   const [loadingCantones, setLoadingCantones] = useState(false);
   const [loadingDistritos, setLoadingDistritos] = useState(false);
   const [initializingForm, setInitializingForm] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
 
   const {
     register,
@@ -161,6 +168,7 @@ export default function ClientsPage() {
       validationComment: '',
       saleStatus: '',
       saleComment: '',
+      formulario: '',
     },
   });
 
@@ -273,6 +281,23 @@ export default function ClientsPage() {
     }
   }, [filterValidationStatus, filterSaleStatus, filterCreatedBy, loading, currentUser]);
 
+  // Cerrar menú al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId) {
+        setOpenMenuId(null);
+        setMenuPosition(null);
+      }
+    };
+
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [openMenuId]);
+
   async function loadClients() {
     const params = new URLSearchParams();
     // Solo aplicar filtros de estado y creador si el usuario es admin
@@ -293,7 +318,12 @@ export default function ClientsPage() {
     const response = await fetch('/api/users');
     if (response.ok) {
       const data = await response.json();
-      setUsers(data.users?.map((u: { id: string; email: string }) => ({ id: u.id, email: u.email })) || []);
+      setUsers(data.users?.map((u: { id: string; email: string; nombre?: string; apellidos?: string }) => ({ 
+        id: u.id, 
+        email: u.email,
+        nombre: u.nombre,
+        apellidos: u.apellidos,
+      })) || []);
     }
   }
 
@@ -341,6 +371,22 @@ export default function ClientsPage() {
     setLoadingDistritos(false);
   }
 
+  async function handleCopyToClipboard(value: string, fieldName: string) {
+    if (!value) return;
+    
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(fieldName);
+      toast.success('Copiado al portapapeles');
+      setTimeout(() => {
+        setCopiedField(null);
+      }, 2000);
+    } catch (error) {
+      console.error('Error al copiar:', error);
+      toast.error('Error al copiar al portapapeles');
+    }
+  }
+
   async function handleOpenDialog(client?: Client) {
     if (client) {
       setEditingClient(client);
@@ -383,6 +429,7 @@ export default function ClientsPage() {
         validationComment: client.validationComment || '',
         saleStatus: client.saleStatus || '',
         saleComment: client.saleComment || '',
+        formulario: client.formulario || '',
       }, { keepDefaultValues: false });
       
       // Desactivar flag de inicialización después de un pequeño delay
@@ -419,9 +466,9 @@ export default function ClientsPage() {
         validationComment: '',
         saleStatus: '',
         saleComment: '',
+        formulario: '',
       });
     }
-    setError('');
     setDialogOpen(true);
   }
 
@@ -461,11 +508,12 @@ export default function ClientsPage() {
 
         if (response.ok) {
           setValue(field, data.url);
+          toast.success('Imagen subida correctamente');
         } else {
-          alert(data.error || 'Error al subir la imagen');
+          toast.error(data.error || 'Error al subir la imagen');
         }
       } catch (error) {
-        alert('Error al subir la imagen');
+        toast.error('Error al subir la imagen');
       } finally {
         setUploadingImage(null);
       }
@@ -490,7 +538,6 @@ export default function ClientsPage() {
   }
 
   const onSubmit = async (data: ClientFormData) => {
-    setError('');
     setSubmitting(true);
 
     try {
@@ -519,11 +566,12 @@ export default function ClientsPage() {
         setDialogOpen(false);
         setEditingClient(null);
         reset();
+        toast.success(editingClient ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente');
       } else {
-        setError(result.error || 'Error al guardar el cliente');
+        toast.error(result.error || 'Error al guardar el cliente');
       }
     } catch (error) {
-      setError('Error al procesar la solicitud');
+      toast.error('Error al procesar la solicitud');
     } finally {
       setSubmitting(false);
     }
@@ -540,9 +588,49 @@ export default function ClientsPage() {
 
     if (response.ok) {
       await loadClients();
+      toast.success('Cliente eliminado correctamente');
     } else {
-      alert('Error al eliminar el cliente');
+      toast.error('Error al eliminar el cliente');
     }
+  }
+
+  function handleWhatsApp(client: Client) {
+    // Formatear fecha de hoy
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    const fechaVenta = `${day}/${month}/${year}`;
+
+    // Obtener nombre completo
+    const nombreCompleto = `${client.nombres} ${client.apellidos}`.toUpperCase();
+
+    // Obtener producto/paquete
+    const paquete = client.plan?.nombre || 'N/A';
+
+    // Obtener asesor (creador)
+    const asesor = getUserDisplayName(client.creator) || 'N/A';
+
+    // Construir el mensaje
+    const mensaje = `Nombre: ${nombreCompleto}
+Cédula: ${client.numeroIdentificacion}
+Provincia: ${client.provincia}
+Cantón: ${client.canton}
+Formulario: ${client.formulario || ''}
+Paquete: ${paquete}
+Venta: ${fechaVenta}
+Orden: 
+Asesor: ${asesor}
+Comentario: En espera de Instalacion`;
+
+    // Codificar el mensaje para URL
+    const mensajeCodificado = encodeURIComponent(mensaje);
+
+    // Abrir WhatsApp Web o app
+    window.open(`https://wa.me/?text=${mensajeCodificado}`, '_blank');
+    
+    setOpenMenuId(null);
+    setMenuPosition(null);
   }
 
   async function handleView(client: Client) {
@@ -679,9 +767,10 @@ export default function ClientsPage() {
       // Descargar PDF
       const fileName = `Cliente_${client.nombres}_${client.apellidos}_${client.numeroIdentificacion}.pdf`;
       pdf.save(fileName);
+      toast.success('PDF generado correctamente');
     } catch (error) {
       console.error('Error al generar PDF:', error);
-      alert('Error al generar el PDF. Por favor, intente nuevamente.');
+      toast.error('Error al generar el PDF. Por favor, intente nuevamente.');
     }
   }
 
@@ -704,6 +793,14 @@ export default function ClientsPage() {
       CANCELADA: 'Cancelada',
     };
     return labels[status || ''] || status || 'N/A';
+  }
+
+  function getUserDisplayName(user: { nombre?: string | null; apellidos?: string | null; email?: string } | null | undefined): string {
+    if (!user) return 'N/A';
+    if (user.nombre && user.apellidos) {
+      return `${user.nombre} ${user.apellidos}`;
+    }
+    return user.email || 'N/A';
   }
 
   if (loading) {
@@ -771,11 +868,14 @@ export default function ClientsPage() {
                     onChange={(e) => setFilterCreatedBy(e.target.value)}
                   >
                     <option value="">Todos los usuarios</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.email}
-                      </option>
-                    ))}
+                    {users.map((user) => {
+                      const displayName = getUserDisplayName(user);
+                      return (
+                        <option key={user.id} value={user.id}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
                   </Select>
                 </div>
               </div>
@@ -795,6 +895,7 @@ export default function ClientsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Formulario</TableHead>
                   <TableHead>Identificación</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Plan</TableHead>
@@ -811,7 +912,7 @@ export default function ClientsPage() {
               <TableBody>
                 {clients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={currentUser?.role === 'admin' ? 8 : 5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={currentUser?.role === 'admin' ? 9 : 6} className="text-center text-muted-foreground">
                       No hay clientes registrados
                     </TableCell>
                   </TableRow>
@@ -819,6 +920,7 @@ export default function ClientsPage() {
                   clients.map((client) => (
                     <TableRow key={client.id}>
                       <TableCell>{client.nombres} {client.apellidos}</TableCell>
+                      <TableCell>{client.formulario || 'N/A'}</TableCell>
                       <TableCell>{client.numeroIdentificacion}</TableCell>
                       <TableCell>{client.telefono || 'N/A'}</TableCell>
                       <TableCell>{client.plan?.nombre || 'N/A'}</TableCell>
@@ -826,42 +928,28 @@ export default function ClientsPage() {
                         <>
                           <TableCell>{getValidationStatusLabel(client.validationStatus)}</TableCell>
                           <TableCell>{getSaleStatusLabel(client.saleStatus)}</TableCell>
-                          <TableCell>{client.creator?.email || 'N/A'}</TableCell>
+                          <TableCell>{getUserDisplayName(client.creator)}</TableCell>
                         </>
                       )}
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="relative">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => handleView(client)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const button = e.currentTarget;
+                              const rect = button.getBoundingClientRect();
+                              setMenuPosition({
+                                top: rect.bottom + 8,
+                                right: window.innerWidth - rect.right,
+                              });
+                              setOpenMenuId(openMenuId === client.id ? null : client.id);
+                            }}
+                            className="h-8 w-8 p-0"
                           >
-                            <Eye className="h-4 w-4" />
+                            <MoreVertical className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenDialog(client)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadPDF(client)}
-                            title="Descargar fotos como PDF"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          {currentUser?.role === 'admin' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(client.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -871,6 +959,96 @@ export default function ClientsPage() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Menú flotante de acciones */}
+        {openMenuId && menuPosition && (
+          <>
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={() => {
+                setOpenMenuId(null);
+                setMenuPosition(null);
+              }}
+            />
+            <div 
+              className="fixed z-50 w-56 rounded-md border bg-background shadow-lg"
+              style={{
+                top: `${menuPosition.top}px`,
+                right: `${menuPosition.right}px`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-1">
+                {(() => {
+                  const client = clients.find(c => c.id === openMenuId);
+                  if (!client) return null;
+                  return (
+                    <>
+                      <button
+                        onClick={() => {
+                          handleView(client);
+                          setOpenMenuId(null);
+                          setMenuPosition(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Ver detalles
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleOpenDialog(client);
+                          setOpenMenuId(null);
+                          setMenuPosition(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      >
+                        <Edit className="h-4 w-4" />
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDownloadPDF(client);
+                          setOpenMenuId(null);
+                          setMenuPosition(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      >
+                        <Download className="h-4 w-4" />
+                        Descargar PDF
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleWhatsApp(client);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        WhatsApp
+                      </button>
+                      {currentUser?.role === 'admin' && (
+                        <>
+                          <div className="h-px bg-border my-1" />
+                          <button
+                            onClick={() => {
+                              handleDelete(client.id);
+                              setOpenMenuId(null);
+                              setMenuPosition(null);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-destructive/10 hover:text-destructive transition-colors text-left text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Eliminar
+                          </button>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Dialog para crear/editar */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -885,12 +1063,6 @@ export default function ClientsPage() {
             </DialogHeader>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {error && (
-                <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm">
-                  {error}
-                </div>
-              )}
-
               {/* Fotos */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="font-semibold text-base flex items-center gap-2">
@@ -1078,10 +1250,27 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Nombres <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      {...register('nombres', { required: 'Los nombres son obligatorios' })}
-                      placeholder="Ingrese los nombres"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('nombres', { required: 'Los nombres son obligatorios' })}
+                        placeholder="Ingrese los nombres"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('nombres'), 'nombres')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'nombres' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.nombres && (
                       <p className="text-sm text-destructive mt-1">{errors.nombres.message}</p>
                     )}
@@ -1090,10 +1279,27 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Apellidos <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      {...register('apellidos', { required: 'Los apellidos son obligatorios' })}
-                      placeholder="Ingrese los apellidos"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('apellidos', { required: 'Los apellidos son obligatorios' })}
+                        placeholder="Ingrese los apellidos"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('apellidos'), 'apellidos')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'apellidos' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.apellidos && (
                       <p className="text-sm text-destructive mt-1">{errors.apellidos.message}</p>
                     )}
@@ -1119,10 +1325,27 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Número de Identificación <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      {...register('numeroIdentificacion', { required: 'El número de identificación es obligatorio' })}
-                      placeholder="Ingrese el número de identificación"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('numeroIdentificacion', { required: 'El número de identificación es obligatorio' })}
+                        placeholder="Ingrese el número de identificación"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('numeroIdentificacion'), 'numeroIdentificacion')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'numeroIdentificacion' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.numeroIdentificacion && (
                       <p className="text-sm text-destructive mt-1">{errors.numeroIdentificacion.message}</p>
                     )}
@@ -1131,10 +1354,27 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Fecha de Nacimiento <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      type="date"
-                      {...register('fechaNacimiento', { required: 'La fecha de nacimiento es obligatoria' })}
-                    />
+                    <div className="relative">
+                      <Input
+                        type="date"
+                        {...register('fechaNacimiento', { required: 'La fecha de nacimiento es obligatoria' })}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('fechaNacimiento'), 'fechaNacimiento')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'fechaNacimiento' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.fechaNacimiento && (
                       <p className="text-sm text-destructive mt-1">{errors.fechaNacimiento.message}</p>
                     )}
@@ -1153,17 +1393,34 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Email <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      type="email"
-                      {...register('email', { 
-                        required: 'El email es obligatorio',
-                        pattern: {
-                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: 'Email inválido'
-                        }
-                      })}
-                      placeholder="ejemplo@correo.com"
-                    />
+                    <div className="relative">
+                      <Input
+                        type="email"
+                        {...register('email', { 
+                          required: 'El email es obligatorio',
+                          pattern: {
+                            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                            message: 'Email inválido'
+                          }
+                        })}
+                        placeholder="ejemplo@correo.com"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('email'), 'email')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'email' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.email && (
                       <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
                     )}
@@ -1172,10 +1429,46 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Teléfono <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      {...register('telefono', { required: 'El teléfono es obligatorio' })}
-                      placeholder="8888-8888"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('telefono', { 
+                          required: 'El teléfono es obligatorio',
+                          pattern: {
+                            value: /^\d{8}$/,
+                            message: 'El teléfono debe tener exactamente 8 dígitos'
+                          }
+                        })}
+                        placeholder="88888888"
+                        className="pr-10"
+                        maxLength={8}
+                        onChange={(e) => {
+                          // Filtrar solo números y limitar a 8 dígitos
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 8);
+                          e.target.value = value;
+                          setValue('telefono', value, { shouldValidate: true });
+                        }}
+                        onKeyPress={(e) => {
+                          // Solo permitir números
+                          if (!/[0-9]/.test(e.key)) {
+                            e.preventDefault();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('telefono'), 'telefono')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'telefono' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.telefono && (
                       <p className="text-sm text-destructive mt-1">{errors.telefono.message}</p>
                     )}
@@ -1262,10 +1555,27 @@ export default function ClientsPage() {
                   <label className="text-sm font-medium mb-2 block">
                     Señas Exactas <span className="text-destructive">*</span>
                   </label>
-                  <Input
-                    {...register('senasExactas', { required: 'Las señas exactas son obligatorias' })}
-                    placeholder="Descripción detallada de la ubicación"
-                  />
+                  <div className="relative">
+                    <Input
+                      {...register('senasExactas', { required: 'Las señas exactas son obligatorias' })}
+                      placeholder="Descripción detallada de la ubicación"
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => handleCopyToClipboard(watch('senasExactas'), 'senasExactas')}
+                      title="Copiar"
+                    >
+                      {copiedField === 'senasExactas' ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                   {errors.senasExactas && (
                     <p className="text-sm text-destructive mt-1">{errors.senasExactas.message}</p>
                   )}
@@ -1275,11 +1585,28 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Coordenadas Latitud <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      {...register('coordenadasLat', { required: 'Las coordenadas de latitud son obligatorias' })}
-                      placeholder="Ej: 9.9281"
-                      type="text"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('coordenadasLat', { required: 'Las coordenadas de latitud son obligatorias' })}
+                        placeholder="Ej: 9.9281"
+                        type="text"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('coordenadasLat'), 'coordenadasLat')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'coordenadasLat' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.coordenadasLat && (
                       <p className="text-sm text-destructive mt-1">{errors.coordenadasLat.message}</p>
                     )}
@@ -1288,11 +1615,28 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Coordenadas Longitud <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      {...register('coordenadasLng', { required: 'Las coordenadas de longitud son obligatorias' })}
-                      placeholder="Ej: -84.0907"
-                      type="text"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('coordenadasLng', { required: 'Las coordenadas de longitud son obligatorias' })}
+                        placeholder="Ej: -84.0907"
+                        type="text"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('coordenadasLng'), 'coordenadasLng')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'coordenadasLng' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.coordenadasLng && (
                       <p className="text-sm text-destructive mt-1">{errors.coordenadasLng.message}</p>
                     )}
@@ -1311,10 +1655,27 @@ export default function ClientsPage() {
                     <label className="text-sm font-medium mb-2 block">
                       Número de Medidor <span className="text-destructive">*</span>
                     </label>
-                    <Input
-                      {...register('numeroMedidor', { required: 'El número de medidor es obligatorio' })}
-                      placeholder="Ingrese el número de medidor"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('numeroMedidor', { required: 'El número de medidor es obligatorio' })}
+                        placeholder="Ingrese el número de medidor"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('numeroMedidor'), 'numeroMedidor')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'numeroMedidor' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     {errors.numeroMedidor && (
                       <p className="text-sm text-destructive mt-1">{errors.numeroMedidor.message}</p>
                     )}
@@ -1420,18 +1781,78 @@ export default function ClientsPage() {
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">Comentario de Validación</label>
-                    <Input
-                      {...register('validationComment')}
-                      placeholder="Comentario sobre el estado de validación"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('validationComment')}
+                        placeholder="Comentario sobre el estado de validación"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('validationComment'), 'validationComment')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'validationComment' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">Comentario de Venta</label>
-                    <Input
-                      {...register('saleComment')}
-                      placeholder="Comentario sobre el estado de venta"
-                    />
+                    <div className="relative">
+                      <Input
+                        {...register('saleComment')}
+                        placeholder="Comentario sobre el estado de venta"
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('saleComment'), 'saleComment')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'saleComment' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
+                  {watch('saleStatus') && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Formulario</label>
+                      <div className="relative">
+                        <Input
+                          {...register('formulario')}
+                          placeholder="Ingrese el formulario"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(watch('formulario'), 'formulario')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'formulario' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1547,31 +1968,151 @@ export default function ClientsPage() {
                   <h3 className="font-semibold mb-3">Datos Personales</h3>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Nombres</label>
-                      <p className="text-sm">{viewingClient.nombres}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Nombres</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.nombres}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.nombres, 'view-nombres')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'view-nombres' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Apellidos</label>
-                      <p className="text-sm">{viewingClient.apellidos}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Apellidos</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.apellidos}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.apellidos, 'view-apellidos')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'view-apellidos' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Tipo de Identificación</label>
-                      <p className="text-sm">{viewingClient.tipoIdentificacion}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Tipo de Identificación</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.tipoIdentificacion}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.tipoIdentificacion, 'view-tipoIdentificacion')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'view-tipoIdentificacion' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Número de Identificación</label>
-                      <p className="text-sm">{viewingClient.numeroIdentificacion}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Número de Identificación</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.numeroIdentificacion}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.numeroIdentificacion, 'view-numeroIdentificacion')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'view-numeroIdentificacion' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     {viewingClient.fechaNacimiento && (
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Fecha de Nacimiento</label>
-                        <p className="text-sm">{new Date(viewingClient.fechaNacimiento).toLocaleDateString('es-CR')}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Fecha de Nacimiento</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={new Date(viewingClient.fechaNacimiento!).toLocaleDateString('es-CR')}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(new Date(viewingClient.fechaNacimiento!).toLocaleDateString('es-CR'), 'view-fechaNacimiento')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-fechaNacimiento' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     )}
                     {viewingClient.stb && (
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">STB</label>
-                        <p className="text-sm">{viewingClient.stb}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">STB</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={String(viewingClient.stb)}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(String(viewingClient.stb), 'view-stb')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-stb' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1582,12 +2123,54 @@ export default function ClientsPage() {
                   <h3 className="font-semibold mb-3">Contacto</h3>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Email</label>
-                      <p className="text-sm">{viewingClient.email || 'N/A'}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Email</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.email || 'N/A'}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.email || '', 'view-email')}
+                          title="Copiar"
+                          disabled={!viewingClient.email}
+                        >
+                          {copiedField === 'view-email' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Teléfono</label>
-                      <p className="text-sm">{viewingClient.telefono || 'N/A'}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Teléfono</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.telefono || 'N/A'}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.telefono || '', 'view-telefono')}
+                          title="Copiar"
+                          disabled={!viewingClient.telefono}
+                        >
+                          {copiedField === 'view-telefono' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1598,31 +2181,153 @@ export default function ClientsPage() {
                   <div className="space-y-2">
                     <div className="grid gap-4 md:grid-cols-3">
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Provincia</label>
-                        <p className="text-sm">{viewingClient.provincia}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Provincia</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={viewingClient.provincia}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(viewingClient.provincia, 'view-provincia')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-provincia' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Cantón</label>
-                        <p className="text-sm">{viewingClient.canton}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Cantón</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={viewingClient.canton}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(viewingClient.canton, 'view-canton')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-canton' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Distrito</label>
-                        <p className="text-sm">{viewingClient.distrito}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Distrito</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={viewingClient.distrito}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(viewingClient.distrito, 'view-distrito')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-distrito' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Señas Exactas</label>
-                      <p className="text-sm">{viewingClient.senasExactas}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Señas Exactas</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.senasExactas}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.senasExactas, 'view-senasExactas')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'view-senasExactas' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     {(viewingClient.coordenadasLat || viewingClient.coordenadasLng) && (
                       <div className="grid gap-4 md:grid-cols-2">
                         <div>
-                          <label className="text-sm font-medium text-muted-foreground">Latitud</label>
-                          <p className="text-sm">{viewingClient.coordenadasLat || 'N/A'}</p>
+                          <label className="text-sm font-medium text-muted-foreground mb-2 block">Latitud</label>
+                          <div className="relative">
+                            <Input
+                              readOnly
+                              value={viewingClient.coordenadasLat || 'N/A'}
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => handleCopyToClipboard(viewingClient.coordenadasLat || '', 'view-coordenadasLat')}
+                              title="Copiar"
+                              disabled={!viewingClient.coordenadasLat}
+                            >
+                              {copiedField === 'view-coordenadasLat' ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                         <div>
-                          <label className="text-sm font-medium text-muted-foreground">Longitud</label>
-                          <p className="text-sm">{viewingClient.coordenadasLng || 'N/A'}</p>
+                          <label className="text-sm font-medium text-muted-foreground mb-2 block">Longitud</label>
+                          <div className="relative">
+                            <Input
+                              readOnly
+                              value={viewingClient.coordenadasLng || 'N/A'}
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => handleCopyToClipboard(viewingClient.coordenadasLng || '', 'view-coordenadasLng')}
+                              title="Copiar"
+                              disabled={!viewingClient.coordenadasLng}
+                            >
+                              {copiedField === 'view-coordenadasLng' ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1634,12 +2339,54 @@ export default function ClientsPage() {
                   <h3 className="font-semibold mb-3">Información Técnica</h3>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Número de Medidor</label>
-                      <p className="text-sm">{viewingClient.numeroMedidor || 'N/A'}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Número de Medidor</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.numeroMedidor || 'N/A'}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.numeroMedidor || '', 'view-numeroMedidor')}
+                          title="Copiar"
+                          disabled={!viewingClient.numeroMedidor}
+                        >
+                          {copiedField === 'view-numeroMedidor' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Plan</label>
-                      <p className="text-sm">{viewingClient.plan?.nombre || 'N/A'}</p>
+                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Plan</label>
+                      <div className="relative">
+                        <Input
+                          readOnly
+                          value={viewingClient.plan?.nombre || 'N/A'}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(viewingClient.plan?.nombre || '', 'view-plan')}
+                          title="Copiar"
+                          disabled={!viewingClient.plan?.nombre}
+                        >
+                          {copiedField === 'view-plan' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1650,12 +2397,52 @@ export default function ClientsPage() {
                     <h3 className="font-semibold mb-3">Información del Sistema</h3>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Creado Por</label>
-                        <p className="text-sm">{viewingClient.creator?.email || 'N/A'}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Creado Por</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={getUserDisplayName(viewingClient.creator)}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(getUserDisplayName(viewingClient.creator), 'view-creator')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-creator' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Fecha de Creación</label>
-                        <p className="text-sm">{new Date(viewingClient.createdAt).toLocaleString('es-CR')}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Fecha de Creación</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={new Date(viewingClient.createdAt).toLocaleString('es-CR')}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(new Date(viewingClient.createdAt).toLocaleString('es-CR'), 'view-createdAt')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-createdAt' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1667,24 +2454,130 @@ export default function ClientsPage() {
                     <h3 className="font-semibold mb-3">Estados</h3>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Estado de Validación</label>
-                        <p className="text-sm">{getValidationStatusLabel(viewingClient.validationStatus)}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Estado de Validación</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={getValidationStatusLabel(viewingClient.validationStatus)}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(getValidationStatusLabel(viewingClient.validationStatus), 'view-validationStatus')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-validationStatus' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Estado de Venta</label>
-                        <p className="text-sm">{getSaleStatusLabel(viewingClient.saleStatus)}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Estado de Venta</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={getSaleStatusLabel(viewingClient.saleStatus)}
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(getSaleStatusLabel(viewingClient.saleStatus), 'view-saleStatus')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-saleStatus' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                     {viewingClient.validationComment && (
                       <div className="mt-3">
-                        <label className="text-sm font-medium text-muted-foreground">Comentario de Validación</label>
-                        <p className="text-sm bg-muted p-2 rounded">{viewingClient.validationComment}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Comentario de Validación</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={viewingClient.validationComment}
+                            className="pr-10 bg-muted"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(viewingClient.validationComment!, 'view-validationComment')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-validationComment' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     )}
                     {viewingClient.saleComment && (
                       <div className="mt-3">
-                        <label className="text-sm font-medium text-muted-foreground">Comentario de Venta</label>
-                        <p className="text-sm bg-muted p-2 rounded">{viewingClient.saleComment}</p>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Comentario de Venta</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={viewingClient.saleComment}
+                            className="pr-10 bg-muted"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(viewingClient.saleComment!, 'view-saleComment')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-saleComment' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {viewingClient.saleStatus && viewingClient.formulario && (
+                      <div className="mt-3">
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Formulario</label>
+                        <div className="relative">
+                          <Input
+                            readOnly
+                            value={viewingClient.formulario}
+                            className="pr-10 bg-muted"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(viewingClient.formulario!, 'view-formulario')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'view-formulario' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1720,7 +2613,7 @@ export default function ClientsPage() {
                               <p className="text-sm text-muted-foreground mb-2">{comment.comentario}</p>
                             )}
                             <p className="text-xs text-muted-foreground">
-                              Por: {comment.creator.email}
+                              Por: {getUserDisplayName(comment.creator)}
                             </p>
                           </CardContent>
                         </Card>

@@ -29,6 +29,8 @@ export default async function handler(
             select: {
               id: true,
               email: true,
+              nombre: true,
+              apellidos: true,
             },
           },
           statusComments: {
@@ -37,6 +39,8 @@ export default async function handler(
                 select: {
                   id: true,
                   email: true,
+                  nombre: true,
+                  apellidos: true,
                 },
               },
             },
@@ -89,6 +93,7 @@ export default async function handler(
         validationComment,
         saleStatus,
         saleComment,
+        formulario,
       } = req.body;
 
       // Obtener el cliente actual para comparar estados
@@ -206,6 +211,11 @@ export default async function handler(
         } else if (saleComment !== undefined) {
           updateData.saleComment = saleComment.trim();
         }
+
+        // Actualizar formulario si se proporciona
+        if (formulario !== undefined) {
+          updateData.formulario = formulario?.trim() || null;
+        }
       }
       // Si no es admin, ignoramos los cambios de estado y mantenemos los valores actuales
 
@@ -222,6 +232,8 @@ export default async function handler(
             select: {
               id: true,
               email: true,
+              nombre: true,
+              apellidos: true,
             },
           },
           statusComments: {
@@ -230,6 +242,8 @@ export default async function handler(
                 select: {
                   id: true,
                   email: true,
+                  nombre: true,
+                  apellidos: true,
                 },
               },
             },

@@ -16,12 +16,17 @@ interface ClientStats {
 interface User {
   id: string;
   email: string;
+  nombre?: string | null;
+  apellidos?: string | null;
 }
 
 interface ComplianceStats {
   userId: string;
   email: string;
+  nombre?: string | null;
+  apellidos?: string | null;
   installed: number;
+  pending: number;
   target: number;
   percentage: number;
 }
@@ -29,7 +34,7 @@ interface ComplianceStats {
 export default function HomePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
+  const [user, setUser] = useState<{ email?: string; role?: string; nombre?: string; apellidos?: string } | null>(null);
   const [stats, setStats] = useState<ClientStats[]>([]);
   const [totalClients, setTotalClients] = useState(0);
   const [filterCreatedBy, setFilterCreatedBy] = useState<string>('');
@@ -75,7 +80,12 @@ export default function HomePage() {
       const response = await fetch('/api/users');
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users?.map((u: { id: string; email: string }) => ({ id: u.id, email: u.email })) || []);
+        setUsers(data.users?.map((u: { id: string; email: string; nombre?: string; apellidos?: string }) => ({ 
+          id: u.id, 
+          email: u.email,
+          nombre: u.nombre,
+          apellidos: u.apellidos,
+        })) || []);
       }
     } catch (error) {
       console.error('Error loading users:', error);
@@ -173,24 +183,33 @@ export default function HomePage() {
         const clients = data.clients || [];
         
         const TARGET_SALES = 10; // Meta de ventas instaladas
-        const complianceMap = new Map<string, { userId: string; email: string; installed: number }>();
+        const complianceMap = new Map<string, { userId: string; email: string; nombre?: string | null; apellidos?: string | null; installed: number; pending: number }>();
 
-        // Contar clientes instalados por vendedor
+        // Contar clientes instalados y pendientes por vendedor
         clients.forEach((client: any) => {
-          if (client.saleStatus === 'INSTALADA' && client.creator) {
+          if (client.creator) {
             const userId = client.creator.id;
             const email = client.creator.email;
+            const nombre = client.creator.nombre;
+            const apellidos = client.creator.apellidos;
             
             if (!complianceMap.has(userId)) {
               complianceMap.set(userId, {
                 userId,
                 email,
+                nombre,
+                apellidos,
                 installed: 0,
+                pending: 0,
               });
             }
             
             const stats = complianceMap.get(userId)!;
-            stats.installed++;
+            if (client.saleStatus === 'INSTALADA') {
+              stats.installed++;
+            } else if (client.saleStatus === 'PENDIENTE_INSTALACION') {
+              stats.pending++;
+            }
           }
         });
 
@@ -199,6 +218,7 @@ export default function HomePage() {
           const percentage = Math.min((stat.installed / TARGET_SALES) * 100, 100);
           return {
             ...stat,
+            pending: stat.pending || 0,
             target: TARGET_SALES,
             percentage: Math.round(percentage),
           };
@@ -207,10 +227,16 @@ export default function HomePage() {
         // Si no es admin, solo mostrar el cumplimiento del usuario actual
         if (user?.role !== 'admin' && currentUserId) {
           const userStats = stats.find((s) => s.userId === currentUserId);
+          const displayName = user?.nombre && user?.apellidos 
+            ? `${user.nombre} ${user.apellidos}` 
+            : user?.email || 'Usuario';
           setComplianceStats(userStats ? [userStats] : [{
             userId: currentUserId,
             email: user?.email || 'Usuario',
+            nombre: user?.nombre || null,
+            apellidos: user?.apellidos || null,
             installed: 0,
+            pending: 0,
             target: TARGET_SALES,
             percentage: 0,
           }]);
@@ -349,7 +375,7 @@ export default function HomePage() {
         <div className="flex flex-col gap-2">
           <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground text-lg">
-            Bienvenido de vuelta, {user?.email}
+            Bienvenido de vuelta, {user?.nombre && user?.apellidos ? `${user.nombre} ${user.apellidos}` : user?.email}
           </p>
         </div>
 
@@ -371,11 +397,16 @@ export default function HomePage() {
                     onChange={(e) => setFilterCreatedBy(e.target.value)}
                   >
                     <option value="">Todos los usuarios</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.email}
-                      </option>
-                    ))}
+                    {users.map((u) => {
+                      const displayName = u.nombre && u.apellidos 
+                        ? `${u.nombre} ${u.apellidos}` 
+                        : u.email;
+                      return (
+                        <option key={u.id} value={u.id}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
                   </Select>
                 </div>
               )}
@@ -549,7 +580,7 @@ export default function HomePage() {
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base font-semibold flex items-center gap-2">
                         <UserCircle className="h-4 w-4 text-primary" />
-                        {stat.email}
+                        {stat.nombre && stat.apellidos ? `${stat.nombre} ${stat.apellidos}` : stat.email}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -585,6 +616,14 @@ export default function HomePage() {
                                 : "text-red-600"
                             )}>
                               {stat.percentage}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="pt-3 border-t">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Pendientes</span>
+                            <span className="text-lg font-bold text-blue-600">
+                              {stat.pending || 0}
                             </span>
                           </div>
                         </div>
@@ -648,6 +687,14 @@ export default function HomePage() {
                             : "text-red-600"
                         )}>
                           {complianceStats[0]?.percentage || 0}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Total de Pendientes</span>
+                        <span className="text-2xl font-bold text-blue-600">
+                          {complianceStats[0]?.pending || 0}
                         </span>
                       </div>
                     </div>

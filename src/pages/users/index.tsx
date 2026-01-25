@@ -11,6 +11,8 @@ import { Plus, Edit, Trash2, Mail } from 'lucide-react';
 interface User {
   id: string;
   email: string;
+  nombre: string | null;
+  apellidos: string | null;
   role: string;
   password: string | null;
   inviteToken: string | null;
@@ -145,6 +147,7 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Usuario</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Rol</TableHead>
@@ -155,57 +158,63 @@ export default function UsersPage() {
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                       No hay usuarios registrados
                     </TableCell>
                   </TableRow>
                 ) : (
-                  users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell>
-                        {user.password ? (
-                          <span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600">
-                            Activo
+                  users.map((user) => {
+                    const displayName = user.nombre && user.apellidos 
+                      ? `${user.nombre} ${user.apellidos}` 
+                      : user.email;
+                    return (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{displayName}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{user.email}</TableCell>
+                        <TableCell>
+                          {user.password ? (
+                            <span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600">
+                              Activo
+                            </span>
+                          ) : user.inviteToken ? (
+                            <span className="inline-flex items-center rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-xs font-medium text-yellow-600">
+                              Invitación Pendiente
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-gray-500/10 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                              Inactivo
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary capitalize">
+                            {user.role}
                           </span>
-                        ) : user.inviteToken ? (
-                          <span className="inline-flex items-center rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-xs font-medium text-yellow-600">
-                            Invitación Pendiente
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-gray-500/10 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                            Inactivo
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary capitalize">
-                          {user.role}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(user.createdAt).toLocaleDateString('es-ES', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(user.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell>
+                          {new Date(user.createdAt).toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(user.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

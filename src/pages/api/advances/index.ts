@@ -37,6 +37,8 @@ export default async function handler(
             select: {
               id: true,
               email: true,
+              nombre: true,
+              apellidos: true,
               role: true,
             },
           },
@@ -44,6 +46,8 @@ export default async function handler(
             select: {
               id: true,
               email: true,
+              nombre: true,
+              apellidos: true,
             },
           },
         },
