@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Mail } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface User {
   id: string;
@@ -30,6 +31,11 @@ export default function UsersPage() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
 
   useEffect(() => {
     async function checkAuth() {
@@ -58,6 +64,60 @@ export default function UsersPage() {
     checkAuth();
   }, [router]);
 
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    setNewPassword('');
+    setConfirmPassword('');
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingUser) return;
+
+    if (!newPassword) {
+      toast.error('La contraseña es requerida');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('Las contraseñas no coinciden');
+      return;
+    }
+
+    setEditLoading(true);
+
+    try {
+      const response = await fetch(`/api/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Contraseña actualizada correctamente');
+        setEditDialogOpen(false);
+        setEditingUser(null);
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        toast.error(data.error || 'Error al actualizar la contraseña');
+      }
+    } catch (error) {
+      toast.error('Error al procesar la solicitud');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
       return;
@@ -69,8 +129,10 @@ export default function UsersPage() {
 
     if (response.ok) {
       setUsers(users.filter(user => user.id !== id));
+      toast.success('Usuario eliminado correctamente');
     } else {
-      alert('Error al eliminar el usuario');
+      const data = await response.json();
+      toast.error(data.error || 'Error al eliminar el usuario');
     }
   };
 
@@ -200,13 +262,19 @@ export default function UsersPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleEdit(user)}
+                              title="Editar contraseña"
+                            >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => handleDelete(user.id)}
+                              title="Eliminar usuario"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -275,6 +343,76 @@ export default function UsersPage() {
                 </Button>
                 <Button type="submit" disabled={inviteLoading || inviteSuccess}>
                   {inviteLoading ? 'Enviando...' : inviteSuccess ? 'Enviado ✓' : 'Enviar Invitación'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Diálogo de Edición de Contraseña */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Cambiar Contraseña</DialogTitle>
+              <DialogDescription>
+                Cambia la contraseña del usuario {editingUser?.nombre && editingUser?.apellidos 
+                  ? `${editingUser.nombre} ${editingUser.apellidos}` 
+                  : editingUser?.email}
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div>
+                <label htmlFor="new-password" className="block text-sm font-medium mb-1">
+                  Nueva Contraseña
+                </label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="Ingresa la nueva contraseña"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  disabled={editLoading}
+                  minLength={6}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Mínimo 6 caracteres
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="confirm-password" className="block text-sm font-medium mb-1">
+                  Confirmar Contraseña
+                </label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="Confirma la nueva contraseña"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={editLoading}
+                  minLength={6}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditDialogOpen(false);
+                    setEditingUser(null);
+                    setNewPassword('');
+                    setConfirmPassword('');
+                  }}
+                  disabled={editLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={editLoading}>
+                  {editLoading ? 'Actualizando...' : 'Actualizar Contraseña'}
                 </Button>
               </DialogFooter>
             </form>
