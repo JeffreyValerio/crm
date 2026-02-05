@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { CldImage } from 'next-cloudinary';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
@@ -121,6 +121,10 @@ export default function ClientsPage() {
   const [filterValidationStatus, setFilterValidationStatus] = useState<string>('');
   const [filterSaleStatus, setFilterSaleStatus] = useState<string>('');
   const [filterCreatedBy, setFilterCreatedBy] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalClients, setTotalClients] = useState<number>(0);
   const [users, setUsers] = useState<{ id: string; email: string; nombre?: string | null; apellidos?: string | null }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
@@ -279,7 +283,25 @@ export default function ClientsPage() {
     if (!loading && currentUser) {
       loadClients();
     }
-  }, [filterValidationStatus, filterSaleStatus, filterCreatedBy, loading, currentUser]);
+  }, [filterValidationStatus, filterSaleStatus, filterCreatedBy, searchTerm, currentPage, loading, currentUser]);
+
+  // Resetear a página 1 cuando cambia la búsqueda o los filtros
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [searchTerm, filterValidationStatus, filterSaleStatus, filterCreatedBy]);
+
+  // Debounce para la búsqueda
+  useEffect(() => {
+    if (!currentUser || loading) return;
+    
+    const timeoutId = setTimeout(() => {
+      loadClients();
+    }, 500); // Esperar 500ms después de que el usuario deje de escribir
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
@@ -307,10 +329,21 @@ export default function ClientsPage() {
       if (filterCreatedBy) params.append('createdBy', filterCreatedBy);
     }
 
+    // Búsqueda
+    if (searchTerm.trim()) {
+      params.append('search', searchTerm.trim());
+    }
+
+    // Paginación
+    params.append('page', currentPage.toString());
+    params.append('limit', '10');
+
     const response = await fetch(`/api/clients?${params.toString()}`);
     if (response.ok) {
       const data = await response.json();
       setClients(data.clients || []);
+      setTotalPages(data.pagination?.totalPages || 1);
+      setTotalClients(data.pagination?.total || 0);
     }
   }
 
@@ -827,6 +860,28 @@ Comentario: En espera de Instalacion`;
           </Button>
         </div>
 
+        {/* Buscador */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Buscar Clientes</CardTitle>
+            <CardDescription>
+              Busca por nombre, apellido, cédula, teléfono, email o formulario
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar clientes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {currentUser?.role === 'admin' && (
           <Card>
             <CardHeader>
@@ -887,7 +942,7 @@ Comentario: En espera de Instalacion`;
           <CardHeader>
             <CardTitle>Lista de Clientes</CardTitle>
             <CardDescription>
-              {clients.length} cliente(s) encontrado(s)
+              {totalClients} cliente(s) encontrado(s) {totalPages > 1 && `(Página ${currentPage} de ${totalPages})`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -913,7 +968,9 @@ Comentario: En espera de Instalacion`;
                 {clients.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={currentUser?.role === 'admin' ? 9 : 6} className="text-center text-muted-foreground">
-                      No hay clientes registrados
+                      {searchTerm.trim() 
+                        ? 'No se encontraron clientes que coincidan con la búsqueda' 
+                        : 'No hay clientes registrados'}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -957,6 +1014,61 @@ Comentario: En espera de Instalacion`;
                 )}
               </TableBody>
             </Table>
+            
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando página {currentPage} de {totalPages} ({totalClients} cliente(s) en total)
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNum)}
+                          className="w-10"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

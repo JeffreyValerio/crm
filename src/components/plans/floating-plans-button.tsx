@@ -55,7 +55,7 @@ export function FloatingPlansButton() {
     <>
       <Button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+        className="fixed top-1/2 right-6 -translate-y-1/2 h-14 w-14 rounded-full shadow-lg z-50"
         size="icon"
       >
         <FileText className="h-6 w-6" />

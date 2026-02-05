@@ -14,28 +14,66 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
-      const { validationStatus, saleStatus, createdBy } = req.query;
+      const { validationStatus, saleStatus, createdBy, search, page = '1', limit = '10' } = req.query;
 
       const where: any = {};
+
+      // Construir filtros base
+      const baseFilters: any = {};
 
       // Solo permitir filtros de estado y creador si el usuario es admin
       if (session.role === 'admin') {
         if (validationStatus) {
-          where.validationStatus = validationStatus;
+          baseFilters.validationStatus = validationStatus;
         }
 
         if (saleStatus) {
-          where.saleStatus = saleStatus;
+          baseFilters.saleStatus = saleStatus;
         }
 
         if (createdBy) {
-          where.createdBy = createdBy;
+          baseFilters.createdBy = createdBy;
         }
       } else {
         // Usuarios no admin solo ven sus propios clientes
-        where.createdBy = session.userId;
+        baseFilters.createdBy = session.userId;
       }
 
+      // Búsqueda por texto (nombres, apellidos, número de identificación, teléfono, email)
+      if (search && typeof search === 'string' && search.trim()) {
+        const searchTerm = search.trim();
+        const searchConditions = [
+          { nombres: { contains: searchTerm, mode: 'insensitive' } },
+          { apellidos: { contains: searchTerm, mode: 'insensitive' } },
+          { numeroIdentificacion: { contains: searchTerm, mode: 'insensitive' } },
+          { telefono: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } },
+          { formulario: { contains: searchTerm, mode: 'insensitive' } },
+        ];
+        
+        // Si hay filtros base, combinar con AND
+        if (Object.keys(baseFilters).length > 0) {
+          where.AND = [
+            baseFilters,
+            { OR: searchConditions }
+          ];
+        } else {
+          where.OR = searchConditions;
+        }
+      } else {
+        // Si no hay búsqueda, usar solo los filtros base
+        Object.assign(where, baseFilters);
+      }
+
+      // Paginación
+      const pageNumber = parseInt(page as string, 10);
+      const limitNumber = parseInt(limit as string, 10);
+      const skip = (pageNumber - 1) * limitNumber;
+
+      // Obtener total de registros
+      const total = await prisma.client.count({ where });
+
+      // Obtener clientes con paginación
       const clients = await prisma.client.findMany({
         where,
         include: {
@@ -56,9 +94,19 @@ export default async function handler(
         orderBy: {
           createdAt: 'desc',
         },
+        skip,
+        take: limitNumber,
       });
 
-      return res.status(200).json({ clients });
+      return res.status(200).json({ 
+        clients,
+        pagination: {
+          page: pageNumber,
+          limit: limitNumber,
+          total,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      });
     } catch (error) {
       console.error('Error fetching clients:', error);
       return res.status(500).json({ error: 'Internal server error' });
