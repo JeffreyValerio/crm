@@ -17,20 +17,11 @@ import {
   Eye,
   Calendar,
   Plus,
-  Loader2
+  Loader2,
+  MoreVertical
 } from 'lucide-react';
 import { generatePayrollPDF } from '@/lib/payroll-pdf';
 import { cn } from '@/lib/utils';
-
-interface AdvanceDetail {
-  id: string;
-  monto: number;
-  quincenas: number;
-  montoRestante: number;
-  montoPorQuincena: number;
-  descuentoEnEstaQuincena: number;
-  montoRestanteDespues: number;
-}
 
 interface Payroll {
   id: string;
@@ -63,7 +54,6 @@ interface Payroll {
     nombre: string | null;
     apellidos: string | null;
   } | null;
-  adelantosDesglose?: AdvanceDetail[];
 }
 
 interface User {
@@ -88,18 +78,22 @@ export default function PayrollPage() {
   // Estados para diálogos
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [generatePeriodo, setGeneratePeriodo] = useState('');
+  const [generateQuincena, setGenerateQuincena] = useState<string>('1');
+  const [selectedVendedores, setSelectedVendedores] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState('');
   const [generateSuccess, setGenerateSuccess] = useState(false);
   
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewingPayroll, setViewingPayroll] = useState<Payroll | null>(null);
-  const [editingDiasTrabajados, setEditingDiasTrabajados] = useState<number>(0);
-  const [calculatedTotal, setCalculatedTotal] = useState<number>(0);
-  const [updatingDays, setUpdatingDays] = useState(false);
   
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const [markingAsPaidId, setMarkingAsPaidId] = useState<string | null>(null);
+  
+  // Estados para el menú dropdown
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
@@ -110,12 +104,12 @@ export default function PayrollPage() {
         const data = await response.json();
         setCurrentUser(data.user);
         
-        if (data.user.role !== 'admin') {
-          router.push('/');
-          return;
+        // Cargar usuarios solo si es admin
+        if (data.user.role === 'admin') {
+          await loadUsers();
         }
-
-        await Promise.all([loadUsers(), loadPayrolls()]);
+        
+        await loadPayrolls();
         setLoading(false);
       }
     }
@@ -123,10 +117,27 @@ export default function PayrollPage() {
   }, [router]);
 
   useEffect(() => {
-    if (currentUser?.role === 'admin') {
+    if (currentUser) {
       loadPayrolls();
     }
   }, [filterPeriodo, filterEstado, filterUserId, currentUser]);
+
+  // Cerrar menú al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId) {
+        setOpenMenuId(null);
+        setMenuPosition(null);
+      }
+    };
+
+    if (openMenuId) {
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [openMenuId]);
 
   async function loadPayrolls() {
     const params = new URLSearchParams();
@@ -149,15 +160,43 @@ export default function PayrollPage() {
     }
   }
 
+  // Función para calcular la quincena actual
+  function getCurrentQuincena(): number {
+    const ahora = new Date();
+    const dia = ahora.getDate();
+    // Quincena 1: días 1-15, Quincena 2: días 16-31
+    return dia <= 15 ? 1 : 2;
+  }
+
   function handleOpenGenerateDialog() {
     // Establecer el período actual por defecto
     const ahora = new Date();
     const año = ahora.getFullYear();
     const mes = String(ahora.getMonth() + 1).padStart(2, '0');
     setGeneratePeriodo(`${año}-${mes}`);
+    setGenerateQuincena(getCurrentQuincena().toString()); // Quincena actual por defecto
+    setSelectedVendedores([]); // Limpiar selección
     setGenerateError('');
     setGenerateSuccess(false);
     setGenerateDialogOpen(true);
+  }
+
+  function handleToggleVendedor(userId: string) {
+    setSelectedVendedores(prev => {
+      if (prev.includes(userId)) {
+        return prev.filter(id => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+  }
+
+  function handleSelectAllVendedores() {
+    if (selectedVendedores.length === users.length) {
+      setSelectedVendedores([]);
+    } else {
+      setSelectedVendedores(users.map(u => u.id));
+    }
   }
 
   async function handleGenerate() {
@@ -166,15 +205,31 @@ export default function PayrollPage() {
       return;
     }
 
+    if (!generateQuincena || (generateQuincena !== '1' && generateQuincena !== '2')) {
+      setGenerateError('Debes seleccionar una quincena válida');
+      return;
+    }
+
+    if (selectedVendedores.length === 0) {
+      setGenerateError('Debes seleccionar al menos un vendedor');
+      return;
+    }
+
     setGenerating(true);
     setGenerateError('');
     setGenerateSuccess(false);
+
+    const quincena = parseInt(generateQuincena);
 
     try {
       const response = await fetch('/api/payroll', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ periodo: generatePeriodo }),
+        body: JSON.stringify({ 
+          periodo: generatePeriodo,
+          userIds: selectedVendedores,
+          quincena: quincena
+        }),
       });
 
       const data = await response.json();
@@ -185,6 +240,8 @@ export default function PayrollPage() {
         setTimeout(() => {
           setGenerateDialogOpen(false);
           setGeneratePeriodo('');
+          setGenerateQuincena('1');
+          setSelectedVendedores([]);
           setGenerateSuccess(false);
         }, 2000);
       } else {
@@ -221,30 +278,6 @@ export default function PayrollPage() {
     }
   }
 
-  async function handleSendEmail(id: string) {
-    if (!confirm('¿Estás seguro de que deseas enviar el correo con el comprobante?')) {
-      return;
-    }
-
-    setSendingEmailId(id);
-    try {
-      const response = await fetch(`/api/payroll/${id}/send-email`, {
-        method: 'POST',
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert(`Correo enviado correctamente a ${data.sentTo}`);
-      } else {
-        alert(data.error || 'Error al enviar el correo');
-      }
-    } catch (error) {
-      alert('Error al procesar la solicitud');
-    } finally {
-      setSendingEmailId(null);
-    }
-  }
 
   async function handleView(payroll: Payroll) {
     const response = await fetch(`/api/payroll/${payroll.id}`);
@@ -252,76 +285,13 @@ export default function PayrollPage() {
       const data = await response.json();
       const payrollData = data.payroll;
       setViewingPayroll(payrollData);
-      setEditingDiasTrabajados(payrollData.diasTrabajados);
-      
-      // Calcular total inicial
-      const salarioBase = typeof payrollData.salarioBase === 'string' 
-        ? parseFloat(payrollData.salarioBase) 
-        : payrollData.salarioBase;
-      const diasEsperados = payrollData.diasEsperados || payrollData.diasTrabajados;
-      const totalCalculado = Math.round(salarioBase * (payrollData.diasTrabajados / diasEsperados));
-      setCalculatedTotal(totalCalculado);
-      
       setViewDialogOpen(true);
-    }
-  }
-
-  function handleDiasTrabajadosChange(value: string) {
-    const dias = parseInt(value) || 0;
-    setEditingDiasTrabajados(dias);
-    
-    if (viewingPayroll) {
-      const salarioBase = typeof viewingPayroll.salarioBase === 'string' 
-        ? parseFloat(viewingPayroll.salarioBase) 
-        : viewingPayroll.salarioBase;
-      const diasEsperados = (viewingPayroll as any).diasEsperados || viewingPayroll.diasTrabajados;
-      const total = Math.round(salarioBase * (dias / diasEsperados));
-      setCalculatedTotal(total);
-    }
-  }
-
-  async function handleUpdateDays() {
-    if (!viewingPayroll) return;
-
-    if (editingDiasTrabajados < 0) {
-      alert('Los días trabajados no pueden ser negativos');
-      return;
-    }
-
-    setUpdatingDays(true);
-    try {
-      const response = await fetch(`/api/payroll/${viewingPayroll.id}/update-days`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ diasTrabajados: editingDiasTrabajados }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Actualizar el payroll local
-        setViewingPayroll(data.payroll);
-        setCalculatedTotal(
-          typeof data.payroll.total === 'string' 
-            ? parseFloat(data.payroll.total) 
-            : data.payroll.total
-        );
-        // Recargar la lista de nóminas
-        await loadPayrolls();
-        alert('Días trabajados actualizados correctamente');
-      } else {
-        alert(data.error || 'Error al actualizar los días trabajados');
-      }
-    } catch (error) {
-      alert('Error al procesar la solicitud');
-    } finally {
-      setUpdatingDays(false);
     }
   }
 
   async function handleDownloadPDF(payroll: Payroll) {
     try {
-      // Obtener los datos completos de la nómina con desglose de adelantos
+      // Obtener los datos completos de la nómina
       const response = await fetch(`/api/payroll/${payroll.id}`);
       if (!response.ok) {
         throw new Error('Error al obtener datos de la nómina');
@@ -347,6 +317,66 @@ export default function PayrollPage() {
       alert('Error al generar el PDF');
     }
   }
+
+  async function handleSendEmail(id: string) {
+    if (!confirm('¿Estás seguro de que deseas enviar el correo con el comprobante?')) {
+      return;
+    }
+
+    setSendingEmailId(id);
+    try {
+      const response = await fetch(`/api/payroll/${id}/send-email`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`Correo enviado correctamente a ${data.sentTo}`);
+      } else {
+        alert(data.error || 'Error al enviar el correo');
+      }
+    } catch (error) {
+      alert('Error al procesar la solicitud');
+    } finally {
+      setSendingEmailId(null);
+    }
+  }
+
+  async function handleMarkAsPaid(id: string) {
+    if (!confirm('¿Estás seguro de que deseas marcar esta nómina como pagada?')) {
+      return;
+    }
+
+    setMarkingAsPaidId(id);
+    try {
+      const response = await fetch(`/api/payroll/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'PAGADO' }),
+      });
+
+      if (response.ok) {
+        await loadPayrolls();
+        // Si hay una nómina abierta en el diálogo, actualizarla también
+        if (viewingPayroll && viewingPayroll.id === id) {
+          const updatedResponse = await fetch(`/api/payroll/${id}`);
+          if (updatedResponse.ok) {
+            const data = await updatedResponse.json();
+            setViewingPayroll(data.payroll);
+          }
+        }
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Error al marcar como pagada');
+      }
+    } catch (error) {
+      alert('Error al procesar la solicitud');
+    } finally {
+      setMarkingAsPaidId(null);
+    }
+  }
+
 
   function getEstadoLabel(estado: string) {
     switch (estado) {
@@ -430,13 +460,17 @@ export default function PayrollPage() {
               Nóminas y Pagos
             </h1>
             <p className="text-muted-foreground">
-              Gestiona las nóminas y pagos de vendedores
+              {currentUser?.role === 'admin' 
+                ? 'Gestiona las nóminas y pagos de vendedores'
+                : 'Consulta tus nóminas y pagos'}
             </p>
           </div>
-          <Button onClick={handleOpenGenerateDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Generar Nóminas
-          </Button>
+          {currentUser?.role === 'admin' && (
+            <Button onClick={handleOpenGenerateDialog}>
+              <Plus className="mr-2 h-4 w-4" />
+              Generar Nóminas
+            </Button>
+          )}
         </div>
 
         {/* Filtros */}
@@ -445,7 +479,7 @@ export default function PayrollPage() {
             <CardTitle className="text-base">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className={cn("grid gap-4", currentUser?.role === 'admin' ? "md:grid-cols-3" : "md:grid-cols-1")}>
               <div>
                 <label className="text-sm font-medium mb-2 block">Período</label>
                 <Input
@@ -455,35 +489,39 @@ export default function PayrollPage() {
                   placeholder="YYYY-MM"
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Estado</label>
-                <Select
-                  value={filterEstado}
-                  onChange={(e) => setFilterEstado(e.target.value)}
-                >
-                  <option value="">Todos los estados</option>
-                  <option value="PENDIENTE">Pendiente</option>
-                  <option value="APROBADO">Aprobado</option>
-                  <option value="PAGADO">Pagado</option>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Vendedor</label>
-                <Select
-                  value={filterUserId}
-                  onChange={(e) => setFilterUserId(e.target.value)}
-                >
-                  <option value="">Todos los vendedores</option>
-                  {users.map((user) => {
-                    const displayName = getUserDisplayName(user);
-                    return (
-                      <option key={user.id} value={user.id}>
-                        {displayName}
-                      </option>
-                    );
-                  })}
-                </Select>
-              </div>
+              {currentUser?.role === 'admin' && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Estado</label>
+                  <Select
+                    value={filterEstado}
+                    onChange={(e) => setFilterEstado(e.target.value)}
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="APROBADO">Aprobado</option>
+                    <option value="PAGADO">Pagado</option>
+                  </Select>
+                </div>
+              )}
+              {currentUser?.role === 'admin' && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Vendedor</label>
+                  <Select
+                    value={filterUserId}
+                    onChange={(e) => setFilterUserId(e.target.value)}
+                  >
+                    <option value="">Todos los vendedores</option>
+                    {users.map((user) => {
+                      const displayName = getUserDisplayName(user);
+                      return (
+                        <option key={user.id} value={user.id}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
+                  </Select>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -503,9 +541,7 @@ export default function PayrollPage() {
                   <TableHead>Vendedor</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Quincena</TableHead>
-                  <TableHead>Días</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead>Adelanto</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Fecha Aprobación</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -514,39 +550,18 @@ export default function PayrollPage() {
               <TableBody>
                 {payrolls.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                       No hay nóminas registradas
                     </TableCell>
                   </TableRow>
                 ) : (
                   payrolls.map((payroll) => {
-                    const adelantosDesglose = payroll.adelantosDesglose || [];
-                    const totalAdelantos = adelantosDesglose.reduce((sum, a) => sum + a.monto, 0);
-                    const descuentoEnEstaQuincena = adelantosDesglose.reduce((sum, a) => sum + a.descuentoEnEstaQuincena, 0);
-                    
                     return (
                       <TableRow key={payroll.id}>
                         <TableCell className="font-medium">{getUserDisplayName(payroll.user)}</TableCell>
                         <TableCell>{formatearPeriodo(payroll.periodo)}</TableCell>
                         <TableCell>Q{payroll.quincena}</TableCell>
-                        <TableCell>{payroll.diasTrabajados} días</TableCell>
                         <TableCell className="font-semibold">{formatearColones(payroll.total)}</TableCell>
-                        <TableCell>
-                          {adelantosDesglose.length > 0 ? (
-                            <div className="space-y-1">
-                              <div className="text-sm">
-                                <span className="text-muted-foreground">Total: </span>
-                                <span className="font-medium">{formatearColones(totalAdelantos)}</span>
-                              </div>
-                              <div className="text-xs text-red-600">
-                                <span className="text-muted-foreground">Esta quincena: </span>
-                                <span className="font-medium">-{formatearColones(descuentoEnEstaQuincena)}</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
-                          )}
-                        </TableCell>
                         <TableCell>
                           <span className={cn(
                             "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
@@ -563,53 +578,24 @@ export default function PayrollPage() {
                           }
                         </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="relative flex justify-end">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => handleView(payroll)}
-                            title="Ver detalles"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const button = e.currentTarget;
+                              const rect = button.getBoundingClientRect();
+                              setMenuPosition({
+                                top: rect.bottom + 8,
+                                right: window.innerWidth - rect.right,
+                              });
+                              setOpenMenuId(openMenuId === payroll.id ? null : payroll.id);
+                            }}
+                            className="h-8 w-8 p-0"
                           >
-                            <Eye className="h-4 w-4" />
+                            <MoreVertical className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadPDF(payroll)}
-                            title="Descargar PDF"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          {payroll.estado === 'PENDIENTE' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleApprove(payroll.id)}
-                              disabled={approvingId === payroll.id}
-                              title="Aprobar nómina"
-                            >
-                              {approvingId === payroll.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4" />
-                              )}
-                            </Button>
-                          )}
-                          {payroll.estado === 'APROBADO' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSendEmail(payroll.id)}
-                              disabled={sendingEmailId === payroll.id}
-                              title="Enviar correo"
-                            >
-                              {sendingEmailId === payroll.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Mail className="h-4 w-4" />
-                              )}
-                            </Button>
-                          )}
                         </div>
                       </TableCell>
                       </TableRow>
@@ -621,31 +607,214 @@ export default function PayrollPage() {
           </CardContent>
         </Card>
 
+        {/* Menú flotante de acciones */}
+        {openMenuId && menuPosition && (
+          <>
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={() => {
+                setOpenMenuId(null);
+                setMenuPosition(null);
+              }}
+            />
+            <div 
+              className="fixed z-50 w-56 rounded-md border bg-background shadow-lg"
+              style={{
+                top: `${menuPosition.top}px`,
+                right: `${menuPosition.right}px`,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-1">
+                {(() => {
+                  const payroll = payrolls.find(p => p.id === openMenuId);
+                  if (!payroll) return null;
+                  return (
+                    <>
+                      <button
+                        onClick={() => {
+                          handleView(payroll);
+                          setOpenMenuId(null);
+                          setMenuPosition(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Ver detalles
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDownloadPDF(payroll);
+                          setOpenMenuId(null);
+                          setMenuPosition(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                      >
+                        <Download className="h-4 w-4" />
+                        Descargar PDF
+                      </button>
+                      {currentUser?.role === 'admin' && (
+                        <>
+                          <div className="h-px bg-border my-1" />
+                          {payroll.estado === 'PENDIENTE' && (
+                            <button
+                              onClick={() => {
+                                handleApprove(payroll.id);
+                                setOpenMenuId(null);
+                                setMenuPosition(null);
+                              }}
+                              disabled={approvingId === payroll.id}
+                              className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left disabled:opacity-50"
+                            >
+                              {approvingId === payroll.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4" />
+                              )}
+                              Aprobar nómina
+                            </button>
+                          )}
+                          {payroll.estado === 'APROBADO' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  handleSendEmail(payroll.id);
+                                  setOpenMenuId(null);
+                                  setMenuPosition(null);
+                                }}
+                                disabled={sendingEmailId === payroll.id}
+                                className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left disabled:opacity-50"
+                              >
+                                {sendingEmailId === payroll.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                                Enviar correo
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleMarkAsPaid(payroll.id);
+                                  setOpenMenuId(null);
+                                  setMenuPosition(null);
+                                }}
+                                disabled={markingAsPaidId === payroll.id}
+                                className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left disabled:opacity-50"
+                              >
+                                {markingAsPaidId === payroll.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4" />
+                                )}
+                                Marcar como pagado
+                              </button>
+                            </>
+                          )}
+                          {payroll.estado === 'PAGADO' && (
+                            <button
+                              disabled
+                              className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm opacity-50 cursor-not-allowed text-left"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              Ya está pagado
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Dialog para generar nóminas */}
         <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Generar Nóminas del Mes</DialogTitle>
+              <DialogTitle>Generar Nómina</DialogTitle>
               <DialogDescription>
-                Se generarán nóminas para todos los vendedores activos. Se crearán 2 nóminas por vendedor (quincena 1 y 2).
+                Se generará la nómina para el período y quincena seleccionados
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Período <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="month"
+                    value={generatePeriodo}
+                    onChange={(e) => setGeneratePeriodo(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Seleccione el mes y año
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Quincena <span className="text-destructive">*</span>
+                  </label>
+                  <Select
+                    value={generateQuincena}
+                    onChange={(e) => setGenerateQuincena(e.target.value)}
+                  >
+                    <option value="1">Quincena 1 (días 1-15)</option>
+                    <option value="2">Quincena 2 (días 16-31)</option>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Seleccione la quincena a generar
+                  </p>
+                </div>
+              </div>
+
               <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Período <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  type="month"
-                  value={generatePeriodo}
-                  onChange={(e) => setGeneratePeriodo(e.target.value)}
-                  required
-                />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium">
+                    Vendedores <span className="text-destructive">*</span>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSelectAllVendedores}
+                    className="text-xs"
+                  >
+                    {selectedVendedores.length === users.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                  </Button>
+                </div>
+                <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-2">
+                  {users.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No hay vendedores disponibles</p>
+                  ) : (
+                    users.map((user) => {
+                      const displayName = getUserDisplayName(user);
+                      const isSelected = selectedVendedores.includes(user.id);
+                      return (
+                        <label
+                          key={user.id}
+                          className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleVendedor(user.id)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="text-sm">{displayName}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Seleccione el mes y año para generar las nóminas
+                  {selectedVendedores.length} de {users.length} vendedores seleccionados
                 </p>
               </div>
-              
+
               {generateError && (
                 <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
                   {generateError}
@@ -668,7 +837,7 @@ export default function PayrollPage() {
               </Button>
               <Button
                 onClick={handleGenerate}
-                disabled={generating || !generatePeriodo}
+                disabled={generating || !generatePeriodo || !generateQuincena || selectedVendedores.length === 0}
               >
                 {generating ? (
                   <>
@@ -723,59 +892,14 @@ export default function PayrollPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                      Días Trabajados <span className="text-destructive">*</span>
-                      {viewingPayroll.estado === 'PAGADO' && (
-                        <span className="text-xs text-muted-foreground ml-2">(No editable - Ya pagada)</span>
-                      )}
-                    </label>
-                    {viewingPayroll.estado !== 'PAGADO' ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          value={editingDiasTrabajados}
-                          onChange={(e) => handleDiasTrabajadosChange(e.target.value)}
-                          className="w-24"
-                        />
-                        <span className="text-sm text-muted-foreground">días</span>
-                        {(viewingPayroll as any).diasEsperados && (
-                          <span className="text-xs text-muted-foreground">
-                            (Esperados: {(viewingPayroll as any).diasEsperados})
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-sm font-medium">{viewingPayroll.diasTrabajados} días</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Salario por Día</label>
-                    <p className="text-sm font-medium">{formatearColones(viewingPayroll.montoDiario)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Salario Base</label>
+                    <label className="text-sm font-medium text-muted-foreground">Salario Quincenal</label>
                     <p className="text-sm font-medium">{formatearColones(viewingPayroll.salarioBase)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Total a Pagar</label>
-                    <p className={cn(
-                      "text-xl font-bold",
-                      calculatedTotal !== (typeof viewingPayroll.total === 'string' ? parseFloat(viewingPayroll.total) : viewingPayroll.total)
-                        ? "text-orange-600"
-                        : "text-primary"
-                    )}>
-                      {formatearColones(
-                        calculatedTotal !== (typeof viewingPayroll.total === 'string' ? parseFloat(viewingPayroll.total) : viewingPayroll.total)
-                          ? calculatedTotal
-                          : viewingPayroll.total
-                      )}
+                    <p className="text-xl font-bold text-primary">
+                      {formatearColones(200000)}
                     </p>
-                    {calculatedTotal !== (typeof viewingPayroll.total === 'string' ? parseFloat(viewingPayroll.total) : viewingPayroll.total) && (
-                      <p className="text-xs text-orange-600 mt-1">
-                        Nuevo total (no guardado)
-                      </p>
-                    )}
                   </div>
                   {viewingPayroll.aprobadoAt && (
                     <>
@@ -817,23 +941,6 @@ export default function PayrollPage() {
                 )}
               </div>
               <DialogFooter className="flex-col sm:flex-row gap-2">
-                {viewingPayroll.estado !== 'PAGADO' && 
-                 editingDiasTrabajados !== viewingPayroll.diasTrabajados && (
-                  <Button
-                    onClick={handleUpdateDays}
-                    disabled={updatingDays}
-                    className="w-full sm:w-auto"
-                  >
-                    {updatingDays ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      'Guardar Cambios'
-                    )}
-                  </Button>
-                )}
                 <Button
                   variant="outline"
                   onClick={() => handleDownloadPDF(viewingPayroll)}
@@ -842,7 +949,7 @@ export default function PayrollPage() {
                   <Download className="mr-2 h-4 w-4" />
                   Descargar PDF
                 </Button>
-                {viewingPayroll.estado === 'PENDIENTE' && (
+                {currentUser?.role === 'admin' && viewingPayroll.estado === 'PENDIENTE' && (
                   <Button
                     onClick={() => {
                       setViewDialogOpen(false);
@@ -863,26 +970,46 @@ export default function PayrollPage() {
                     )}
                   </Button>
                 )}
-                {viewingPayroll.estado === 'APROBADO' && (
-                  <Button
-                    onClick={() => {
-                      setViewDialogOpen(false);
-                      handleSendEmail(viewingPayroll.id);
-                    }}
-                    disabled={sendingEmailId === viewingPayroll.id}
-                  >
-                    {sendingEmailId === viewingPayroll.id ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="mr-2 h-4 w-4" />
-                        Enviar Correo
-                      </>
-                    )}
-                  </Button>
+                {currentUser?.role === 'admin' && viewingPayroll.estado === 'APROBADO' && (
+                  <>
+                    <Button
+                      onClick={() => {
+                        setViewDialogOpen(false);
+                        handleSendEmail(viewingPayroll.id);
+                      }}
+                      disabled={sendingEmailId === viewingPayroll.id}
+                    >
+                      {sendingEmailId === viewingPayroll.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Enviar Correo
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        handleMarkAsPaid(viewingPayroll.id);
+                      }}
+                      disabled={markingAsPaidId === viewingPayroll.id}
+                    >
+                      {markingAsPaidId === viewingPayroll.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Marcando...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Marcar como Pagado
+                        </>
+                      )}
+                    </Button>
+                  </>
                 )}
               </DialogFooter>
             </DialogContent>

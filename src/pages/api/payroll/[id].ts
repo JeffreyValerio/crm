@@ -68,5 +68,59 @@ export default async function handler(
     }
   }
 
+  if (req.method === 'PUT') {
+    // Solo admin puede actualizar nóminas
+    if (session.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    try {
+      const { estado, fechaPago, observaciones } = req.body;
+
+      const updateData: any = {};
+      if (estado !== undefined) {
+        updateData.estado = estado;
+        // Si se marca como PAGADO, establecer fechaPago si no existe
+        if (estado === 'PAGADO' && !fechaPago) {
+          updateData.fechaPago = new Date();
+        }
+      }
+      if (fechaPago !== undefined) {
+        updateData.fechaPago = fechaPago ? new Date(fechaPago) : null;
+      }
+      if (observaciones !== undefined) {
+        updateData.observaciones = observaciones || null;
+      }
+
+      const payroll = await prisma.payroll.update({
+        where: { id: id as string },
+        data: updateData,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              nombre: true,
+              apellidos: true,
+            },
+          },
+          aprobador: {
+            select: {
+              id: true,
+              email: true,
+              nombre: true,
+              apellidos: true,
+            },
+          },
+        },
+      });
+
+      return res.status(200).json({ payroll });
+    } catch (error) {
+      console.error('Error updating payroll:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   return res.status(405).json({ error: 'Method not allowed' });
 }

@@ -1,23 +1,10 @@
 import jsPDF from 'jspdf';
 
-interface AdvanceDetail {
-  id: string;
-  monto: number;
-  quincenas: number;
-  montoRestante: number;
-  montoPorQuincena: number;
-  descuentoEnEstaQuincena: number;
-  montoRestanteDespues: number;
-}
-
 interface PayrollData {
   id: string;
   periodo: string;
   quincena: number;
-  diasTrabajados: number;
-  diasEsperados?: number;
   salarioBase: number | string;
-  montoDiario: number | string;
   total: number | string;
   estado: string;
   aprobadoAt?: string | Date | null;
@@ -30,7 +17,6 @@ interface PayrollData {
     id: string;
     email: string;
   } | null;
-  adelantosDesglose?: AdvanceDetail[];
 }
 
 export function generatePayrollPDF(payroll: PayrollData, showDailySalary: boolean = false): jsPDF {
@@ -123,18 +109,7 @@ export function generatePayrollPDF(payroll: PayrollData, showDailySalary: boolea
   pdf.text('DETALLES DEL PAGO', margin, yPosition);
   yPosition += 10;
 
-  // Calcular monto ganado proporcionalmente y descuentos
-  const salarioBaseNum = typeof payroll.salarioBase === 'string' ? parseFloat(payroll.salarioBase) : payroll.salarioBase;
-  const totalNum = typeof payroll.total === 'string' ? parseFloat(payroll.total) : payroll.total;
-  const diasEsperados = payroll.diasEsperados || payroll.diasTrabajados; // Fallback si no existe
-  // Calcular monto ganado proporcionalmente: salarioBase * (diasTrabajados / diasEsperados)
-  const montoGanado = salarioBaseNum * (payroll.diasTrabajados / diasEsperados);
-  const adelantosDesglose = payroll.adelantosDesglose || [];
-  
-  // Calcular descuentos sumando SOLO los descuentos individuales de cada adelanto
-  // NO usar montoGanado - total porque eso incluiría la diferencia de días no trabajados
-  const descuentoAdelantos = adelantosDesglose.reduce((sum, adelanto) => sum + adelanto.descuentoEnEstaQuincena, 0);
-  const tieneDescuentos = descuentoAdelantos > 0;
+  // El salario quincenal es fijo: 200,000 colones
   
   const rowHeight = 7;
 
@@ -156,86 +131,17 @@ export function generatePayrollPDF(payroll: PayrollData, showDailySalary: boolea
   pdf.setFontSize(10);
   pdf.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
   
-  // Días trabajados
-  pdf.text('Días Trabajados:', margin, yPosition);
-  pdf.text(`${payroll.diasTrabajados} días`, pageWidth - margin, yPosition, { align: 'right' });
-  yPosition += rowHeight;
-
-  // Solo mostrar salario diario si showDailySalary es true (solo para admin)
-  if (showDailySalary) {
-    pdf.text('Salario por Día:', margin, yPosition);
-    pdf.text(formatearColones(payroll.montoDiario), pageWidth - margin, yPosition, { align: 'right' });
-    yPosition += rowHeight;
-  }
-
-  // Mostrar salario base y monto ganado si hay diferencia (días trabajados < días esperados)
-  const hayDiferenciaDias = payroll.diasTrabajados < diasEsperados;
-  
+  // Salario quincenal
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Salario Base (Quincena):', margin, yPosition);
+  pdf.text('Salario Quincenal:', margin, yPosition);
   pdf.text(formatearColones(payroll.salarioBase), pageWidth - margin, yPosition, { align: 'right' });
   pdf.setFont('helvetica', 'normal');
-  yPosition += rowHeight;
+  yPosition += rowHeight + 3;
   
-  // Mostrar monto ganado proporcionalmente si hay diferencia
-  if (hayDiferenciaDias) {
-    const montoGanado = salarioBaseNum * (payroll.diasTrabajados / diasEsperados);
-    pdf.text('Monto Ganado (Proporcional):', margin, yPosition);
-    pdf.text(formatearColones(montoGanado), pageWidth - margin, yPosition, { align: 'right' });
-    yPosition += rowHeight;
-  }
-
-  // Si hay descuentos de adelantos, mostrarlos con desglose
-  if (tieneDescuentos && adelantosDesglose.length > 0) {
-    // Subtítulo para adelantos
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(239, 68, 68); // Rojo
-    pdf.text('Descuentos por Adelantos:', margin, yPosition);
-    yPosition += rowHeight;
-
-    // Desglose de cada adelanto
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
-    for (const adelanto of adelantosDesglose) {
-      const montoDescontado = formatearColones(adelanto.descuentoEnEstaQuincena);
-      const montoTotalAdelanto = formatearColones(adelanto.monto);
-      const saldoRestante = formatearColones(adelanto.montoRestanteDespues);
-      
-      pdf.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-      // Mostrar: "Adelanto de X, Saldo: Y"
-      pdf.text(`Adelanto de ${montoTotalAdelanto} (Saldo: ${saldoRestante}):`, margin, yPosition);
-      pdf.setTextColor(239, 68, 68);
-      pdf.text(`-${montoDescontado}`, pageWidth - margin, yPosition, { align: 'right' });
-      yPosition += rowHeight;
-    }
-    
-    // Subtotal de descuentos
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(239, 68, 68);
-    pdf.text('Subtotal Descuentos:', margin, yPosition);
-    pdf.text(`-${formatearColones(descuentoAdelantos)}`, pageWidth - margin, yPosition, { align: 'right' });
-    yPosition += rowHeight + 3;
-    
-    // Restaurar color
-    pdf.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    
-    // Línea separadora antes del total
-    pdf.setDrawColor(200, 200, 200);
-    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += rowHeight;
-  } else if (tieneDescuentos) {
-    // Fallback: solo mostrar total de descuentos si no hay desglose
-    pdf.setTextColor(239, 68, 68);
-    pdf.text('Descuentos por Adelantos:', margin, yPosition);
-    pdf.text(`-${formatearColones(descuentoAdelantos)}`, pageWidth - margin, yPosition, { align: 'right' });
-    pdf.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    yPosition += rowHeight + 3;
-    
-    // Línea separadora antes del total
-    pdf.setDrawColor(200, 200, 200);
-    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += rowHeight;
-  }
+  // Línea separadora antes del total
+  pdf.setDrawColor(200, 200, 200);
+  pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += rowHeight;
 
   // Total
   pdf.setFontSize(12);

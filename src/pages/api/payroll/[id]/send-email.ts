@@ -2,7 +2,6 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { sendMail } from '@/lib/mail';
-import { obtenerDesgloseAdelantos } from '@/lib/advance-details';
 
 export default async function handler(
   req: NextApiRequest,
@@ -54,13 +53,6 @@ export default async function handler(
         });
       }
 
-      // Obtener desglose de adelantos (si aplican)
-      const adelantosDesglose = await obtenerDesgloseAdelantos(
-        payroll.userId,
-        payroll.periodo,
-        payroll.quincena
-      );
-
       // Formatear el período para mostrar (ej: "Enero 2025")
       const [año, mes] = payroll.periodo.split('-');
       const meses = [
@@ -107,70 +99,9 @@ export default async function handler(
                     <td style="padding: 8px 0; border-bottom: 1px solid #ddd; text-align: right;">${payroll.quincena}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Días Trabajados:</strong></td>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #ddd; text-align: right;">${payroll.diasTrabajados} días</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Salario Base:</strong></td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Salario Quincenal:</strong></td>
                     <td style="padding: 8px 0; border-bottom: 1px solid #ddd; text-align: right;">${formatearColones(Number(payroll.salarioBase))}</td>
                   </tr>
-                  ${(() => {
-                    // Mostrar monto ganado proporcionalmente si hay diferencia de días
-                    const diasEsperados = (payroll as any).diasEsperados || payroll.diasTrabajados;
-                    const hayDiferenciaDias = payroll.diasTrabajados < diasEsperados;
-                    
-                    if (hayDiferenciaDias) {
-                      const salarioBaseNum = Number(payroll.salarioBase);
-                      const montoGanado = salarioBaseNum * (payroll.diasTrabajados / diasEsperados);
-                      return `
-                        <tr>
-                          <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Monto Ganado (Proporcional):</strong></td>
-                          <td style="padding: 8px 0; border-bottom: 1px solid #ddd; text-align: right;">${formatearColones(montoGanado)}</td>
-                        </tr>
-                      `;
-                    }
-                    return '';
-                  })()}
-                  ${(() => {
-                    // Calcular descuentos sumando SOLO los descuentos individuales de cada adelanto
-                    // NO usar salarioBase - total porque eso incluiría la diferencia de días no trabajados
-                    const descuentoAdelantos = adelantosDesglose.reduce((sum, adelanto) => sum + adelanto.descuentoEnEstaQuincena, 0);
-                    
-                    if (descuentoAdelantos > 0 && adelantosDesglose.length > 0) {
-                      let adelantosHTML = '';
-                      adelantosDesglose.forEach((adelanto) => {
-                        adelantosHTML += `
-                          <tr>
-                            <td style="padding: 6px 0; border-bottom: 1px solid #eee; padding-left: 20px; font-size: 13px;">
-                              • Adelanto de ${formatearColones(adelanto.monto)} (Saldo: ${formatearColones(adelanto.montoRestanteDespues)}): <span style="color: #dc2626; font-weight: bold;">-${formatearColones(adelanto.descuentoEnEstaQuincena)}</span>
-                            </td>
-                            <td style="padding: 6px 0; border-bottom: 1px solid #eee;"></td>
-                          </tr>
-                        `;
-                      });
-                      
-                      return `
-                        <tr>
-                          <td colspan="2" style="padding: 8px 0; border-bottom: 1px solid #ddd;">
-                            <strong style="color: #dc2626;">Descuentos por Adelantos:</strong>
-                          </td>
-                        </tr>
-                        ${adelantosHTML}
-                        <tr>
-                          <td style="padding: 8px 0; border-bottom: 1px solid #ddd; padding-left: 20px;"><strong style="color: #dc2626;">Subtotal Descuentos:</strong></td>
-                          <td style="padding: 8px 0; border-bottom: 1px solid #ddd; text-align: right; color: #dc2626; font-weight: bold;">-${formatearColones(descuentoAdelantos)}</td>
-                        </tr>
-                      `;
-                    } else if (descuentoAdelantos > 0) {
-                      return `
-                        <tr>
-                          <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong style="color: #dc2626;">Descuentos por Adelantos:</strong></td>
-                          <td style="padding: 8px 0; border-bottom: 1px solid #ddd; text-align: right; color: #dc2626;">-${formatearColones(descuentoAdelantos)}</td>
-                        </tr>
-                      `;
-                    }
-                    return '';
-                  })()}
                   <tr>
                     <td style="padding: 8px 0;"><strong>Total a Pagar:</strong></td>
                     <td style="padding: 8px 0; text-align: right; font-size: 18px; font-weight: bold; color: #2563eb;">${formatearColones(Number(payroll.total))}</td>

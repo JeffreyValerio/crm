@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
-import { aplicarDescuentosANomina } from '@/lib/advance-calculations';
 
 export default async function handler(
   req: NextApiRequest,
@@ -42,32 +41,16 @@ export default async function handler(
         return res.status(400).json({ error: 'No se pueden modificar los días de una nómina ya pagada' });
       }
 
-      // Convertir Decimal a número para cálculos
-      const salarioBase = Number(payroll.salarioBase);
-      const diasEsperados = payroll.diasEsperados || payroll.diasTrabajados; // Fallback por si no existe el campo
-
-      // Recalcular el total proporcionalmente
-      // total = salarioBase * (diasTrabajados / diasEsperados)
-      const totalBase = Math.round(salarioBase * (diasTrabajados / diasEsperados));
-      
-      // Aplicar descuentos de adelantos
-      const total = await aplicarDescuentosANomina(
-        payroll.userId,
-        payroll.periodo,
-        payroll.quincena,
-        totalBase
-      );
-
-      // Recalcular el salario diario basado en días esperados (para referencia del admin)
-      const montoDiario = Math.round(salarioBase / diasEsperados);
+      // El total siempre es 200,000, independientemente de los días trabajados
+      const total = 200000;
 
       // Actualizar la nómina
       const updatedPayroll = await prisma.payroll.update({
         where: { id: id as string },
         data: {
           diasTrabajados: diasTrabajados,
-          montoDiario: montoDiario,
-          total: total,
+          montoDiario: 0, // No se usa
+          total: total, // Siempre 200,000
         },
         include: {
           user: {

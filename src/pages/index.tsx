@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle } from 'lucide-react';
+import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle, Receipt } from 'lucide-react';
 
 interface ClientStats {
   validationStatus: string | null;
@@ -31,6 +31,34 @@ interface ComplianceStats {
   percentage: number;
 }
 
+interface Payroll {
+  id: string;
+  periodo: string;
+  quincena: number;
+  total: number | string;
+  estado: 'PENDIENTE' | 'APROBADO' | 'PAGADO';
+  user: {
+    id: string;
+    email: string;
+    nombre: string | null;
+    apellidos: string | null;
+  };
+}
+
+interface Advance {
+  id: string;
+  monto: number | string;
+  montoRestante: number | string;
+  estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'EN_COBRO' | 'COMPLETADO';
+  createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    nombre: string | null;
+    apellidos: string | null;
+  };
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -48,6 +76,31 @@ export default function HomePage() {
     installed: number;
     effectiveness: number;
   } | null>(null);
+  const [payrollData, setPayrollData] = useState<{
+    total: number;
+    totalAmount: number;
+    pendientes: number;
+    aprobados: number;
+    pagados: number;
+  } | null>(null);
+  const [advancesData, setAdvancesData] = useState<{
+    total: number;
+    totalAmount: number;
+    pendientes: number;
+    aprobados: number;
+    enCobro: number;
+    completados: number;
+  } | null>(null);
+
+  // Función auxiliar para formatear el período seleccionado
+  function getPeriodLabel(): string {
+    if (filterMonth && filterYear) {
+      return new Date(parseInt(filterYear), parseInt(filterMonth) - 1).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    } else if (filterYear) {
+      return filterYear;
+    }
+    return 'Mes actual';
+  }
 
   useEffect(() => {
     async function checkAuth() {
@@ -103,12 +156,25 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         const clients = data.clients || [];
-        setTotalClients(clients.length);
+        
+        // Filtrar por año y mes
+        const filteredClients = clients.filter((client: any) => {
+          const clientDate = new Date(client.createdAt);
+          const clientYear = clientDate.getFullYear().toString();
+          const clientMonth = (clientDate.getMonth() + 1).toString();
+          
+          const matchesYear = !filterYear || filterYear === clientYear;
+          const matchesMonth = !filterMonth || filterMonth === clientMonth;
+          
+          return matchesYear && matchesMonth;
+        });
+        
+        setTotalClients(filteredClients.length);
 
         // Agrupar por estados
         const statsMap = new Map<string, ClientStats>();
 
-        clients.forEach((client: any) => {
+        filteredClients.forEach((client: any) => {
           // Clave para agrupar: validationStatus + saleStatus
           const key = `${client.validationStatus || 'SIN_ESTADO'}_${client.saleStatus || 'SIN_VENTA'}`;
           
@@ -182,11 +248,23 @@ export default function HomePage() {
         const data = await response.json();
         const clients = data.clients || [];
         
+        // Filtrar por año y mes actual
+        const filteredClients = clients.filter((client: any) => {
+          const clientDate = new Date(client.createdAt);
+          const clientYear = clientDate.getFullYear().toString();
+          const clientMonth = (clientDate.getMonth() + 1).toString();
+          
+          const matchesYear = !filterYear || filterYear === clientYear;
+          const matchesMonth = !filterMonth || filterMonth === clientMonth;
+          
+          return matchesYear && matchesMonth;
+        });
+        
         const TARGET_SALES = 10; // Meta de ventas instaladas
         const complianceMap = new Map<string, { userId: string; email: string; nombre?: string | null; apellidos?: string | null; installed: number; pending: number }>();
 
         // Contar clientes instalados y pendientes por vendedor
-        clients.forEach((client: any) => {
+        filteredClients.forEach((client: any) => {
           if (client.creator) {
             const userId = client.creator.id;
             const email = client.creator.email;
@@ -455,7 +533,11 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalClients}</div>
-              <p className="text-xs text-muted-foreground mt-1">Clientes registrados</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {filterMonth && filterYear || filterYear 
+                  ? `Registrados en ${getPeriodLabel()}`
+                  : 'Clientes registrados'}
+              </p>
             </CardContent>
           </Card>
           
@@ -468,7 +550,11 @@ export default function HomePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold">{effectivenessData.totalContacts}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Ingresados en el período</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {filterMonth && filterYear || filterYear 
+                      ? `Ingresados en ${getPeriodLabel()}`
+                      : 'Ingresados en el período'}
+                  </p>
                 </CardContent>
               </Card>
               
@@ -479,7 +565,11 @@ export default function HomePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold text-green-600">{effectivenessData.installed}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Ventas completadas</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {filterMonth && filterYear || filterYear 
+                      ? `Completadas en ${getPeriodLabel()}`
+                      : 'Ventas completadas'}
+                  </p>
                 </CardContent>
               </Card>
               
@@ -509,7 +599,7 @@ export default function HomePage() {
             <div>
               <h2 className="text-2xl font-bold tracking-tight">Resumen por Estado</h2>
               <p className="text-muted-foreground">
-                Distribución de clientes según su estado actual
+                Distribución de clientes según su estado actual ({getPeriodLabel()})
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -569,7 +659,7 @@ export default function HomePage() {
                 KPI de Cumplimiento
               </h2>
               <p className="text-muted-foreground mt-1">
-                Meta: 10 ventas instaladas por vendedor
+                Meta: 10 ventas instaladas por vendedor ({getPeriodLabel()})
               </p>
             </div>
             
@@ -723,7 +813,7 @@ export default function HomePage() {
                 Efectividad
               </h2>
               <p className="text-muted-foreground text-sm mt-1">
-                Conversión de contactos a instalaciones
+                Conversión de contactos a instalaciones ({getPeriodLabel()})
               </p>
             </div>
             <Card className="border-2 hover:shadow-xl transition-all flex-1 flex flex-col">
