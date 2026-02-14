@@ -148,6 +148,7 @@ export default function HomePage() {
   async function loadStats() {
     try {
       const params = new URLSearchParams();
+      params.append('limit', '10000'); // traer todos para filtrar por mes en el dashboard
       if (user?.role === 'admin' && filterCreatedBy) {
         params.append('createdBy', filterCreatedBy);
       }
@@ -157,11 +158,11 @@ export default function HomePage() {
         const data = await response.json();
         const clients = data.clients || [];
         
-        // Filtrar por año y mes
+        // Filtrar por año y mes (usar UTC para no perder datos por zona horaria, p. ej. enero)
         const filteredClients = clients.filter((client: any) => {
           const clientDate = new Date(client.createdAt);
-          const clientYear = clientDate.getFullYear().toString();
-          const clientMonth = (clientDate.getMonth() + 1).toString();
+          const clientYear = clientDate.getUTCFullYear().toString();
+          const clientMonth = (clientDate.getUTCMonth() + 1).toString();
           
           const matchesYear = !filterYear || filterYear === clientYear;
           const matchesMonth = !filterMonth || filterMonth === clientMonth;
@@ -200,6 +201,7 @@ export default function HomePage() {
   async function loadEffectivenessData() {
     try {
       const params = new URLSearchParams();
+      params.append('limit', '10000');
       if (user?.role === 'admin' && filterCreatedBy) {
         params.append('createdBy', filterCreatedBy);
       }
@@ -209,11 +211,11 @@ export default function HomePage() {
         const data = await response.json();
         const clients = data.clients || [];
         
-        // Filtrar por año y mes
+        // Filtrar por año y mes (UTC para consistencia con otros bloques)
         const filteredClients = clients.filter((client: any) => {
           const clientDate = new Date(client.createdAt);
-          const clientYear = clientDate.getFullYear().toString();
-          const clientMonth = (clientDate.getMonth() + 1).toString();
+          const clientYear = clientDate.getUTCFullYear().toString();
+          const clientMonth = (clientDate.getUTCMonth() + 1).toString();
           
           const matchesYear = !filterYear || filterYear === clientYear;
           const matchesMonth = !filterMonth || filterMonth === clientMonth;
@@ -242,17 +244,20 @@ export default function HomePage() {
   async function loadComplianceStats() {
     try {
       const params = new URLSearchParams();
-      // Para admin, cargar todos los clientes. Para usuarios regulares, ya están filtrados por creador
+      params.append('limit', '10000');
+      if (user?.role === 'admin' && filterCreatedBy) {
+        params.append('createdBy', filterCreatedBy);
+      }
       const response = await fetch(`/api/clients?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         const clients = data.clients || [];
         
-        // Filtrar por año y mes actual
+        // Filtrar por año y mes (UTC para consistencia)
         const filteredClients = clients.filter((client: any) => {
           const clientDate = new Date(client.createdAt);
-          const clientYear = clientDate.getFullYear().toString();
-          const clientMonth = (clientDate.getMonth() + 1).toString();
+          const clientYear = clientDate.getUTCFullYear().toString();
+          const clientMonth = (clientDate.getUTCMonth() + 1).toString();
           
           const matchesYear = !filterYear || filterYear === clientYear;
           const matchesMonth = !filterMonth || filterMonth === clientMonth;
@@ -494,9 +499,14 @@ export default function HomePage() {
                   value={filterYear}
                   onChange={(e) => setFilterYear(e.target.value)}
                 >
-                  <option value={new Date().getFullYear().toString()}>
-                    {new Date().getFullYear()}
-                  </option>
+                  {[0, 1, 2].map((i) => {
+                    const y = new Date().getFullYear() - i;
+                    return (
+                      <option key={y} value={y.toString()}>
+                        {y}
+                      </option>
+                    );
+                  })}
                 </Select>
               </div>
               <div>

@@ -860,83 +860,80 @@ Comentario: En espera de Instalacion`;
           </Button>
         </div>
 
-        {/* Buscador */}
+        {/* Buscar y filtros juntos */}
         <Card>
           <CardHeader>
-            <CardTitle>Buscar Clientes</CardTitle>
+            <CardTitle>Buscar y filtrar</CardTitle>
             <CardDescription>
               Busca por nombre, apellido, cédula, teléfono, email o formulario
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Buscar clientes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="relative min-w-[200px] flex-1 max-w-md">
+                <label className="text-sm font-medium mb-2 block">Buscar</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Buscar clientes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              {currentUser?.role === 'admin' && (
+                <>
+                  <div className="min-w-[180px]">
+                    <label className="text-sm font-medium mb-2 block">Estado de Validación</label>
+                    <Select
+                      value={filterValidationStatus}
+                      onChange={(e) => setFilterValidationStatus(e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      <option value="EN_PROCESO_VALIDACION">En validación</option>
+                      <option value="APROBADA">Aprobada</option>
+                      <option value="REQUIERE_DEPOSITO">Requiere Depósito</option>
+                      <option value="NO_APLICA">No Aplica</option>
+                      <option value="INCOBRABLE">Incobrable</option>
+                      <option value="DEUDA_MENOR_ANIO">Deuda Menor a un Año</option>
+                    </Select>
+                  </div>
+                  <div className="min-w-[180px]">
+                    <label className="text-sm font-medium mb-2 block">Estado de Venta</label>
+                    <Select
+                      value={filterSaleStatus}
+                      onChange={(e) => setFilterSaleStatus(e.target.value)}
+                    >
+                      <option value="">Todos</option>
+                      <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
+                      <option value="INSTALADA">Instalada</option>
+                      <option value="CANCELADA">Cancelada</option>
+                    </Select>
+                  </div>
+                  <div className="min-w-[180px]">
+                    <label className="text-sm font-medium mb-2 block">Creado Por</label>
+                    <Select
+                      value={filterCreatedBy}
+                      onChange={(e) => setFilterCreatedBy(e.target.value)}
+                    >
+                      <option value="">Todos los usuarios</option>
+                      {users.map((user) => {
+                        const displayName = getUserDisplayName(user);
+                        return (
+                          <option key={user.id} value={user.id}>
+                            {displayName}
+                          </option>
+                        );
+                      })}
+                    </Select>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
-
-        {currentUser?.role === 'admin' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Filtros</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Estado de Validación</label>
-                  <Select
-                    value={filterValidationStatus}
-                    onChange={(e) => setFilterValidationStatus(e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    <option value="EN_PROCESO_VALIDACION">En validación</option>
-                    <option value="APROBADA">Aprobada</option>
-                    <option value="REQUIERE_DEPOSITO">Requiere Depósito</option>
-                    <option value="NO_APLICA">No Aplica</option>
-                    <option value="INCOBRABLE">Incobrable</option>
-                    <option value="DEUDA_MENOR_ANIO">Deuda Menor a un Año</option>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Estado de Venta</label>
-                  <Select
-                    value={filterSaleStatus}
-                    onChange={(e) => setFilterSaleStatus(e.target.value)}
-                  >
-                    <option value="">Todos</option>
-                    <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
-                    <option value="INSTALADA">Instalada</option>
-                    <option value="CANCELADA">Cancelada</option>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Creado Por</label>
-                  <Select
-                    value={filterCreatedBy}
-                    onChange={(e) => setFilterCreatedBy(e.target.value)}
-                  >
-                    <option value="">Todos los usuarios</option>
-                    {users.map((user) => {
-                      const displayName = getUserDisplayName(user);
-                      return (
-                        <option key={user.id} value={user.id}>
-                          {displayName}
-                        </option>
-                      );
-                    })}
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         <Card>
           <CardHeader>

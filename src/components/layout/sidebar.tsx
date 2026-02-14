@@ -31,21 +31,21 @@ const navSections: NavSection[] = [
   {
     title: 'Principal',
     items: [
-      {
-        title: 'Dashboard',
-        href: '/',
-        icon: LayoutDashboard,
+  {
+    title: 'Dashboard',
+    href: '/',
+    icon: LayoutDashboard,
       },
     ],
   },
   {
     title: 'Operaciones',
     items: [
-      {
-        title: 'Clientes',
-        href: '/clients',
-        icon: UserCircle,
-      },
+  {
+    title: 'Clientes',
+    href: '/clients',
+    icon: UserCircle,
+  },
       {
         title: 'Nómina',
         href: '/payroll',
@@ -56,16 +56,16 @@ const navSections: NavSection[] = [
   {
     title: 'Configuración',
     items: [
-      {
-        title: 'Planes',
-        href: '/plans',
-        icon: Package,
-        adminOnly: true,
-      },
-      {
-        title: 'Usuarios',
-        href: '/users',
-        icon: Users,
+  {
+    title: 'Planes',
+    href: '/plans',
+    icon: Package,
+    adminOnly: true,
+  },
+  {
+    title: 'Usuarios',
+    href: '/users',
+    icon: Users,
         adminOnly: true,
       },
     ],
@@ -114,13 +114,13 @@ export function Sidebar() {
     }
     // Filtrar items dentro de cada sección
     const filteredItems = section.items.filter((item) => {
-      if (item.adminOnly && userRole !== 'admin') {
-        return false;
-      }
-      if (item.userOnly && userRole === 'admin') {
-        return false;
-      }
-      return true;
+    if (item.adminOnly && userRole !== 'admin') {
+      return false;
+    }
+    if (item.userOnly && userRole === 'admin') {
+      return false;
+    }
+    return true;
     });
     // Solo mostrar la sección si tiene items visibles
     return filteredItems.length > 0;
@@ -179,26 +179,26 @@ export function Sidebar() {
               )}
               <div className="space-y-1">
                 {filteredItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = router.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cn(
-                        'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                        isCollapsed ? 'justify-center' : 'gap-3',
-                        isActive
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-white hover:bg-accent hover:text-accent-foreground'
-                      )}
-                      title={isCollapsed ? item.title : undefined}
-                    >
-                      <Icon className="h-5 w-5 flex-shrink-0 text-white" />
-                      {!isCollapsed && (
-                        <span className="whitespace-nowrap">{item.title}</span>
-                      )}
-                    </Link>
+          const Icon = item.icon;
+          const isActive = router.pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                isCollapsed ? 'justify-center' : 'gap-3',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-white hover:bg-accent hover:text-accent-foreground'
+              )}
+              title={isCollapsed ? item.title : undefined}
+            >
+              <Icon className="h-5 w-5 flex-shrink-0 text-white" />
+              {!isCollapsed && (
+                <span className="whitespace-nowrap">{item.title}</span>
+              )}
+            </Link>
                   );
                 })}
               </div>
