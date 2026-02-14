@@ -172,26 +172,23 @@ export default function HomePage() {
         
         setTotalClients(filteredClients.length);
 
-        // Agrupar por estados
-        const statsMap = new Map<string, ClientStats>();
+        // Agrupar por estado mostrado (misma etiqueta = una sola tarjeta, evita "Cancelada" duplicada)
+        const byLabel = new Map<string, ClientStats>();
 
         filteredClients.forEach((client: any) => {
-          // Clave para agrupar: validationStatus + saleStatus
-          const key = `${client.validationStatus || 'SIN_ESTADO'}_${client.saleStatus || 'SIN_VENTA'}`;
-          
-          if (!statsMap.has(key)) {
-            statsMap.set(key, {
+          const info = getStatusInfo(client.validationStatus, client.saleStatus);
+          const label = info.label;
+          if (!byLabel.has(label)) {
+            byLabel.set(label, {
               validationStatus: client.validationStatus,
               saleStatus: client.saleStatus,
               count: 0,
             });
           }
-          
-          const stat = statsMap.get(key)!;
-          stat.count++;
+          byLabel.get(label)!.count++;
         });
 
-        setStats(Array.from(statsMap.values()));
+        setStats(Array.from(byLabel.values()));
       }
     } catch (error) {
       console.error('Error loading stats:', error);
