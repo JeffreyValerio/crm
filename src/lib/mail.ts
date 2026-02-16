@@ -15,9 +15,10 @@ interface SendMailOptions {
   to: string;
   subject: string;
   html: string;
+  bcc?: string | string[];
 }
 
-export async function sendMail({ to, subject, html }: SendMailOptions) {
+export async function sendMail({ to, subject, html, bcc }: SendMailOptions) {
   // Si no hay configuración SMTP, mostrar el enlace en consola para desarrollo
   if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
     console.log('='.repeat(50));
@@ -36,6 +37,7 @@ export async function sendMail({ to, subject, html }: SendMailOptions) {
       to,
       subject,
       html,
+      ...(bcc && { bcc }),
     });
 
     console.log('Email enviado:', info.messageId);

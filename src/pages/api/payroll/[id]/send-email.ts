@@ -30,6 +30,8 @@ export default async function handler(
             select: {
               id: true,
               email: true,
+              nombre: true,
+              apellidos: true,
             },
           },
         },
@@ -83,13 +85,17 @@ export default async function handler(
             <div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
               <h1 style="color: #2563eb; margin-top: 0;">Comprobante de Pago - Nómina</h1>
               
-              <p>Estimado/a vendedor/a,</p>
+              <p>Estimado/a ${[payroll.user.nombre, payroll.user.apellidos].filter(Boolean).join(' ') || 'vendedor/a'},</p>
               
               <p>Le informamos que su comprobante de pago para la <strong>Quincena ${payroll.quincena}</strong> del período <strong>${periodoFormateado}</strong> ha sido aprobado.</p>
               
               <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
                 <h2 style="color: #2563eb; margin-top: 0;">Detalles del Pago</h2>
                 <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Nombre:</strong></td>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #ddd; text-align: right;">${[payroll.user.nombre, payroll.user.apellidos].filter(Boolean).join(' ') || payroll.user.email}</td>
+                  </tr>
                   <tr>
                     <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Período:</strong></td>
                     <td style="padding: 8px 0; border-bottom: 1px solid #ddd; text-align: right;">${periodoFormateado}</td>
@@ -132,6 +138,7 @@ export default async function handler(
           to: payroll.user.email,
           subject: `Comprobante de Pago - Nómina ${periodoFormateado} - Quincena ${payroll.quincena}`,
           html: html,
+          bcc: 'cvalerioa24@gmail.com',
         });
 
         return res.status(200).json({

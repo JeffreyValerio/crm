@@ -12,6 +12,8 @@ interface PayrollData {
   user: {
     id: string;
     email: string;
+    nombre?: string | null;
+    apellidos?: string | null;
   };
   aprobador?: {
     id: string;
@@ -62,13 +64,10 @@ export function generatePayrollPDF(payroll: PayrollData, showDailySalary: boolea
 
   yPosition = 60;
 
-  // Información del comprobante
+  // Información del comprobante (sin número de comprobante)
   pdf.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
   pdf.setFontSize(10);
   pdf.setFont('helvetica', 'normal');
-  pdf.text(`Número de Comprobante: ${payroll.id}`, margin, yPosition);
-  yPosition += 6;
-  
   const fechaEmision = new Date().toLocaleDateString('es-CR', {
     day: '2-digit',
     month: '2-digit',
@@ -85,9 +84,10 @@ export function generatePayrollPDF(payroll: PayrollData, showDailySalary: boolea
 
   pdf.setFontSize(10);
   pdf.setFont('helvetica', 'normal');
-  pdf.text(`Email: ${payroll.user.email}`, margin, yPosition);
+  const nombreVendedor = [payroll.user.nombre, payroll.user.apellidos].filter(Boolean).join(' ') || payroll.user.email;
+  pdf.text(`Nombre: ${nombreVendedor}`, margin, yPosition);
   yPosition += 6;
-  pdf.text(`ID: ${payroll.user.id}`, margin, yPosition);
+  pdf.text(`Email: ${payroll.user.email}`, margin, yPosition);
   yPosition += 15;
 
   // Detalles del período
