@@ -8,6 +8,8 @@ import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, CheckCircle2, XCircle, Package, Tag } from 'lucide-react';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 
 interface ProductType {
   id: string;
@@ -230,9 +232,9 @@ export default function PlansPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Cargando...</div>
-      </div>
+      <MainLayout>
+        <TableSkeleton cols={5} />
+      </MainLayout>
     );
   }
 
@@ -304,11 +306,7 @@ export default function PlansPage() {
                 </TableHeader>
                 <TableBody>
                   {productTypes.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No hay tipos de producto registrados
-                      </TableCell>
-                    </TableRow>
+                    <TableEmptyState colSpan={5} message="No hay tipos de producto registrados" />
                   ) : (
                     productTypes.map((type) => (
                       <TableRow key={type.id}>
@@ -385,11 +383,7 @@ export default function PlansPage() {
                 </TableHeader>
                 <TableBody>
                   {plans.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No hay productos registrados
-                      </TableCell>
-                    </TableRow>
+                    <TableEmptyState colSpan={5} message="No hay productos registrados" />
                   ) : (
                     plans.map((plan) => (
                       <TableRow key={plan.id}>

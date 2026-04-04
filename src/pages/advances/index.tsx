@@ -8,17 +8,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  DollarSign, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
+import { Badge } from '@/components/ui/badge';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
+import {
+  DollarSign,
+  CheckCircle2,
+  XCircle,
+  Clock,
   Plus,
   Eye,
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface Advance {
   id: string;
@@ -191,20 +193,14 @@ export default function AdvancesPage() {
     }
   }
 
-  function getEstadoColor(estado: string) {
+  function getEstadoBadgeVariant(estado: string): React.ComponentProps<typeof Badge>['variant'] {
     switch (estado) {
-      case 'PENDIENTE':
-        return 'bg-yellow-500/10 text-yellow-600';
-      case 'APROBADO':
-        return 'bg-blue-500/10 text-blue-600';
-      case 'RECHAZADO':
-        return 'bg-red-500/10 text-red-600';
-      case 'EN_COBRO':
-        return 'bg-orange-500/10 text-orange-600';
-      case 'COMPLETADO':
-        return 'bg-green-500/10 text-green-600';
-      default:
-        return 'bg-gray-500/10 text-gray-600';
+      case 'PENDIENTE':   return 'warning';
+      case 'APROBADO':    return 'info';
+      case 'RECHAZADO':   return 'destructive';
+      case 'EN_COBRO':    return 'pending';
+      case 'COMPLETADO':  return 'success';
+      default:            return 'default';
     }
   }
 
@@ -216,9 +212,7 @@ export default function AdvancesPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <TableSkeleton cols={6} showFilters />
       </MainLayout>
     );
   }
@@ -290,11 +284,7 @@ export default function AdvancesPage() {
               </TableHeader>
               <TableBody>
                 {advances.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      No hay solicitudes de adelanto
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyState colSpan={6} message="No hay solicitudes de adelanto" />
                 ) : (
                   advances.map((advance) => (
                     <TableRow key={advance.id}>
@@ -312,13 +302,10 @@ export default function AdvancesPage() {
                         }
                       </TableCell>
                       <TableCell>
-                        <span className={cn(
-                          "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          getEstadoColor(advance.estado)
-                        )}>
+                        <Badge variant={getEstadoBadgeVariant(advance.estado)}>
                           {getEstadoIcon(advance.estado)}
                           {getEstadoLabel(advance.estado)}
-                        </span>
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {new Date(advance.createdAt).toLocaleDateString('es-CR')}
@@ -432,13 +419,10 @@ export default function AdvancesPage() {
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Estado</label>
                     <p className="text-sm">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                        getEstadoColor(viewingAdvance.estado)
-                      )}>
+                      <Badge variant={getEstadoBadgeVariant(viewingAdvance.estado)}>
                         {getEstadoIcon(viewingAdvance.estado)}
                         {getEstadoLabel(viewingAdvance.estado)}
-                      </span>
+                      </Badge>
                     </p>
                   </div>
                   {viewingAdvance.estado !== 'PENDIENTE' && viewingAdvance.estado !== 'RECHAZADO' && (

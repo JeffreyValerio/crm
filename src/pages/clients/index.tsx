@@ -9,6 +9,8 @@ import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { CldImage } from 'next-cloudinary';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
@@ -838,9 +840,9 @@ Comentario: En espera de Instalacion`;
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Cargando...</div>
-      </div>
+      <MainLayout>
+        <TableSkeleton cols={8} showFilters />
+      </MainLayout>
     );
   }
 
@@ -963,13 +965,10 @@ Comentario: En espera de Instalacion`;
               </TableHeader>
               <TableBody>
                 {clients.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={currentUser?.role === 'admin' ? 9 : 6} className="text-center text-muted-foreground">
-                      {searchTerm.trim() 
-                        ? 'No se encontraron clientes que coincidan con la búsqueda' 
-                        : 'No hay clientes registrados'}
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyState
+                    colSpan={currentUser?.role === 'admin' ? 9 : 6}
+                    message={searchTerm.trim() ? 'No se encontraron clientes que coincidan con la búsqueda' : 'No hay clientes registrados'}
+                  />
                 ) : (
                   clients.map((client) => (
                     <TableRow key={client.id}>
@@ -1161,7 +1160,7 @@ Comentario: En espera de Instalacion`;
 
         {/* Dialog para crear/editar */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] overflow-y-auto max-w-5xl">
             <DialogHeader>
               <DialogTitle>
                 {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
@@ -1983,7 +1982,7 @@ Comentario: En espera de Instalacion`;
 
         {/* Dialog para ver detalles */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] overflow-y-auto max-w-5xl">
             <DialogHeader>
               <DialogTitle>Detalles del Cliente</DialogTitle>
               <DialogDescription>

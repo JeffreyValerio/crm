@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Menu } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter();
   const [user, setUser] = useState<{ email?: string; role?: string; nombre?: string; apellidos?: string } | null>(null);
 
@@ -17,16 +22,23 @@ export function Header() {
     fetchUser();
   }, []);
 
-  const displayName = user?.nombre && user?.apellidos 
-    ? `${user.nombre} ${user.apellidos}` 
+  const displayName = user?.nombre && user?.apellidos
+    ? `${user.nombre} ${user.apellidos}`
     : user?.email || 'Usuario';
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-background px-6">
-      <div className="flex items-center gap-4">
-        <h2 className="text-lg font-semibold">Panel de Control</h2>
+    <header className="flex h-16 items-center justify-between border-b bg-background px-4 sm:px-6">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors"
+          aria-label="Abrir menú"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <h2 className="text-base sm:text-lg font-semibold">Panel de Control</h2>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <ThemeToggle />
         <div className="text-right">
           <button

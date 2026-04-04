@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Mail } from 'lucide-react';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { toast } from 'sonner';
 
 interface User {
@@ -176,9 +178,9 @@ export default function UsersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Cargando...</div>
-      </div>
+      <MainLayout>
+        <TableSkeleton cols={6} />
+      </MainLayout>
     );
   }
 
@@ -219,11 +221,7 @@ export default function UsersPage() {
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      No hay usuarios registrados
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyState colSpan={6} message="No hay usuarios registrados" />
                 ) : (
                   users.map((user) => {
                     const displayName = user.nombre && user.apellidos 

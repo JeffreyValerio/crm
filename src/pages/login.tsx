@@ -107,7 +107,7 @@ export default function LoginPage() {
                   required
                   placeholder="tu@email.com"
                   disabled={loading}
-                  className="h-11"
+                  className="h-10"
                 />
               </div>
 
@@ -124,7 +124,7 @@ export default function LoginPage() {
                   required
                   placeholder="••••••••"
                   disabled={loading}
-                  className="h-11"
+                  className="h-10"
                 />
               </div>
 

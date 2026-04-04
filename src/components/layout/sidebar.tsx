@@ -145,9 +145,9 @@ export function Sidebar() {
           title={isCollapsed ? "Expandir" : "Colapsar"}
         >
           {isCollapsed ? (
-            <ChevronRight className="h-5 w-5 text-white" />
+            <ChevronRight className="h-5 w-5 text-foreground" />
           ) : (
-            <ChevronLeft className="h-5 w-5 text-white" />
+            <ChevronLeft className="h-5 w-5 text-foreground" />
           )}
         </button>
       </div>
@@ -190,11 +190,11 @@ export function Sidebar() {
                 isCollapsed ? 'justify-center' : 'gap-3',
                 isActive
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-white hover:bg-accent hover:text-accent-foreground'
+                  : 'text-foreground hover:bg-accent hover:text-accent-foreground'
               )}
               title={isCollapsed ? item.title : undefined}
             >
-              <Icon className="h-5 w-5 flex-shrink-0 text-white" />
+              <Icon className="h-5 w-5 flex-shrink-0" />
               {!isCollapsed && (
                 <span className="whitespace-nowrap">{item.title}</span>
               )}
@@ -210,12 +210,12 @@ export function Sidebar() {
         <button
           onClick={handleLogout}
           className={cn(
-            "flex items-center rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent hover:text-accent-foreground w-full",
+            "flex items-center rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground w-full",
             isCollapsed ? "justify-center" : "gap-3"
           )}
           title={isCollapsed ? "Cerrar sesión" : undefined}
         >
-          <LogOut className="h-5 w-5 flex-shrink-0 text-white" />
+          <LogOut className="h-5 w-5 flex-shrink-0" />
           {!isCollapsed && (
             <span className="whitespace-nowrap">Cerrar sesión</span>
           )}

@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { generatePayrollPDF } from '@/lib/payroll-pdf';
 import { cn } from '@/lib/utils';
+import { TableEmptyState } from '@/components/ui/table-empty-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 
 interface Payroll {
   id: string;
@@ -442,9 +444,7 @@ export default function PayrollPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <TableSkeleton cols={7} showFilters />
       </MainLayout>
     );
   }
@@ -549,11 +549,7 @@ export default function PayrollPage() {
               </TableHeader>
               <TableBody>
                 {payrolls.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
-                      No hay nóminas registradas
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyState colSpan={7} message="No hay nóminas registradas" />
                 ) : (
                   payrolls.map((payroll) => {
                     return (

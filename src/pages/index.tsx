@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { MainLayout } from '@/components/layout/main-layout';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -45,19 +46,6 @@ interface Payroll {
   };
 }
 
-interface Advance {
-  id: string;
-  monto: number | string;
-  montoRestante: number | string;
-  estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'EN_COBRO' | 'COMPLETADO';
-  createdAt: string;
-  user: {
-    id: string;
-    email: string;
-    nombre: string | null;
-    apellidos: string | null;
-  };
-}
 
 export default function HomePage() {
   const router = useRouter();
@@ -76,21 +64,8 @@ export default function HomePage() {
     installed: number;
     effectiveness: number;
   } | null>(null);
-  const [payrollData, setPayrollData] = useState<{
-    total: number;
-    totalAmount: number;
-    pendientes: number;
-    aprobados: number;
-    pagados: number;
-  } | null>(null);
-  const [advancesData, setAdvancesData] = useState<{
-    total: number;
-    totalAmount: number;
-    pendientes: number;
-    aprobados: number;
-    enCobro: number;
-    completados: number;
-  } | null>(null);
+  const hasMounted = useRef(false);
+  const [payrollSummary, setPayrollSummary] = useState<{ pendingCount: number; pendingTotal: number } | null>(null);
 
   // Función auxiliar para formatear el período seleccionado
   function getPeriodLabel(): string {
@@ -111,17 +86,15 @@ export default function HomePage() {
         const data = await response.json();
         setUser(data.user);
         setCurrentUserId(data.user?.userId || null);
-        
-        // Si es admin, cargar usuarios y filtro por creador
+
         if (data.user?.role === 'admin') {
           if (router.query.createdBy) {
             setFilterCreatedBy(router.query.createdBy as string);
           }
           await loadUsers();
         }
-        
-        await loadStats();
-        await loadComplianceStats();
+
+        await loadDashboardData(data.user);
         setLoading(false);
       }
     }
@@ -133,8 +106,8 @@ export default function HomePage() {
       const response = await fetch('/api/users');
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users?.map((u: { id: string; email: string; nombre?: string; apellidos?: string }) => ({ 
-          id: u.id, 
+        setUsers(data.users?.map((u: { id: string; email: string; nombre?: string; apellidos?: string }) => ({
+          id: u.id,
           email: u.email,
           nombre: u.nombre,
           apellidos: u.apellidos,
@@ -145,200 +118,117 @@ export default function HomePage() {
     }
   }
 
-  async function loadStats() {
-    try {
-      const params = new URLSearchParams();
-      params.append('limit', '10000'); // traer todos para filtrar por mes en el dashboard
-      if (user?.role === 'admin' && filterCreatedBy) {
-        params.append('createdBy', filterCreatedBy);
-      }
-      
-      const response = await fetch(`/api/clients?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        const clients = data.clients || [];
-        
-        // Filtrar por año y mes (usar UTC para no perder datos por zona horaria, p. ej. enero)
-        const filteredClients = clients.filter((client: any) => {
-          const clientDate = new Date(client.createdAt);
-          const clientYear = clientDate.getUTCFullYear().toString();
-          const clientMonth = (clientDate.getUTCMonth() + 1).toString();
-          
-          const matchesYear = !filterYear || filterYear === clientYear;
-          const matchesMonth = !filterMonth || filterMonth === clientMonth;
-          
-          return matchesYear && matchesMonth;
-        });
-        
-        setTotalClients(filteredClients.length);
+  async function loadDashboardData(
+    userOverride?: { role?: string; email?: string; nombre?: string; apellidos?: string } | null
+  ) {
+    const activeUser = userOverride ?? user;
+    if (!activeUser) return;
 
-        // Agrupar por estado mostrado (misma etiqueta = una sola tarjeta, evita "Cancelada" duplicada)
-        const byLabel = new Map<string, ClientStats>();
-
-        filteredClients.forEach((client: any) => {
-          const info = getStatusInfo(client.validationStatus, client.saleStatus);
-          const label = info.label;
-          if (!byLabel.has(label)) {
-            byLabel.set(label, {
-              validationStatus: client.validationStatus,
-              saleStatus: client.saleStatus,
-              count: 0,
-            });
-          }
-          byLabel.get(label)!.count++;
-        });
-
-        setStats(Array.from(byLabel.values()));
-      }
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    }
-  }
-
-  async function loadEffectivenessData() {
     try {
       const params = new URLSearchParams();
       params.append('limit', '10000');
-      if (user?.role === 'admin' && filterCreatedBy) {
+      if (activeUser.role === 'admin' && filterCreatedBy) {
         params.append('createdBy', filterCreatedBy);
       }
-      
+
       const response = await fetch(`/api/clients?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        const clients = data.clients || [];
-        
-        // Filtrar por año y mes (UTC para consistencia con otros bloques)
-        const filteredClients = clients.filter((client: any) => {
-          const clientDate = new Date(client.createdAt);
-          const clientYear = clientDate.getUTCFullYear().toString();
-          const clientMonth = (clientDate.getUTCMonth() + 1).toString();
-          
-          const matchesYear = !filterYear || filterYear === clientYear;
-          const matchesMonth = !filterMonth || filterMonth === clientMonth;
-          
-          return matchesYear && matchesMonth;
-        });
-        
-        const totalContacts = filteredClients.length;
-        const installed = filteredClients.filter((client: any) => 
-          client.saleStatus === 'INSTALADA'
-        ).length;
-        
-        const effectiveness = totalContacts > 0 ? (installed / totalContacts) * 100 : 0;
-        
-        setEffectivenessData({
-          totalContacts,
-          installed,
-          effectiveness: Math.round(effectiveness * 100) / 100, // Redondear a 2 decimales
-        });
-      }
-    } catch (error) {
-      console.error('Error loading effectiveness data:', error);
-    }
-  }
+      if (!response.ok) return;
 
-  async function loadComplianceStats() {
-    try {
-      const params = new URLSearchParams();
-      params.append('limit', '10000');
-      if (user?.role === 'admin' && filterCreatedBy) {
-        params.append('createdBy', filterCreatedBy);
-      }
-      const response = await fetch(`/api/clients?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        const clients = data.clients || [];
-        
-        // Filtrar por año y mes (UTC para consistencia)
-        const filteredClients = clients.filter((client: any) => {
-          const clientDate = new Date(client.createdAt);
-          const clientYear = clientDate.getUTCFullYear().toString();
-          const clientMonth = (clientDate.getUTCMonth() + 1).toString();
-          
-          const matchesYear = !filterYear || filterYear === clientYear;
-          const matchesMonth = !filterMonth || filterMonth === clientMonth;
-          
-          return matchesYear && matchesMonth;
-        });
-        
-        const TARGET_SALES = 10; // Meta de ventas instaladas
-        const complianceMap = new Map<string, { userId: string; email: string; nombre?: string | null; apellidos?: string | null; installed: number; pending: number }>();
+      const data = await response.json();
+      const clients = data.clients || [];
 
-        // Contar clientes instalados y pendientes por vendedor
-        filteredClients.forEach((client: any) => {
-          if (client.creator) {
-            const userId = client.creator.id;
-            const email = client.creator.email;
-            const nombre = client.creator.nombre;
-            const apellidos = client.creator.apellidos;
-            
-            if (!complianceMap.has(userId)) {
-              complianceMap.set(userId, {
-                userId,
-                email,
-                nombre,
-                apellidos,
-                installed: 0,
-                pending: 0,
-              });
-            }
-            
-            const stats = complianceMap.get(userId)!;
-            if (client.saleStatus === 'INSTALADA') {
-              stats.installed++;
-            } else if (client.saleStatus === 'PENDIENTE_INSTALACION') {
-              stats.pending++;
-            }
-          }
-        });
+      // Filtrar por año y mes (UTC para evitar problemas de zona horaria en enero)
+      const filtered = clients.filter((c: any) => {
+        const d = new Date(c.createdAt);
+        const y = d.getUTCFullYear().toString();
+        const m = (d.getUTCMonth() + 1).toString();
+        return (!filterYear || filterYear === y) && (!filterMonth || filterMonth === m);
+      });
 
-        // Convertir a array y calcular porcentajes
-        const stats: ComplianceStats[] = Array.from(complianceMap.values()).map((stat) => {
-          const percentage = Math.min((stat.installed / TARGET_SALES) * 100, 100);
-          return {
-            ...stat,
-            pending: stat.pending || 0,
-            target: TARGET_SALES,
-            percentage: Math.round(percentage),
-          };
-        });
-
-        // Si no es admin, solo mostrar el cumplimiento del usuario actual
-        if (user?.role !== 'admin' && currentUserId) {
-          const userStats = stats.find((s) => s.userId === currentUserId);
-          const displayName = user?.nombre && user?.apellidos 
-            ? `${user.nombre} ${user.apellidos}` 
-            : user?.email || 'Usuario';
-          setComplianceStats(userStats ? [userStats] : [{
-            userId: currentUserId,
-            email: user?.email || 'Usuario',
-            nombre: user?.nombre || null,
-            apellidos: user?.apellidos || null,
-            installed: 0,
-            pending: 0,
-            target: TARGET_SALES,
-            percentage: 0,
-          }]);
-        } else {
-          // Para admin, mostrar todos los vendedores
-          // Si un vendedor no tiene ventas, no aparecerá aquí. Podríamos agregarlo si queremos mostrar todos los usuarios.
-          setComplianceStats(stats);
+      // ── Stats por estado ──────────────────────────────────
+      setTotalClients(filtered.length);
+      const byLabel = new Map<string, ClientStats>();
+      filtered.forEach((c: any) => {
+        const info = getStatusInfo(c.validationStatus, c.saleStatus);
+        if (!byLabel.has(info.label)) {
+          byLabel.set(info.label, { validationStatus: c.validationStatus, saleStatus: c.saleStatus, count: 0 });
         }
+        byLabel.get(info.label)!.count++;
+      });
+      setStats(Array.from(byLabel.values()));
+
+      // ── Efectividad ───────────────────────────────────────
+      const totalContacts = filtered.length;
+      const installedCount = filtered.filter((c: any) => c.saleStatus === 'INSTALADA').length;
+      const effectiveness = totalContacts > 0
+        ? Math.round((installedCount / totalContacts) * 10000) / 100
+        : 0;
+      setEffectivenessData({ totalContacts, installed: installedCount, effectiveness });
+
+      // ── Cumplimiento por vendedor ─────────────────────────
+      const TARGET_SALES = 10;
+      const complianceMap = new Map<string, {
+        userId: string; email: string;
+        nombre?: string | null; apellidos?: string | null;
+        installed: number; pending: number;
+      }>();
+      filtered.forEach((c: any) => {
+        if (!c.creator) return;
+        const { id: uid, email, nombre, apellidos } = c.creator;
+        if (!complianceMap.has(uid)) {
+          complianceMap.set(uid, { userId: uid, email, nombre, apellidos, installed: 0, pending: 0 });
+        }
+        const s = complianceMap.get(uid)!;
+        if (c.saleStatus === 'INSTALADA') s.installed++;
+        else if (c.saleStatus === 'PENDIENTE_INSTALACION') s.pending++;
+      });
+
+      const compStats: ComplianceStats[] = Array.from(complianceMap.values()).map((s) => ({
+        ...s,
+        target: TARGET_SALES,
+        percentage: Math.round(Math.min((s.installed / TARGET_SALES) * 100, 100)),
+      }));
+
+      if (activeUser.role !== 'admin' && currentUserId) {
+        const mine = compStats.find((s) => s.userId === currentUserId);
+        setComplianceStats(mine ? [mine] : [{
+          userId: currentUserId,
+          email: activeUser.email || '',
+          nombre: activeUser.nombre || null,
+          apellidos: activeUser.apellidos || null,
+          installed: 0,
+          pending: 0,
+          target: TARGET_SALES,
+          percentage: 0,
+        }]);
+      } else {
+        setComplianceStats(compStats);
+      }
+      // ── Nóminas ──────────────────────────────────────────
+      const payrollRes = await fetch('/api/payroll');
+      if (payrollRes.ok) {
+        const payrollData = await payrollRes.json();
+        const payrolls: Payroll[] = payrollData.payrolls || [];
+        const pendingP = payrolls.filter((p) => p.estado === 'PENDIENTE');
+        setPayrollSummary({
+          pendingCount: pendingP.length,
+          pendingTotal: pendingP.reduce((sum, p) => sum + Number(p.total), 0),
+        });
       }
     } catch (error) {
-      console.error('Error loading compliance stats:', error);
+      console.error('Error loading dashboard data:', error);
     }
   }
 
+  // Recargar solo cuando cambien los filtros (no en el mount inicial)
   useEffect(() => {
-    if (!loading && user) {
-      loadStats();
-      loadComplianceStats();
-      loadEffectivenessData();
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      return;
     }
+    if (user) loadDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCreatedBy, filterYear, filterMonth, loading, user]);
+  }, [filterCreatedBy, filterYear, filterMonth]);
 
   function getStatusInfo(status: string | null, saleStatus: string | null) {
     // Priorizar estado de venta si existe
@@ -442,477 +332,427 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Cargando...</div>
-      </div>
+      <MainLayout>
+        <TableSkeleton cols={4} showFilters={false} />
+      </MainLayout>
     );
   }
 
   return (
     <MainLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex flex-col gap-2">
-          <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-lg">
-            Bienvenido de vuelta, {user?.nombre && user?.apellidos ? `${user.nombre} ${user.apellidos}` : user?.email}
-          </p>
+      <div className="space-y-6 sm:space-y-8">
+        {/* Header + Filtros inline */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground">
+              Bienvenido, {user?.nombre ?? user?.email} · {getPeriodLabel()}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {user?.role === 'admin' && (
+              <Select
+                aria-label="Filtrar por vendedor"
+                value={filterCreatedBy}
+                onChange={(e) => setFilterCreatedBy(e.target.value)}
+                className="h-9 w-full sm:w-auto text-sm"
+              >
+                <option value="">Todos los vendedores</option>
+                {users.map((u) => {
+                  const displayName = u.nombre && u.apellidos
+                    ? `${u.nombre} ${u.apellidos}`
+                    : u.email;
+                  return (
+                    <option key={u.id} value={u.id}>
+                      {displayName}
+                    </option>
+                  );
+                })}
+              </Select>
+            )}
+            <Select
+              aria-label="Filtrar por mes"
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="h-9 flex-1 sm:flex-none text-sm"
+            >
+              <option value="">Todos los meses</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </Select>
+            <Select
+              aria-label="Filtrar por año"
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value)}
+              className="h-9 flex-1 sm:flex-none text-sm"
+            >
+              {[0, 1, 2].map((i) => {
+                const y = new Date().getFullYear() - i;
+                return (
+                  <option key={y} value={y.toString()}>
+                    {y}
+                  </option>
+                );
+              })}
+            </Select>
+          </div>
         </div>
 
-        {/* Filtros - Diseño más compacto */}
-        <Card className="border-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Filtros de Análisis
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              {user?.role === 'admin' && (
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Creado Por</label>
-                  <Select
-                    value={filterCreatedBy}
-                    onChange={(e) => setFilterCreatedBy(e.target.value)}
-                  >
-                    <option value="">Todos los usuarios</option>
-                    {users.map((u) => {
-                      const displayName = u.nombre && u.apellidos 
-                        ? `${u.nombre} ${u.apellidos}` 
-                        : u.email;
-                      return (
-                        <option key={u.id} value={u.id}>
-                          {displayName}
-                        </option>
-                      );
-                    })}
-                  </Select>
-                </div>
-              )}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Año</label>
-                <Select
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                >
-                  {[0, 1, 2].map((i) => {
-                    const y = new Date().getFullYear() - i;
-                    return (
-                      <option key={y} value={y.toString()}>
-                        {y}
-                      </option>
-                    );
-                  })}
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Mes</label>
-                <Select
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                >
-                  <option value="">Todos los meses</option>
-                  <option value="1">Enero</option>
-                  <option value="2">Febrero</option>
-                  <option value="3">Marzo</option>
-                  <option value="4">Abril</option>
-                  <option value="5">Mayo</option>
-                  <option value="6">Junio</option>
-                  <option value="7">Julio</option>
-                  <option value="8">Agosto</option>
-                  <option value="9">Septiembre</option>
-                  <option value="10">Octubre</option>
-                  <option value="11">Noviembre</option>
-                  <option value="12">Diciembre</option>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Métricas Principales */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-2 hover:shadow-lg transition-all">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <Card className="shadow-sm border-t-4 border-t-primary hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Clientes</CardTitle>
-              <UserCircle className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Clientes</CardTitle>
+              <div className="hidden sm:flex p-2 bg-primary/10 rounded-lg">
+                <UserCircle className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{totalClients}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {filterMonth && filterYear || filterYear 
-                  ? `Registrados en ${getPeriodLabel()}`
-                  : 'Clientes registrados'}
+              <div className="text-2xl sm:text-3xl font-bold">{totalClients}</div>
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                Registrados en {getPeriodLabel()}
               </p>
             </CardContent>
           </Card>
-          
+
           {effectivenessData && (
             <>
-              <Card className="border-2 hover:shadow-lg transition-all">
+              <Card className="shadow-sm border-t-4 border-t-blue-500 hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Contactos</CardTitle>
-                  <TrendingUp className="h-5 w-5 text-blue-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{effectivenessData.totalContacts}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {filterMonth && filterYear || filterYear 
-                      ? `Ingresados en ${getPeriodLabel()}`
-                      : 'Ingresados en el período'}
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className="border-2 hover:shadow-lg transition-all">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Instalaciones</CardTitle>
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600">{effectivenessData.installed}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {filterMonth && filterYear || filterYear 
-                      ? `Completadas en ${getPeriodLabel()}`
-                      : 'Ventas completadas'}
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className="border-2 hover:shadow-lg transition-all">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Efectividad</CardTitle>
-                  <Target className="h-5 w-5 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className={cn(
-                    "text-3xl font-bold",
-                    effectivenessData.effectiveness >= 50 ? "text-green-600" : 
-                    effectivenessData.effectiveness >= 30 ? "text-yellow-600" : "text-red-600"
-                  )}>
-                    {effectivenessData.effectiveness.toFixed(1)}%
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Contactos</CardTitle>
+                  <div className="hidden sm:flex p-2 bg-blue-500/10 rounded-lg">
+                    <TrendingUp className="h-4 w-4 text-blue-500" />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Tasa de conversión</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold">{effectivenessData.totalContacts}</div>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">
+                    Ingresados en {getPeriodLabel()}
+                  </p>
                 </CardContent>
               </Card>
+
+              <Card className="shadow-sm border-t-4 border-t-green-500 hover:shadow-md transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Instalaciones</CardTitle>
+                  <div className="hidden sm:flex p-2 bg-green-500/10 rounded-lg">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl sm:text-3xl font-bold text-green-600">{effectivenessData.installed}</div>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">
+                    Completadas en {getPeriodLabel()}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {(() => {
+                const e = effectivenessData.effectiveness;
+                const color = e >= 50
+                  ? { border: "border-t-green-500", bg: "bg-green-500/10", icon: "text-green-500", num: "text-green-600" }
+                  : e >= 30
+                  ? { border: "border-t-yellow-500", bg: "bg-yellow-500/10", icon: "text-yellow-500", num: "text-yellow-600" }
+                  : { border: "border-t-red-500", bg: "bg-red-500/10", icon: "text-red-500", num: "text-red-600" };
+                return (
+                  <Card className={cn("shadow-sm border-t-4 hover:shadow-md transition-shadow", color.border)}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Efectividad</CardTitle>
+                      <div className={cn("hidden sm:flex p-2 rounded-lg", color.bg)}>
+                        <Target className={cn("h-4 w-4", color.icon)} />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className={cn("text-2xl sm:text-3xl font-bold", color.num)}>
+                        {e.toFixed(1)}%
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">Tasa de conversión</p>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </>
           )}
         </div>
 
         {/* Resumen por Estados */}
         {stats.length > 0 && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Resumen por Estado</h2>
-              <p className="text-muted-foreground">
-                Distribución de clientes según su estado actual ({getPeriodLabel()})
-              </p>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {stats.map((stat, index) => {
-                const info = getStatusInfo(stat.validationStatus, stat.saleStatus);
-                const Icon = info.icon;
-                
-                return (
-                  <Card
-                    key={index}
-                    className={`${info.borderColor} border-2 hover:shadow-xl transition-all cursor-pointer`}
-                    onClick={() => handleViewDetail(stat.validationStatus, stat.saleStatus)}
-                  >
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className={`${info.color} p-3 rounded-lg shadow-sm`}>
-                          <Icon className="h-6 w-6 text-white" />
-                        </div>
-                        <div className="text-right">
-                          <div className={`text-3xl font-bold ${info.textColor}`}>
-                            {stat.count}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-semibold">Resumen por Estado</CardTitle>
+                  <CardDescription>
+                    {totalClients} clientes · {getPeriodLabel()}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {[...stats]
+                .sort((a, b) => b.count - a.count)
+                .map((stat, index) => {
+                  const info = getStatusInfo(stat.validationStatus, stat.saleStatus);
+                  const pct = totalClients > 0 ? Math.round((stat.count / totalClients) * 100) : 0;
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleViewDetail(stat.validationStatus, stat.saleStatus)}
+                      className="w-full group text-left"
+                    >
+                      <div className="flex items-center gap-3 py-2 px-2 rounded-md hover:bg-accent transition-colors">
+                        <div className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0", info.color)} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-medium truncate">{info.label}</span>
+                            <span className="text-sm font-bold ml-3 flex-shrink-0">{stat.count}</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5">
+                            <div
+                              className={cn("h-1.5 rounded-full transition-all duration-500", info.color)}
+                              style={{ width: `${pct}%` }}
+                            />
                           </div>
                         </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0 w-12 justify-end">
+                          <span className="text-xs text-muted-foreground">{pct}%</span>
+                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                       </div>
-                      <div className="space-y-3">
-                        <p className={`text-base font-semibold ${info.textColor}`}>
-                          {info.label}
-                        </p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`w-full ${info.borderColor} border hover:${info.color} hover:text-white`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewDetail(stat.validationStatus, stat.saleStatus);
-                          }}
-                        >
-                          Ver detalle
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
+                    </button>
+                  );
+                })}
+            </CardContent>
+          </Card>
         )}
 
         {/* Sección Inferior: KPIs y Análisis */}
         <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-          {/* KPI de Cumplimiento - 2/3 del ancho */}
-          <div className="lg:col-span-2 space-y-4 flex flex-col">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <Target className="h-6 w-6 text-primary" />
-                KPI de Cumplimiento
-              </h2>
-              <p className="text-muted-foreground mt-1">
-                Meta: 10 ventas instaladas por vendedor ({getPeriodLabel()})
-              </p>
-            </div>
-            
-            {user?.role === 'admin' ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                {complianceStats.map((stat) => (
-                  <Card key={stat.userId} className="border-2 hover:shadow-xl transition-all">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <UserCircle className="h-4 w-4 text-primary" />
-                        {stat.nombre && stat.apellidos ? `${stat.nombre} ${stat.apellidos}` : stat.email}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm text-muted-foreground">Ventas Instaladas</span>
-                            <span className="text-2xl font-bold">
-                              {stat.installed} / {stat.target}
-                            </span>
-                          </div>
-                          <div className="w-full bg-secondary rounded-full h-3 mb-2">
-                            <div
-                              className={cn(
-                                "h-3 rounded-full transition-all duration-300",
-                                stat.percentage >= 100 
-                                  ? "bg-green-500" 
-                                  : stat.percentage >= 50 
-                                  ? "bg-yellow-500" 
-                                  : "bg-red-500"
-                              )}
-                              style={{ width: `${Math.min(stat.percentage, 100)}%` }}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Cumplimiento</span>
-                            <span className={cn(
-                              "text-base font-bold",
-                              stat.percentage >= 100 
-                                ? "text-green-600" 
-                                : stat.percentage >= 50 
-                                ? "text-yellow-600" 
-                                : "text-red-600"
-                            )}>
-                              {stat.percentage}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="pt-3 border-t">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">Pendientes</span>
-                            <span className="text-lg font-bold text-blue-600">
-                              {stat.pending || 0}
-                            </span>
-                          </div>
-                        </div>
-                        {stat.percentage >= 100 && (
-                          <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 dark:bg-green-950/20 p-2 rounded-md">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span className="font-medium">Meta alcanzada</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {complianceStats.length === 0 && (
-                  <Card className="lg:col-span-2">
-                    <CardContent className="py-12 text-center">
-                      <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-muted-foreground">No hay ventas instaladas registradas</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            ) : (
-              <Card className="border-2 hover:shadow-xl transition-all flex-1 flex flex-col">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    Mi Cumplimiento
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col">
-                  <div className="space-y-5 flex-1">
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm text-muted-foreground">Ventas Instaladas</span>
-                        <span className="text-3xl font-bold">
-                          {complianceStats[0]?.installed || 0} / {complianceStats[0]?.target || 10}
-                        </span>
-                      </div>
-                      <div className="w-full bg-secondary rounded-full h-4 mb-3">
-                        <div
-                          className={cn(
-                            "h-4 rounded-full transition-all duration-300",
-                            (complianceStats[0]?.percentage || 0) >= 100 
-                              ? "bg-green-500" 
-                              : (complianceStats[0]?.percentage || 0) >= 50 
-                              ? "bg-yellow-500" 
-                              : "bg-red-500"
-                          )}
-                          style={{ width: `${Math.min((complianceStats[0]?.percentage || 0), 100)}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Cumplimiento</span>
-                        <span className={cn(
-                          "text-xl font-bold",
-                          (complianceStats[0]?.percentage || 0) >= 100 
-                            ? "text-green-600" 
-                            : (complianceStats[0]?.percentage || 0) >= 50 
-                            ? "text-yellow-600" 
-                            : "text-red-600"
-                        )}>
-                          {complianceStats[0]?.percentage || 0}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="pt-4 border-t">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Total de Pendientes</span>
-                        <span className="text-2xl font-bold text-blue-600">
-                          {complianceStats[0]?.pending || 0}
-                        </span>
-                      </div>
-                    </div>
-                    {(complianceStats[0]?.percentage || 0) >= 100 && (
-                      <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 dark:bg-green-950/20 p-3 rounded-md">
-                        <CheckCircle2 className="h-5 w-5" />
-                        <span className="font-semibold">¡Meta alcanzada! 🎉</span>
-                      </div>
-                    )}
-                    {(complianceStats[0]?.percentage || 0) < 100 && (
-                      <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                        Te faltan {(complianceStats[0]?.target || 10) - (complianceStats[0]?.installed || 0)} ventas para alcanzar la meta
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
 
-          {/* Gráfica de Efectividad - 1/3 del ancho */}
-          <div className="space-y-4 flex flex-col">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <TrendingUp className="h-6 w-6 text-primary" />
-                Efectividad
-              </h2>
-              <p className="text-muted-foreground text-sm mt-1">
-                Conversión de contactos a instalaciones ({getPeriodLabel()})
-              </p>
-            </div>
-            <Card className="border-2 hover:shadow-xl transition-all flex-1 flex flex-col">
-              <CardContent className="pt-6 flex-1 flex flex-col">
-                {effectivenessData ? (
-                  <div className="space-y-4 flex-1 flex flex-col">
-                    {/* Métricas rápidas */}
-                    <div className="grid gap-3 grid-cols-3 text-center">
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Contactos</div>
-                        <div className="text-2xl font-bold">{effectivenessData.totalContacts}</div>
+          {/* KPI de Cumplimiento - 2/3 del ancho */}
+          <div className="lg:col-span-2">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  KPI de Cumplimiento
+                </CardTitle>
+                <CardDescription>
+                  Meta: 10 ventas instaladas por vendedor · {getPeriodLabel()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {user?.role === 'admin' ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {complianceStats.length === 0 ? (
+                      <div className="md:col-span-2 py-10 text-center text-muted-foreground">
+                        <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                        <p className="text-sm">No hay ventas instaladas registradas</p>
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Instalaciones</div>
-                        <div className="text-2xl font-bold text-green-600">{effectivenessData.installed}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Efectividad</div>
-                        <div className={cn(
-                          "text-2xl font-bold",
-                          effectivenessData.effectiveness >= 50 ? "text-green-600" : 
-                          effectivenessData.effectiveness >= 30 ? "text-yellow-600" : "text-red-600"
-                        )}>
-                          {effectivenessData.effectiveness.toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Gráfica comparativa */}
-                    <div className="pt-4 border-t">
-                      <div className="flex items-end gap-3 h-20 mb-3">
-                        <div className="flex-1 flex flex-col items-center gap-2">
-                          <div className="relative w-full h-full flex items-end bg-secondary rounded-t">
-                            <div
-                              className="w-full bg-blue-500 rounded-t transition-all duration-500"
-                              style={{ height: `${Math.min((effectivenessData.totalContacts / Math.max(effectivenessData.totalContacts, effectivenessData.installed)) * 100, 100)}%` }}
-                              title={`Contactos: ${effectivenessData.totalContacts}`}
-                            />
-                          </div>
-                          <span className="text-xs font-medium text-muted-foreground">Contactos</span>
-                        </div>
-                        <div className="flex-1 flex flex-col items-center gap-2">
-                          <div className="relative w-full h-full flex items-end bg-secondary rounded-t">
-                            <div
-                              className={cn(
-                                "w-full rounded-t transition-all duration-500",
-                                effectivenessData.effectiveness >= 50 ? "bg-green-500" : 
-                                effectivenessData.effectiveness >= 30 ? "bg-yellow-500" : "bg-red-500"
-                              )}
-                              style={{ height: `${Math.min((effectivenessData.installed / Math.max(effectivenessData.totalContacts, effectivenessData.installed)) * 100, 100)}%` }}
-                              title={`Instalaciones: ${effectivenessData.installed}`}
-                            />
-                          </div>
-                          <span className="text-xs font-medium text-muted-foreground">Instalaciones</span>
-                        </div>
-                      </div>
-                      
-                      {/* Barra de progreso */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Tasa de conversión</span>
-                          <span className={cn(
-                            "font-semibold",
-                            effectivenessData.effectiveness >= 50 ? "text-green-600" : 
-                            effectivenessData.effectiveness >= 30 ? "text-yellow-600" : "text-red-600"
-                          )}>
-                            {effectivenessData.effectiveness.toFixed(1)}%
-                          </span>
-                        </div>
-                        <div className="w-full bg-secondary rounded-full h-2">
-                          <div
-                            className={cn(
-                              "h-2 rounded-full transition-all duration-300",
-                              effectivenessData.effectiveness >= 50 ? "bg-green-500" : 
-                              effectivenessData.effectiveness >= 30 ? "bg-yellow-500" : "bg-red-500"
+                    ) : (
+                      complianceStats.map((stat) => {
+                        const barColor = stat.percentage >= 100
+                          ? "bg-green-500"
+                          : stat.percentage >= 50
+                          ? "bg-yellow-500"
+                          : "bg-red-500";
+                        const textColor = stat.percentage >= 100
+                          ? "text-green-600"
+                          : stat.percentage >= 50
+                          ? "text-yellow-600"
+                          : "text-red-600";
+                        return (
+                          <div key={stat.userId} className="space-y-3 p-4 rounded-lg border bg-card">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <UserCircle className="h-4 w-4 text-primary flex-shrink-0" />
+                                <span className="text-sm font-medium truncate">
+                                  {stat.nombre && stat.apellidos ? `${stat.nombre} ${stat.apellidos}` : stat.email}
+                                </span>
+                              </div>
+                              <span className={cn("text-sm font-bold flex-shrink-0 ml-2", textColor)}>
+                                {stat.percentage}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className={cn("h-2 rounded-full transition-all duration-500", barColor)}
+                                style={{ width: `${Math.min(stat.percentage, 100)}%` }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{stat.installed} / {stat.target} instaladas</span>
+                              <span>{stat.pending} pendiente{stat.pending !== 1 ? 's' : ''}</span>
+                            </div>
+                            {stat.percentage >= 100 && (
+                              <div className="flex items-center gap-1.5 text-green-600 text-xs bg-green-50 dark:bg-green-950/20 px-2 py-1.5 rounded">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span className="font-medium">Meta alcanzada</span>
+                              </div>
                             )}
-                            style={{ width: `${Math.min(effectivenessData.effectiveness, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 ) : (
-                  <div className="py-8 text-center text-muted-foreground text-sm">
-                    <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    Cargando datos...
+                  // Vista usuario: card única con ring chart pequeño
+                  (() => {
+                    const pct = complianceStats[0]?.percentage || 0;
+                    const installed = complianceStats[0]?.installed || 0;
+                    const target = complianceStats[0]?.target || 10;
+                    const pending = complianceStats[0]?.pending || 0;
+                    const strokeColor = pct >= 100 ? '#22c55e' : pct >= 50 ? '#eab308' : '#ef4444';
+                    const textColor = pct >= 100 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-600';
+                    return (
+                      <div className="flex flex-col sm:flex-row items-center gap-6">
+                        <div className="relative h-32 w-32 flex-shrink-0">
+                          <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                            <circle cx="18" cy="18" r="15.9" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                            <circle
+                              cx="18" cy="18" r="15.9" fill="none"
+                              stroke={strokeColor} strokeWidth="3" strokeLinecap="round"
+                              strokeDasharray={`${Math.min(pct, 100)} ${100 - Math.min(pct, 100)}`}
+                              className="transition-all duration-700"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className={cn("text-2xl font-bold", textColor)}>{pct}%</span>
+                            <span className="text-xs text-muted-foreground">meta</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 space-y-3 w-full">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Ventas instaladas</span>
+                            <span className="text-xl font-bold">{installed} / {target}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Pendientes de instalación</span>
+                            <span className="text-xl font-bold text-blue-600">{pending}</span>
+                          </div>
+                          <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+                            {pct >= 100
+                              ? '¡Meta alcanzada este período!'
+                              : `Faltan ${target - installed} venta${target - installed !== 1 ? 's' : ''} para alcanzar la meta`}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Ring chart de Efectividad - 1/3 del ancho */}
+          <div>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Efectividad
+                </CardTitle>
+                <CardDescription>
+                  Conversión contactos → instalaciones · {getPeriodLabel()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {effectivenessData ? (() => {
+                  const e = effectivenessData.effectiveness;
+                  const strokeColor = e >= 50 ? '#22c55e' : e >= 30 ? '#eab308' : '#ef4444';
+                  const textColor = e >= 50 ? 'text-green-600' : e >= 30 ? 'text-yellow-600' : 'text-red-600';
+                  return (
+                    <div className="flex flex-col items-center gap-5">
+                      <div className="relative h-36 w-36">
+                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                          <circle cx="18" cy="18" r="15.9" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                          <circle
+                            cx="18" cy="18" r="15.9" fill="none"
+                            stroke={strokeColor} strokeWidth="3" strokeLinecap="round"
+                            strokeDasharray={`${Math.min(e, 100)} ${100 - Math.min(e, 100)}`}
+                            className="transition-all duration-700"
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className={cn("text-2xl font-bold", textColor)}>{e.toFixed(1)}%</span>
+                          <span className="text-xs text-muted-foreground">conversión</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 w-full pt-3 border-t text-center">
+                        <div>
+                          <div className="text-2xl font-bold">{effectivenessData.totalContacts}</div>
+                          <div className="text-xs text-muted-foreground">Contactos</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-green-600">{effectivenessData.installed}</div>
+                          <div className="text-xs text-muted-foreground">Instalaciones</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })() : (
+                  <div className="py-10 text-center text-muted-foreground text-sm">
+                    <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    Sin datos
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
         </div>
+        {/* Nóminas */}
+        {payrollSummary !== null && (
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Receipt className="h-4 w-4 text-primary" />
+                  Nóminas
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push(user?.role === 'admin' ? '/payroll' : '/payroll/my-payrolls')}
+                  className="text-xs h-7 px-2 gap-1"
+                >
+                  Ver todas <ArrowRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm">Pendientes de pago</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xl font-bold">{payrollSummary.pendingCount}</span>
+                  {payrollSummary.pendingTotal > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      ₡{payrollSummary.pendingTotal.toLocaleString('es-CR')}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {payrollSummary.pendingCount === 0 && (
+                <div className="text-center py-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-6 w-6 mx-auto mb-1 text-green-500 opacity-70" />
+                  Todo al día
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </MainLayout>
   );
