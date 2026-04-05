@@ -8,7 +8,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
-import { Search, ChevronLeft, ChevronRight, UserCheck, Eye } from 'lucide-react';
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  UserCheck,
+  Eye,
+  Phone,
+  MessageCircle,
+  AlertTriangle,
+  Copy,
+  Check,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Usuario {
@@ -59,7 +70,43 @@ interface Prospecto {
   asignadoA: string | null;
   asignado: Usuario | null;
   createdAt: string;
+  metodoContacto: string | null;
+  totalContactos: number;
+  ultimoContacto: string | null;
 }
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+function tieneAlerta(p: Prospecto): boolean {
+  if (!p.ultimoContacto) return true;
+  const twoDaysAgo = new Date();
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  return new Date(p.ultimoContacto) < twoDaysAgo;
+}
+
+function diasSinContacto(p: Prospecto): number {
+  if (!p.ultimoContacto) return 999;
+  const diff = Date.now() - new Date(p.ultimoContacto).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function estadoBadgeVariant(
+  estado: string | null,
+): 'default' | 'warning' | 'success' | 'destructive' | 'info' | 'pending' {
+  if (!estado) return 'default';
+  const e = estado.toUpperCase();
+  if (e === 'ASIGNADA') return 'warning';
+  if (e === 'FINALIZADA') return 'success';
+  if (e === 'CANCELADA') return 'destructive';
+  return 'info';
+}
+
+function nombreUsuario(u: Usuario | null) {
+  if (!u) return '—';
+  return [u.nombre, u.apellidos].filter(Boolean).join(' ') || u.email;
+}
+
+// ── component ─────────────────────────────────────────────────────────────────
 
 export default function ProspectsPage() {
   const [loading, setLoading] = useState(true);
@@ -71,16 +118,27 @@ export default function ProspectsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+
   const [viewingProspecto, setViewingProspecto] = useState<Prospecto | null>(null);
   const [assigningProspecto, setAssigningProspecto] = useState<Prospecto | null>(null);
   const [assignUserId, setAssignUserId] = useState('');
   const [obsInternas, setObsInternas] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
 
+  const [contactLoading, setContactLoading] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Inline obs editing state (for assigned agent in detail dialog)
+  const [editingObs, setEditingObs] = useState(false);
+  const [obsEditValue, setObsEditValue] = useState('');
+  const [obsEditLoading, setObsEditLoading] = useState(false);
+
   const LIMIT = 15;
 
   useEffect(() => {
-    fetch('/api/auth/me').then(r => r.json()).then(d => setSession(d));
+    fetch('/api/auth/me')
+      .then(r => { if (!r.ok) window.location.href = '/login'; return r.json(); })
+      .then(d => setSession(d.user));
   }, []);
 
   useEffect(() => {
@@ -100,6 +158,10 @@ export default function ProspectsPage() {
     try {
       const res = await fetch(`/api/prospects?${params}`);
       const data = await res.json();
+      if (!res.ok) {
+        toast.error(`Error: ${data.error || res.status} — ${data.detail || ''}`);
+        return;
+      }
       setProspectos(data.prospectos || []);
       setTotalPages(data.pagination?.totalPages || 1);
       setTotal(data.pagination?.total || 0);
@@ -140,21 +202,56 @@ export default function ProspectsPage() {
     }
   }
 
-  function estadoBadgeVariant(estado: string | null): 'default' | 'warning' | 'success' | 'destructive' | 'info' | 'pending' {
-    if (!estado) return 'default';
-    const e = estado.toUpperCase();
-    if (e === 'ASIGNADA') return 'warning';
-    if (e === 'FINALIZADA') return 'success';
-    if (e === 'CANCELADA') return 'destructive';
-    return 'info';
+  async function handleContactar(prospecto: Prospecto, metodo: 'LLAMADA' | 'WHATSAPP') {
+    setContactLoading(prospecto.id);
+    try {
+      const res = await fetch(`/api/prospects/${prospecto.id}/contactar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metodo }),
+      });
+      if (!res.ok) throw new Error('Error al registrar');
+      toast.success(`Contacto por ${metodo === 'LLAMADA' ? 'llamada' : 'WhatsApp'} registrado`);
+      fetchProspectos(currentPage);
+    } catch {
+      toast.error('Error al registrar contacto');
+    } finally {
+      setContactLoading(null);
+    }
   }
 
-  function nombreUsuario(u: Usuario | null) {
-    if (!u) return '—';
-    return [u.nombre, u.apellidos].filter(Boolean).join(' ') || u.email;
+  function copyToClipboard(value: string, key: string) {
+    navigator.clipboard.writeText(value);
+    setCopiedField(key);
+    setTimeout(() => setCopiedField(null), 2000);
   }
 
-  if (!session) return <TableSkeleton cols={6} rows={10} showFilters />;
+  async function handleSaveObs() {
+    if (!viewingProspecto) return;
+    setObsEditLoading(true);
+    try {
+      const res = await fetch(`/api/prospects/${viewingProspecto.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ observacionesInternas: obsEditValue }),
+      });
+      if (!res.ok) throw new Error('Error al guardar');
+      toast.success('Observaciones guardadas');
+      setEditingObs(false);
+      // Refresh list and update the viewed record
+      fetchProspectos(currentPage);
+      setViewingProspecto(prev => prev ? { ...prev, observacionesInternas: obsEditValue } : null);
+    } catch {
+      toast.error('Error al guardar observaciones');
+    } finally {
+      setObsEditLoading(false);
+    }
+  }
+
+  if (!session) return <TableSkeleton cols={7} rows={10} showFilters />;
+
+  const isAssignedAgent = (p: Prospecto) =>
+    session.role !== 'admin' && p.asignadoA === session.userId;
 
   return (
     <MainLayout>
@@ -164,7 +261,8 @@ export default function ProspectsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Prospectos</h1>
             <p className="text-muted-foreground text-sm">
-              {total} prospecto{total !== 1 ? 's' : ''} {session.role !== 'admin' ? 'asignados a ti' : 'en total'}
+              {total} prospecto{total !== 1 ? 's' : ''}{' '}
+              {session.role !== 'admin' ? 'asignados a ti' : 'en total'}
             </p>
           </div>
         </div>
@@ -201,7 +299,7 @@ export default function ProspectsPage() {
 
         {/* Tabla */}
         {loading ? (
-          <TableSkeleton cols={6} rows={10} />
+          <TableSkeleton cols={session.role === 'admin' ? 7 : 6} rows={10} />
         ) : (
           <div className="rounded-md border">
             <Table>
@@ -210,35 +308,65 @@ export default function ProspectsPage() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>N° Orden</TableHead>
                   <TableHead>Teléfono</TableHead>
-                  <TableHead>Despacho</TableHead>
-                  <TableHead>Tipo Orden</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Contactos</TableHead>
                   {session.role === 'admin' && <TableHead>Asignado a</TableHead>}
-                  <TableHead className="w-24">Acciones</TableHead>
+                  <TableHead className="w-28">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {prospectos.length === 0 ? (
                   <TableEmptyState
-                    colSpan={session.role === 'admin' ? 8 : 7}
+                    colSpan={session.role === 'admin' ? 7 : 6}
                     message="No hay prospectos que coincidan"
                   />
                 ) : (
                   prospectos.map(p => (
-                    <TableRow key={p.id}>
+                    <TableRow
+                      key={p.id}
+                      className={
+                        tieneAlerta(p) && p.asignadoA
+                          ? 'bg-red-50/50 dark:bg-red-950/10'
+                          : ''
+                      }
+                    >
+                      {/* Cliente */}
                       <TableCell className="font-medium">
                         <div>{p.cliente || '—'}</div>
                         <div className="text-xs text-muted-foreground">{p.idCliente || ''}</div>
                       </TableCell>
-                      <TableCell className="text-sm">{p.nroOrden}</TableCell>
+
+                      {/* N° Orden */}
+                      <TableCell className="text-sm font-mono">{p.nroOrden}</TableCell>
+
+                      {/* Teléfono */}
                       <TableCell className="text-sm">{p.telCelular || p.telOficina || '—'}</TableCell>
-                      <TableCell className="text-sm">{p.despacho || '—'}</TableCell>
-                      <TableCell className="text-sm">{p.tipoOrden || '—'}</TableCell>
+
+                      {/* Estado */}
                       <TableCell>
                         <Badge variant={estadoBadgeVariant(p.estado)}>
                           {p.estado || '—'}
                         </Badge>
                       </TableCell>
+
+                      {/* Contactos */}
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {p.metodoContacto === 'LLAMADA' ? (
+                            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : p.metodoContacto === 'WHATSAPP' ? (
+                            <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : (
+                            <Phone className="h-3.5 w-3.5 text-muted-foreground/40" />
+                          )}
+                          <span className="text-sm tabular-nums">{p.totalContactos}</span>
+                          {tieneAlerta(p) && p.asignadoA && (
+                            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Asignado a (admin only) */}
                       {session.role === 'admin' && (
                         <TableCell className="text-sm">
                           {p.asignado ? (
@@ -248,16 +376,47 @@ export default function ProspectsPage() {
                           )}
                         </TableCell>
                       )}
+
+                      {/* Acciones */}
                       <TableCell>
                         <div className="flex gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setViewingProspecto(p)}
+                            onClick={() => {
+                              setViewingProspecto(p);
+                              setEditingObs(false);
+                            }}
                             title="Ver detalle"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+
+                          {/* Contact buttons — only for assigned agent */}
+                          {isAssignedAgent(p) && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleContactar(p, 'LLAMADA')}
+                                disabled={contactLoading === p.id}
+                                title="Registrar llamada"
+                              >
+                                <Phone className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleContactar(p, 'WHATSAPP')}
+                                disabled={contactLoading === p.id}
+                                title="Registrar WhatsApp"
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+
+                          {/* Assign button — admin only */}
                           {session.role === 'admin' && (
                             <Button
                               variant="ghost"
@@ -306,66 +465,238 @@ export default function ProspectsPage() {
         )}
       </div>
 
-      {/* Dialog detalle */}
+      {/* ── Dialog: Detalle ───────────────────────────────────────────────────── */}
       {viewingProspecto && (
         <Dialog open onOpenChange={() => setViewingProspecto(null)}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Detalle del Prospecto</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              {([
-                ['Cliente', viewingProspecto.cliente],
-                ['N° Orden', viewingProspecto.nroOrden],
-                ['ID Cliente', viewingProspecto.idCliente],
-                ['Estado', viewingProspecto.estado],
-                ['Prioridad', viewingProspecto.prioridad],
-                ['Contrato', viewingProspecto.contrato],
-                ['Contrato Ligado', viewingProspecto.contratoLigado],
-                ['Tipo Orden', viewingProspecto.tipoOrden],
-                ['Motivo', viewingProspecto.motivo],
-                ['Técnico', viewingProspecto.tecnico],
-                ['Usuario Creador', viewingProspecto.usuarioCreador],
-                ['Usuario Envío', viewingProspecto.usuarioEnvio],
-                ['Contacto', [viewingProspecto.contactoNombre, viewingProspecto.contactoApellido].filter(Boolean).join(' ')],
-                ['Tel. Celular', viewingProspecto.telCelular],
-                ['Tel. Instalación', viewingProspecto.telInstalacion],
-                ['Tel. Oficina', viewingProspecto.telOficina],
-                ['Email', viewingProspecto.email],
-                ['Sucursal', viewingProspecto.sucursal],
-                ['Despacho', viewingProspecto.despacho],
-                ['Provincia', viewingProspecto.provincia],
-                ['Cantón', viewingProspecto.canton],
-                ['Distrito', viewingProspecto.distrito],
-                ['Barrio', viewingProspecto.barrio],
-                ['Dirección', viewingProspecto.direccion],
-                ['Observaciones', viewingProspecto.observaciones],
-                ['Bandera Cable', viewingProspecto.banderaCable],
-                ['Bandera Internet', viewingProspecto.banderaInternet],
-                ['Facturador', viewingProspecto.facturador],
-                ['Tap', viewingProspecto.tap],
-                ['Placa', viewingProspecto.placa],
-                ['Poste', viewingProspecto.poste],
-                ['Latitud', viewingProspecto.latitud],
-                ['Longitud', viewingProspecto.longitud],
-              ] as [string, string | null][]).map(([label, value]) => (
-                <div key={label}>
-                  <span className="font-medium text-muted-foreground">{label}</span>
-                  <p className="mt-0.5">{value || '—'}</p>
-                </div>
-              ))}
-              {viewingProspecto.observacionesInternas && (
-                <div className="col-span-2">
-                  <span className="font-medium text-muted-foreground">Observaciones Internas</span>
-                  <p className="mt-0.5">{viewingProspecto.observacionesInternas}</p>
+
+            <div className="space-y-4 text-sm">
+              {/* Alert banner */}
+              {tieneAlerta(viewingProspecto) && viewingProspecto.asignadoA && (
+                <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-destructive text-xs font-medium">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>
+                    Sin contacto hace{' '}
+                    {diasSinContacto(viewingProspecto) === 999
+                      ? 'más de 2 días'
+                      : `${diasSinContacto(viewingProspecto)} días`}
+                    . Se recomienda contactar al prospecto.
+                  </span>
                 </div>
               )}
+
+              {/* Sección: Cliente */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Cliente
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <DetailField label="Nombre" value={viewingProspecto.cliente} />
+                  <DetailField label="ID Cliente" value={viewingProspecto.idCliente} />
+                  <div>
+                    <span className="text-xs text-muted-foreground">Estado</span>
+                    <div className="mt-0.5">
+                      <Badge variant={estadoBadgeVariant(viewingProspecto.estado)}>
+                        {viewingProspecto.estado || '—'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <DetailField label="Prioridad" value={viewingProspecto.prioridad} />
+                </div>
+              </div>
+
+              <hr className="border-border" />
+
+              {/* Sección: Contacto */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Contacto
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <CopyField
+                    label="Tel. Celular"
+                    value={viewingProspecto.telCelular}
+                    fieldKey="telCelular"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                  <CopyField
+                    label="Tel. Instalación"
+                    value={viewingProspecto.telInstalacion}
+                    fieldKey="telInstalacion"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                  <CopyField
+                    label="Tel. Oficina"
+                    value={viewingProspecto.telOficina}
+                    fieldKey="telOficina"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                  <CopyField
+                    label="Email"
+                    value={viewingProspecto.email}
+                    fieldKey="email"
+                    copiedField={copiedField}
+                    onCopy={copyToClipboard}
+                  />
+                </div>
+              </div>
+
+              <hr className="border-border" />
+
+              {/* Sección: Ubicación */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Ubicación
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <DetailField label="Provincia" value={viewingProspecto.provincia} />
+                  <DetailField label="Cantón" value={viewingProspecto.canton} />
+                  <DetailField label="Distrito" value={viewingProspecto.distrito} />
+                  <DetailField label="Dirección" value={viewingProspecto.direccion} />
+                </div>
+
+                {(viewingProspecto.latitud || viewingProspecto.longitud) && (
+                  <div className="mt-3 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Coordenadas</span>
+                      <p className="mt-0.5 font-mono text-xs">
+                        {viewingProspecto.latitud || '—'}, {viewingProspecto.longitud || '—'}
+                      </p>
+                    </div>
+                    {viewingProspecto.latitud && viewingProspecto.longitud && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() =>
+                          copyToClipboard(
+                            `${viewingProspecto.latitud}, ${viewingProspecto.longitud}`,
+                            'coords',
+                          )
+                        }
+                        title="Copiar coordenadas"
+                      >
+                        {copiedField === 'coords' ? (
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <hr className="border-border" />
+
+              {/* Sección: Gestión */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Gestión
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <DetailField
+                    label="Asignado a"
+                    value={viewingProspecto.asignado ? nombreUsuario(viewingProspecto.asignado) : null}
+                  />
+                  <DetailField
+                    label="Total contactos"
+                    value={String(viewingProspecto.totalContactos)}
+                  />
+                  <div>
+                    <span className="text-xs text-muted-foreground">Último contacto</span>
+                    <p className="mt-0.5">
+                      {viewingProspecto.ultimoContacto
+                        ? new Date(viewingProspecto.ultimoContacto).toLocaleDateString('es-CR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : '—'}
+                      {viewingProspecto.ultimoContacto && viewingProspecto.metodoContacto && (
+                        <span className="ml-1.5 inline-flex items-center gap-1 text-muted-foreground">
+                          {viewingProspecto.metodoContacto === 'LLAMADA' ? (
+                            <Phone className="h-3 w-3" />
+                          ) : (
+                            <MessageCircle className="h-3 w-3" />
+                          )}
+                          {viewingProspecto.metodoContacto}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Observaciones internas */}
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">Observaciones internas</span>
+                    {/* Show edit button for the assigned agent or admin */}
+                    {(session.role === 'admin' ||
+                      viewingProspecto.asignadoA === session.userId) &&
+                      !editingObs && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs px-2"
+                          onClick={() => {
+                            setObsEditValue(viewingProspecto.observacionesInternas || '');
+                            setEditingObs(true);
+                          }}
+                        >
+                          Editar
+                        </Button>
+                      )}
+                  </div>
+
+                  {editingObs ? (
+                    <div className="space-y-2">
+                      <textarea
+                        className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                        rows={3}
+                        value={obsEditValue}
+                        onChange={e => setObsEditValue(e.target.value)}
+                        placeholder="Notas internas sobre este prospecto..."
+                        autoFocus
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingObs(false)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSaveObs}
+                          disabled={obsEditLoading}
+                        >
+                          {obsEditLoading ? 'Guardando...' : 'Guardar'}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-foreground whitespace-pre-wrap">
+                      {viewingProspecto.observacionesInternas || (
+                        <span className="text-muted-foreground italic">Sin observaciones</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
       )}
 
-      {/* Dialog asignar */}
+      {/* ── Dialog: Asignar ──────────────────────────────────────────────────── */}
       {assigningProspecto && session.role === 'admin' && (
         <Dialog open onOpenChange={() => setAssigningProspecto(null)}>
           <DialogContent>
@@ -375,7 +706,9 @@ export default function ProspectsPage() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-medium mb-1">Prospecto</p>
-                <p className="text-sm text-muted-foreground">{assigningProspecto.cliente} — {assigningProspecto.nroOrden}</p>
+                <p className="text-sm text-muted-foreground">
+                  {assigningProspecto.cliente} — {assigningProspecto.nroOrden}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium block mb-1">Asignar a</label>
@@ -389,7 +722,7 @@ export default function ProspectsPage() {
               <div>
                 <label className="text-sm font-medium block mb-1">Observaciones internas</label>
                 <textarea
-                  className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none"
+                  className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                   rows={3}
                   value={obsInternas}
                   onChange={e => setObsInternas(e.target.value)}
@@ -398,7 +731,9 @@ export default function ProspectsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAssigningProspecto(null)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setAssigningProspecto(null)}>
+                Cancelar
+              </Button>
               <Button onClick={handleAssign} disabled={assignLoading}>
                 {assignLoading ? 'Guardando...' : 'Guardar'}
               </Button>
@@ -407,5 +742,53 @@ export default function ProspectsPage() {
         </Dialog>
       )}
     </MainLayout>
+  );
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function DetailField({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <p className="mt-0.5">{value || '—'}</p>
+    </div>
+  );
+}
+
+function CopyField({
+  label,
+  value,
+  fieldKey,
+  copiedField,
+  onCopy,
+}: {
+  label: string;
+  value: string | null | undefined;
+  fieldKey: string;
+  copiedField: string | null;
+  onCopy: (value: string, key: string) => void;
+}) {
+  return (
+    <div>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="mt-0.5 flex items-center gap-1.5">
+        <span>{value || '—'}</span>
+        {value && (
+          <button
+            onClick={() => onCopy(value, fieldKey)}
+            className="inline-flex items-center justify-center h-5 w-5 rounded hover:bg-accent transition-colors cursor-pointer"
+            title={`Copiar ${label}`}
+            type="button"
+          >
+            {copiedField === fieldKey ? (
+              <Check className="h-3 w-3 text-green-500" />
+            ) : (
+              <Copy className="h-3 w-3 text-muted-foreground" />
+            )}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
