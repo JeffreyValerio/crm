@@ -43,7 +43,8 @@ ultimoContacto   DateTime?
 **Respuesta:** `{ prospecto }` con los campos actualizados.
 
 ### Endpoint existente: `PATCH /api/prospects/[id]`
-Sin cambios en lógica. Solo admin puede asignar/agregar observaciones internas.
+- **Asignar** (`asignadoA`): solo admin.
+- **Observaciones internas** (`observacionesInternas`): admin y el agente asignado al prospecto.
 
 ### Endpoint existente: `GET /api/prospects`
 Retorna los campos nuevos en el objeto `Prospecto`.
