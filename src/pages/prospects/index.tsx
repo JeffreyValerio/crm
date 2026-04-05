@@ -99,15 +99,10 @@ function diasSinContacto(p: Prospecto): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-function estadoBadgeVariant(
-  estado: string | null,
-): 'default' | 'warning' | 'success' | 'destructive' | 'info' | 'pending' {
-  if (!estado) return 'default';
-  const e = estado.toUpperCase();
-  if (e === 'ASIGNADA') return 'warning';
-  if (e === 'FINALIZADA') return 'success';
-  if (e === 'CANCELADA') return 'destructive';
-  return 'info';
+// Quita +506, espacios y guiones — deja solo los 8 dígitos
+function formatTel(tel: string | null | undefined): string | null {
+  if (!tel) return null;
+  return tel.replace(/^\+506\s?/, '').replace(/[-\s]/g, '') || null;
 }
 
 function nombreUsuario(u: Usuario | null) {
@@ -326,16 +321,15 @@ export default function ProspectsPage() {
 
         {/* Tabla */}
         {loading ? (
-          <TableSkeleton cols={session.role === 'admin' ? 7 : 6} rows={10} />
+          <TableSkeleton cols={session.role === 'admin' ? 5 : 4} rows={10} />
         ) : (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>N° Orden</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Tel. Celular</TableHead>
+                  <TableHead>Provincia</TableHead>
                   <TableHead>Contactos</TableHead>
                   {session.role === 'admin' && <TableHead>Asignado a</TableHead>}
                   <TableHead className="w-28">Acciones</TableHead>
@@ -344,7 +338,7 @@ export default function ProspectsPage() {
               <TableBody>
                 {prospectos.length === 0 ? (
                   <TableEmptyState
-                    colSpan={session.role === 'admin' ? 7 : 6}
+                    colSpan={session.role === 'admin' ? 6 : 5}
                     message="No hay prospectos que coincidan"
                   />
                 ) : (
@@ -363,18 +357,13 @@ export default function ProspectsPage() {
                         <div className="text-xs text-muted-foreground">{p.idCliente || ''}</div>
                       </TableCell>
 
-                      {/* N° Orden */}
-                      <TableCell className="text-sm font-mono">{p.nroOrden}</TableCell>
-
-                      {/* Teléfono */}
-                      <TableCell className="text-sm">{p.telCelular || p.telOficina || '—'}</TableCell>
-
-                      {/* Estado */}
-                      <TableCell>
-                        <Badge variant={estadoBadgeVariant(p.estado)}>
-                          {p.estado || '—'}
-                        </Badge>
+                      {/* Tel. Celular */}
+                      <TableCell className="text-sm font-mono">
+                        {formatTel(p.telCelular) || '—'}
                       </TableCell>
+
+                      {/* Provincia */}
+                      <TableCell className="text-sm">{p.provincia || '—'}</TableCell>
 
                       {/* Contactos */}
                       <TableCell>
@@ -518,17 +507,8 @@ export default function ProspectsPage() {
                   Cliente
                 </p>
                 <div className="grid grid-cols-2 gap-3">
-                  <CopyField label="Nombre" value={viewingProspecto.cliente} fieldKey="nombre" copiedField={copiedField} onCopy={copyToClipboard} />
+                  <CopyField label="Cliente" value={viewingProspecto.cliente} fieldKey="nombre" copiedField={copiedField} onCopy={copyToClipboard} />
                   <CopyField label="ID / Cédula" value={viewingProspecto.idCliente} fieldKey="idCliente" copiedField={copiedField} onCopy={copyToClipboard} />
-                  <div>
-                    <span className="text-xs text-muted-foreground">Estado</span>
-                    <div className="mt-0.5">
-                      <Badge variant={estadoBadgeVariant(viewingProspecto.estado)}>
-                        {viewingProspecto.estado || '—'}
-                      </Badge>
-                    </div>
-                  </div>
-                  <DetailField label="Prioridad" value={viewingProspecto.prioridad} />
                 </div>
               </div>
 
@@ -540,34 +520,10 @@ export default function ProspectsPage() {
                   Contacto
                 </p>
                 <div className="grid grid-cols-2 gap-3">
-                  <CopyField
-                    label="Tel. Celular"
-                    value={viewingProspecto.telCelular}
-                    fieldKey="telCelular"
-                    copiedField={copiedField}
-                    onCopy={copyToClipboard}
-                  />
-                  <CopyField
-                    label="Tel. Instalación"
-                    value={viewingProspecto.telInstalacion}
-                    fieldKey="telInstalacion"
-                    copiedField={copiedField}
-                    onCopy={copyToClipboard}
-                  />
-                  <CopyField
-                    label="Tel. Oficina"
-                    value={viewingProspecto.telOficina}
-                    fieldKey="telOficina"
-                    copiedField={copiedField}
-                    onCopy={copyToClipboard}
-                  />
-                  <CopyField
-                    label="Email"
-                    value={viewingProspecto.email}
-                    fieldKey="email"
-                    copiedField={copiedField}
-                    onCopy={copyToClipboard}
-                  />
+                  <CopyField label="Tel. Celular" value={formatTel(viewingProspecto.telCelular)} fieldKey="telCelular" copiedField={copiedField} onCopy={copyToClipboard} />
+                  <CopyField label="Tel. Instalación" value={formatTel(viewingProspecto.telInstalacion)} fieldKey="telInstalacion" copiedField={copiedField} onCopy={copyToClipboard} />
+                  <CopyField label="Tel. Oficina" value={formatTel(viewingProspecto.telOficina)} fieldKey="telOficina" copiedField={copiedField} onCopy={copyToClipboard} />
+                  <CopyField label="Email" value={viewingProspecto.email} fieldKey="email" copiedField={copiedField} onCopy={copyToClipboard} />
                 </div>
               </div>
 
@@ -582,7 +538,7 @@ export default function ProspectsPage() {
                   <DetailField label="Provincia" value={viewingProspecto.provincia} />
                   <DetailField label="Cantón" value={viewingProspecto.canton} />
                   <DetailField label="Distrito" value={viewingProspecto.distrito} />
-                  <DetailField label="Dirección" value={viewingProspecto.direccion} />
+                  <CopyField label="Dirección" value={viewingProspecto.direccion} fieldKey="direccion" copiedField={copiedField} onCopy={copyToClipboard} />
                 </div>
 
                 {(viewingProspecto.latitud || viewingProspecto.longitud) && (

@@ -219,14 +219,16 @@ export default function HomePage() {
       }
       // ── Prospectos ────────────────────────────────────────
       const prospectsRes = await fetch('/api/prospects/stats');
+      const prospectsData = await prospectsRes.json();
       if (prospectsRes.ok) {
-        const prospectsData = await prospectsRes.json();
         const statsArr: ProspectStat[] = prospectsData.stats || [];
         if (activeUser.role === 'admin') {
           setProspectStats(statsArr);
         } else {
           setMyProspectStat(statsArr[0] || null);
         }
+      } else {
+        console.error('[dashboard] prospects/stats error:', prospectsData);
       }
 
       // ── Nóminas ──────────────────────────────────────────
@@ -454,7 +456,7 @@ export default function HomePage() {
             <>
               <Card className="shadow-sm border-t-4 border-t-blue-500 hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Contactos</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Clientes</CardTitle>
                   <div className="hidden sm:flex p-2 bg-blue-500/10 rounded-lg">
                     <TrendingUp className="h-4 w-4 text-blue-500" />
                   </div>

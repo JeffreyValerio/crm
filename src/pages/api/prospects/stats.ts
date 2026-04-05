@@ -26,9 +26,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           asignadoA: true,
           ultimoContacto: true,
           idCliente: true,
-          asignado: { select: { id: true, nombre: true, apellidos: true, email: true } },
         },
+        where: { asignadoA: { not: null } },
       });
+
+      // Cargar usuarios asignados por separado para evitar problemas con select+relación
+      const userIds = [...new Set(prospectos.map(p => p.asignadoA!))];
+      const usuarios = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, nombre: true, apellidos: true, email: true },
+      });
+      const usuariosMap = new Map(usuarios.map(u => [u.id, u]));
 
       const map = new Map<string, {
         userId: string;
@@ -42,14 +50,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }>();
 
       for (const p of prospectos) {
-        if (!p.asignadoA || !p.asignado) continue;
+        if (!p.asignadoA) continue;
         const uid = p.asignadoA;
+        const usuario = usuariosMap.get(uid);
         if (!map.has(uid)) {
           map.set(uid, {
             userId: uid,
-            nombre: p.asignado.nombre,
-            apellidos: p.asignado.apellidos,
-            email: p.asignado.email,
+            nombre: usuario?.nombre ?? null,
+            apellidos: usuario?.apellidos ?? null,
+            email: usuario?.email ?? '',
             totalProspectos: 0,
             contactadosHoy: 0,
             conAlerta: 0,
