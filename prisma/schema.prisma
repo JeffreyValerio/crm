@@ -239,7 +239,6 @@ model Prospecto {
   metodoContacto       String?   // "LLAMADA" | "WHATSAPP"
   totalContactos       Int       @default(0)
   ultimoContacto       DateTime?
-  fechaProximoContacto DateTime?
   // Gestión interna
   observacionesInternas String?
   asignadoA         String?
