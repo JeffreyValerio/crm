@@ -28,6 +28,7 @@ model User {
   approvedPayrolls  Payroll[] @relation("PayrollApprover")
   advances          Advance[]
   approvedAdvances  Advance[] @relation("AdvanceApprover")
+  prospectos        Prospecto[]
 }
 
 model ProductType {
@@ -189,4 +190,59 @@ model Advance {
 
   @@index([userId])
   @@index([estado])
+}
+
+model Prospecto {
+  id                String   @id @default(cuid())
+  // Datos de la orden
+  nroOrden          String   @unique
+  estado            String?
+  prioridad         String?
+  idCliente         String?
+  contrato          String?
+  contratoLigado    String?
+  tipoOrden         String?
+  tipoServicio      String?
+  tipoAveria        String?
+  motivo            String?
+  descripcion       String?
+  tecnico           String?
+  usuarioCreador    String?
+  usuarioEnvio      String?
+  // Contacto
+  cliente           String?
+  contactoNombre    String?
+  contactoApellido  String?
+  telCelular        String?
+  telInstalacion    String?
+  telOficina        String?
+  email             String?
+  // Ubicación
+  sucursal          String?
+  despacho          String?
+  provincia         String?
+  canton            String?
+  distrito          String?
+  barrio            String?
+  direccion         String?
+  // Datos técnicos
+  observaciones     String?
+  banderaCable      String?
+  banderaInternet   String?
+  facturador        String?
+  tap               String?
+  placa             String?
+  poste             String?
+  latitud           String?
+  longitud          String?
+  // Gestión interna
+  observacionesInternas String?
+  asignadoA         String?
+  asignado          User?    @relation(fields: [asignadoA], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([asignadoA])
+  @@index([estado])
+  @@index([cliente])
 }

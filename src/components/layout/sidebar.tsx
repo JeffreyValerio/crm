@@ -10,7 +10,8 @@ import {
   UserCircle,
   ChevronLeft,
   ChevronRight,
-  Receipt
+  Receipt,
+  Target
 } from 'lucide-react';
 
 interface NavItem {
@@ -46,6 +47,11 @@ const navSections: NavSection[] = [
     href: '/clients',
     icon: UserCircle,
   },
+      {
+        title: 'Prospectos',
+        href: '/prospects',
+        icon: Target,
+      },
       {
         title: 'Nómina',
         href: '/payroll',
