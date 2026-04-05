@@ -26,15 +26,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'PATCH') {
-    if (session.role !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
-
     const { asignadoA, observacionesInternas } = req.body;
 
-    const data: any = {};
+    // Solo admin puede asignar
+    if (asignadoA !== undefined && session.role !== 'admin') {
+      return res.status(403).json({ error: 'Solo administradores pueden asignar' });
+    }
+
+    // Solo admin o el agente asignado pueden editar observaciones
+    const prospecto = await prisma.prospecto.findUnique({ where: { id } });
+    if (!prospecto) return res.status(404).json({ error: 'No encontrado' });
+
+    if (
+      observacionesInternas !== undefined &&
+      session.role !== 'admin' &&
+      prospecto.asignadoA !== session.userId
+    ) {
+      return res.status(403).json({ error: 'Sin acceso' });
+    }
+
+    const data: Record<string, unknown> = {};
     if (asignadoA !== undefined) data.asignadoA = asignadoA || null;
     if (observacionesInternas !== undefined) data.observacionesInternas = observacionesInternas;
 
-    const prospecto = await prisma.prospecto.update({
+    const updated = await prisma.prospecto.update({
       where: { id },
       data,
       include: {
@@ -42,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    return res.status(200).json({ prospecto });
+    return res.status(200).json({ prospecto: updated });
   }
 
   return res.status(405).json({ error: 'Método no permitido' });

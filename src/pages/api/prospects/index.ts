@@ -7,6 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session.userId) return res.status(401).json({ error: 'No autenticado' });
 
   if (req.method === 'GET') {
+    try {
     const { search, asignadoA, page = '1', limit = '15' } = req.query;
 
     const where: any = {};
@@ -58,6 +59,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       prospectos,
       pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
     });
+    } catch (error) {
+      console.error('Error fetching prospectos:', error);
+      return res.status(500).json({ error: 'Error interno del servidor', detail: String(error) });
+    }
   }
 
   return res.status(405).json({ error: 'Método no permitido' });
