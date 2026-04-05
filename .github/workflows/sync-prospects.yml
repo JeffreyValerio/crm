@@ -12,6 +12,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
+      DATABASE_SSL_REJECT_UNAUTHORIZED: 'false'
       SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
       CI: 'true'
 
