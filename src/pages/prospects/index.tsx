@@ -19,7 +19,10 @@ import {
   AlertTriangle,
   Copy,
   Check,
+  CheckCircle,
 } from 'lucide-react';
+import { useRouter } from 'next/router';
+import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Usuario {
@@ -27,6 +30,12 @@ interface Usuario {
   nombre: string | null;
   apellidos: string | null;
   email: string;
+}
+
+interface ClienteConvertido {
+  id: string;
+  nombres: string;
+  apellidos: string;
 }
 
 interface Prospecto {
@@ -109,6 +118,7 @@ function nombreUsuario(u: Usuario | null) {
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function ProspectsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [prospectos, setProspectos] = useState<Prospecto[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -120,6 +130,7 @@ export default function ProspectsPage() {
   const [total, setTotal] = useState(0);
 
   const [viewingProspecto, setViewingProspecto] = useState<Prospecto | null>(null);
+  const [clienteConvertido, setClienteConvertido] = useState<ClienteConvertido | null>(null);
   const [assigningProspecto, setAssigningProspecto] = useState<Prospecto | null>(null);
   const [assignUserId, setAssignUserId] = useState('');
   const [obsInternas, setObsInternas] = useState('');
@@ -246,6 +257,21 @@ export default function ProspectsPage() {
       toast.error('Error al guardar observaciones');
     } finally {
       setObsEditLoading(false);
+    }
+  }
+
+  async function openDetalle(p: Prospecto) {
+    setViewingProspecto(p);
+    setClienteConvertido(null);
+    setEditingObs(false);
+    if (p.idCliente) {
+      try {
+        const res = await fetch(`/api/prospects/${p.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setClienteConvertido(data.clienteConvertido || null);
+        }
+      } catch { /* silencioso */ }
     }
   }
 
@@ -384,10 +410,7 @@ export default function ProspectsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setViewingProspecto(p);
-                              setEditingObs(false);
-                            }}
+                            onClick={() => openDetalle(p)}
                             title="Ver detalle"
                           >
                             <Eye className="h-4 w-4" />
@@ -633,6 +656,26 @@ export default function ProspectsPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Cliente convertido */}
+                {clienteConvertido && (
+                  <div className="mt-3 flex items-center justify-between rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 px-3 py-2">
+                    <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                      <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                      <span>
+                        Convertido: <strong>{clienteConvertido.nombres} {clienteConvertido.apellidos}</strong>
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 gap-1 flex-shrink-0"
+                      onClick={() => router.push(`/clients?search=${encodeURIComponent(viewingProspecto.idCliente || '')}`)}
+                    >
+                      Ver cliente <ExternalLink className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
 
                 {/* Observaciones internas */}
                 <div className="mt-3">

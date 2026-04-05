@@ -22,7 +22,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Sin acceso' });
     }
 
-    return res.status(200).json({ prospecto });
+    // Buscar si el prospecto ya se convirtió en cliente (por cédula)
+    let clienteConvertido: { id: string; nombres: string; apellidos: string } | null = null;
+    if (prospecto.idCliente) {
+      const cliente = await prisma.client.findFirst({
+        where: { numeroIdentificacion: prospecto.idCliente },
+        select: { id: true, nombres: true, apellidos: true },
+      });
+      if (cliente) clienteConvertido = cliente;
+    }
+
+    return res.status(200).json({ prospecto, clienteConvertido });
   }
 
   if (req.method === 'PATCH') {

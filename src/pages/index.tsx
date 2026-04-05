@@ -40,6 +40,7 @@ interface ProspectStat {
   totalProspectos: number;
   contactadosHoy: number;
   conAlerta: number;
+  convertidos: number;
 }
 
 interface Payroll {
@@ -373,7 +374,7 @@ export default function HomePage() {
               Bienvenido, {user?.nombre ?? user?.email} · {getPeriodLabel()}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-3 items-center gap-2">
             {user?.role === 'admin' && (
               <Select
                 aria-label="Filtrar por vendedor"
@@ -869,12 +870,20 @@ export default function HomePage() {
                           />
                         </div>
                       </div>
-                      {stat.conAlerta > 0 && (
-                        <div className="flex items-center gap-1 text-xs text-red-600 flex-shrink-0">
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          <span>{stat.conAlerta}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {stat.convertidos > 0 && (
+                          <div className="flex items-center gap-1 text-xs text-green-600" title="Convertidos en clientes">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>{stat.convertidos}</span>
+                          </div>
+                        )}
+                        {stat.conAlerta > 0 && (
+                          <div className="flex items-center gap-1 text-xs text-red-600" title="Con alerta">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            <span>{stat.conAlerta}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
