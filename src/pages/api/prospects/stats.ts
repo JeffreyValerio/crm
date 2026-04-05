@@ -27,15 +27,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ultimoContacto: true,
           idCliente: true,
         },
-        where: { asignadoA: { not: null } },
       });
 
-      // Cargar usuarios asignados por separado para evitar problemas con select+relación
-      const userIds = [...new Set(prospectos.map(p => p.asignadoA!))];
-      const usuarios = await prisma.user.findMany({
+      // Cargar usuarios asignados por separado
+      const userIds = [...new Set(prospectos.map(p => p.asignadoA).filter((id): id is string => !!id))];
+      const usuarios = userIds.length > 0 ? await prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true, nombre: true, apellidos: true, email: true },
-      });
+      }) : [];
       const usuariosMap = new Map(usuarios.map(u => [u.id, u]));
 
       const map = new Map<string, {

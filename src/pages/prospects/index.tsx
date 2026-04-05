@@ -105,6 +105,14 @@ function formatTel(tel: string | null | undefined): string | null {
   return tel.replace(/^\+506\s?/, '').replace(/[-\s]/g, '') || null;
 }
 
+// Cédula: quita guiones; si es puramente numérica quita el 0 inicial (01-1753-0918 → 117530918)
+function formatCedula(cedula: string | null | undefined): string | null {
+  if (!cedula) return null;
+  const sinGuiones = cedula.replace(/-/g, '');
+  if (/^\d+$/.test(sinGuiones)) return sinGuiones.replace(/^0+/, '') || sinGuiones;
+  return sinGuiones;
+}
+
 function nombreUsuario(u: Usuario | null) {
   if (!u) return '—';
   return [u.nombre, u.apellidos].filter(Boolean).join(' ') || u.email;
@@ -354,7 +362,7 @@ export default function ProspectsPage() {
                       {/* Cliente */}
                       <TableCell className="font-medium">
                         <div>{p.cliente || '—'}</div>
-                        <div className="text-xs text-muted-foreground">{p.idCliente || ''}</div>
+                        <div className="text-xs text-muted-foreground">{formatCedula(p.idCliente) || ''}</div>
                       </TableCell>
 
                       {/* Tel. Celular */}
@@ -508,7 +516,7 @@ export default function ProspectsPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <CopyField label="Cliente" value={viewingProspecto.cliente} fieldKey="nombre" copiedField={copiedField} onCopy={copyToClipboard} />
-                  <CopyField label="ID / Cédula" value={viewingProspecto.idCliente} fieldKey="idCliente" copiedField={copiedField} onCopy={copyToClipboard} />
+                  <CopyField label="ID / Cédula" value={formatCedula(viewingProspecto.idCliente)} fieldKey="idCliente" copiedField={copiedField} onCopy={copyToClipboard} />
                 </div>
               </div>
 
