@@ -18,10 +18,14 @@ const useSsl =
   connectionString.includes('sslmode=require') ||
   connectionString.includes('sslmode=no-verify');
 
+const rejectUnauthorized =
+  !connectionString.includes('sslmode=no-verify') &&
+  process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false';
+
 const pool = new Pool({
   connectionString,
   ...(useSsl && {
-    ssl: { rejectUnauthorized: !connectionString.includes('sslmode=no-verify') },
+    ssl: { rejectUnauthorized },
   }),
 });
 const adapter = new PrismaPg(pool);
