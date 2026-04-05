@@ -11,6 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const twoDaysAgo = new Date();
   twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
+  try {
   if (session.role === 'admin') {
     const prospectos = await prisma.prospecto.findMany({
       select: {
@@ -87,5 +88,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         conAlerta,
       }],
     });
+  }
+  } catch (error) {
+    console.error('[prospects/stats] Error:', error);
+    return res.status(500).json({ error: 'Error interno', detail: String(error) });
   }
 }

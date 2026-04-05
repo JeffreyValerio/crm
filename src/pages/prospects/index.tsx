@@ -150,11 +150,12 @@ export default function ProspectsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
-  async function fetchProspectos(page: number) {
+  async function fetchProspectos(page: number, asignadoOverride?: string) {
     setLoading(true);
+    const asignadoFilter = asignadoOverride !== undefined ? asignadoOverride : filterAsignado;
     const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
     if (searchTerm.trim()) params.set('search', searchTerm.trim());
-    if (filterAsignado) params.set('asignadoA', filterAsignado);
+    if (asignadoFilter) params.set('asignadoA', asignadoFilter);
     try {
       const res = await fetch(`/api/prospects?${params}`);
       const data = await res.json();
@@ -285,7 +286,7 @@ export default function ProspectsPage() {
           {session.role === 'admin' && (
             <Select
               value={filterAsignado}
-              onChange={e => { setFilterAsignado(e.target.value); fetchProspectos(1); }}
+              onChange={e => { const v = e.target.value; setFilterAsignado(v); fetchProspectos(1, v); }}
               className="w-48"
             >
               <option value="">Todos</option>
@@ -494,8 +495,8 @@ export default function ProspectsPage() {
                   Cliente
                 </p>
                 <div className="grid grid-cols-2 gap-3">
-                  <DetailField label="Nombre" value={viewingProspecto.cliente} />
-                  <DetailField label="ID Cliente" value={viewingProspecto.idCliente} />
+                  <CopyField label="Nombre" value={viewingProspecto.cliente} fieldKey="nombre" copiedField={copiedField} onCopy={copyToClipboard} />
+                  <CopyField label="ID / Cédula" value={viewingProspecto.idCliente} fieldKey="idCliente" copiedField={copiedField} onCopy={copyToClipboard} />
                   <div>
                     <span className="text-xs text-muted-foreground">Estado</span>
                     <div className="mt-0.5">
