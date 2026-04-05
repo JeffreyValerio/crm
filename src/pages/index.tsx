@@ -32,6 +32,16 @@ interface ComplianceStats {
   percentage: number;
 }
 
+interface ProspectStat {
+  userId: string;
+  nombre: string | null;
+  apellidos: string | null;
+  email: string;
+  totalProspectos: number;
+  contactadosHoy: number;
+  conAlerta: number;
+}
+
 interface Payroll {
   id: string;
   periodo: string;
@@ -66,6 +76,8 @@ export default function HomePage() {
   } | null>(null);
   const hasMounted = useRef(false);
   const [payrollSummary, setPayrollSummary] = useState<{ pendingCount: number; pendingTotal: number } | null>(null);
+  const [prospectStats, setProspectStats] = useState<ProspectStat[]>([]);
+  const [myProspectStat, setMyProspectStat] = useState<ProspectStat | null>(null);
 
   // Función auxiliar para formatear el período seleccionado
   function getPeriodLabel(): string {
@@ -204,6 +216,18 @@ export default function HomePage() {
       } else {
         setComplianceStats(compStats);
       }
+      // ── Prospectos ────────────────────────────────────────
+      const prospectsRes = await fetch('/api/prospects/stats');
+      if (prospectsRes.ok) {
+        const prospectsData = await prospectsRes.json();
+        const statsArr: ProspectStat[] = prospectsData.stats || [];
+        if (activeUser.role === 'admin') {
+          setProspectStats(statsArr);
+        } else {
+          setMyProspectStat(statsArr[0] || null);
+        }
+      }
+
       // ── Nóminas ──────────────────────────────────────────
       const payrollRes = await fetch('/api/payroll');
       if (payrollRes.ok) {
@@ -409,7 +433,7 @@ export default function HomePage() {
         </div>
 
         {/* Métricas Principales */}
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <Card className="shadow-sm border-t-4 border-t-primary hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Clientes</CardTitle>
@@ -483,6 +507,62 @@ export default function HomePage() {
               })()}
             </>
           )}
+
+          {/* Tarjeta Prospectos */}
+          {(() => {
+            const total = user?.role === 'admin'
+              ? prospectStats.reduce((s, p) => s + p.totalProspectos, 0)
+              : myProspectStat?.totalProspectos ?? 0;
+            const conAlerta = user?.role === 'admin'
+              ? prospectStats.reduce((s, p) => s + p.conAlerta, 0)
+              : myProspectStat?.conAlerta ?? 0;
+            const hasStat = user?.role === 'admin' ? true : myProspectStat !== null;
+            if (!hasStat) return null;
+            return (
+              <>
+                <Card className="shadow-sm border-t-4 border-t-indigo-500 hover:shadow-md transition-shadow">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Prospectos</CardTitle>
+                    <div className="hidden sm:flex p-2 bg-indigo-500/10 rounded-lg">
+                      <UserCircle className="h-4 w-4 text-indigo-500" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl sm:text-3xl font-bold">{total}</div>
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {user?.role === 'admin' ? 'Total asignados' : 'Asignados a ti'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className={cn(
+                  "shadow-sm border-t-4 hover:shadow-md transition-shadow",
+                  conAlerta > 0 ? "border-t-red-500" : "border-t-gray-300 dark:border-t-gray-600"
+                )}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Con alerta</CardTitle>
+                    <div className={cn(
+                      "hidden sm:flex p-2 rounded-lg",
+                      conAlerta > 0 ? "bg-red-500/10" : "bg-muted"
+                    )}>
+                      <AlertCircle className={cn("h-4 w-4", conAlerta > 0 ? "text-red-500" : "text-muted-foreground")} />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={cn(
+                      "text-2xl sm:text-3xl font-bold",
+                      conAlerta > 0 ? "text-red-600" : "text-foreground"
+                    )}>
+                      {conAlerta}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {conAlerta > 0 ? 'Más de 2 días sin contacto' : 'Todo al día'}
+                    </p>
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </div>
 
         {/* Resumen por Estados */}
@@ -645,6 +725,29 @@ export default function HomePage() {
                               ? '¡Meta alcanzada este período!'
                               : `Faltan ${target - installed} venta${target - installed !== 1 ? 's' : ''} para alcanzar la meta`}
                           </div>
+                          {myProspectStat && (
+                            <div className="mt-4 pt-4 border-t space-y-2">
+                              <p className="text-sm font-medium">Mis Prospectos</p>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Total asignados</span>
+                                <span className="text-xl font-bold">{myProspectStat.totalProspectos}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">Con alerta</span>
+                                <span className={cn(
+                                  "text-xl font-bold",
+                                  myProspectStat.conAlerta > 0 ? "text-red-600" : "text-green-600"
+                                )}>
+                                  {myProspectStat.conAlerta}
+                                </span>
+                              </div>
+                              <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+                                {myProspectStat.conAlerta === 0
+                                  ? '¡Todo al día con tus prospectos!'
+                                  : `${myProspectStat.conAlerta} prospecto${myProspectStat.conAlerta !== 1 ? 's' : ''} sin contacto en más de 2 días`}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -710,6 +813,76 @@ export default function HomePage() {
             </Card>
           </div>
         </div>
+        {/* Contactación de Prospectos — solo admin */}
+        {user?.role === 'admin' && prospectStats.length > 0 && (
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Contactación de Prospectos
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.push('/prospects')}
+                  className="text-xs h-7 px-2 gap-1"
+                >
+                  Ver prospectos <ArrowRight className="h-3 w-3" />
+                </Button>
+              </div>
+              <CardDescription>Actividad de contactación por agente · hoy</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {prospectStats.map((stat) => {
+                  const alertPct = stat.totalProspectos > 0
+                    ? stat.conAlerta / stat.totalProspectos
+                    : 0;
+                  const rowBg = alertPct >= 0.6
+                    ? 'bg-red-50 dark:bg-red-950/20'
+                    : alertPct >= 0.3
+                    ? 'bg-yellow-50 dark:bg-yellow-950/20'
+                    : '';
+                  const contactPct = stat.totalProspectos > 0
+                    ? Math.round((stat.contactadosHoy / stat.totalProspectos) * 100)
+                    : 0;
+                  const displayName = stat.nombre && stat.apellidos
+                    ? `${stat.nombre} ${stat.apellidos}`
+                    : stat.email;
+                  return (
+                    <div key={stat.userId} className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-lg',
+                      rowBg || 'bg-muted/30'
+                    )}>
+                      <UserCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm font-medium w-32 truncate flex-shrink-0">{displayName}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">{stat.contactadosHoy}/{stat.totalProspectos} hoy</span>
+                          <span className="text-xs font-medium">{contactPct}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div
+                            className="h-1.5 rounded-full bg-indigo-500 transition-all duration-500"
+                            style={{ width: `${contactPct}%` }}
+                          />
+                        </div>
+                      </div>
+                      {stat.conAlerta > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-red-600 flex-shrink-0">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          <span>{stat.conAlerta}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Nóminas */}
         {payrollSummary !== null && (
           <Card className="shadow-sm">
