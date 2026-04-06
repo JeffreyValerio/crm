@@ -140,6 +140,7 @@ export default function ProspectsPage() {
   const [assignLoading, setAssignLoading] = useState(false);
 
   const [contactLoading, setContactLoading] = useState<string | null>(null);
+  const [contactMetodo, setContactMetodo] = useState<'LLAMADA' | 'WHATSAPP'>('LLAMADA');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Inline obs editing state (for assigned agent in detail dialog)
@@ -225,8 +226,16 @@ export default function ProspectsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ metodo }),
       });
-      if (!res.ok) throw new Error('Error al registrar');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Error al registrar');
+      }
+      const updated = await res.json();
       toast.success(`Contacto por ${metodo === 'LLAMADA' ? 'llamada' : 'WhatsApp'} registrado`);
+      // Actualizar el dialog en tiempo real
+      if (updated.prospecto) {
+        setViewingProspecto(prev => prev ? { ...prev, ...updated.prospecto } : prev);
+      }
       fetchProspectos(currentPage);
     } catch {
       toast.error('Error al registrar contacto');
@@ -413,29 +422,6 @@ export default function ProspectsPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
 
-                          {/* Contact buttons — only for assigned agent */}
-                          {isAssignedAgent(p) && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleContactar(p, 'LLAMADA')}
-                                disabled={contactLoading === p.id}
-                                title="Registrar llamada"
-                              >
-                                <Phone className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleContactar(p, 'WHATSAPP')}
-                                disabled={contactLoading === p.id}
-                                title="Registrar WhatsApp"
-                              >
-                                <MessageCircle className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
 
                           {/* Assign button — admin only */}
                           {session.role === 'admin' && (
@@ -582,6 +568,44 @@ export default function ProspectsPage() {
               </div>
 
               <hr className="border-border" />
+
+              {/* Registrar contacto — solo agente asignado */}
+              {viewingProspecto.asignadoA === session.userId && session.role !== 'admin' && (
+                <>
+                  <hr className="border-border" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                      Registrar contacto
+                    </p>
+                    <div className="flex gap-2 items-center">
+                      <Select
+                        value={contactMetodo}
+                        onChange={e => setContactMetodo(e.target.value as 'LLAMADA' | 'WHATSAPP')}
+                        className="flex-1"
+                      >
+                        <option value="LLAMADA">📞 Llamada</option>
+                        <option value="WHATSAPP">💬 WhatsApp</option>
+                      </Select>
+                      <Button
+                        onClick={() => handleContactar(viewingProspecto, contactMetodo)}
+                        disabled={contactLoading === viewingProspecto.id}
+                        className="flex-shrink-0"
+                      >
+                        {contactLoading === viewingProspecto.id ? 'Guardando...' : 'Registrar'}
+                      </Button>
+                    </div>
+                    {viewingProspecto.totalContactos > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {viewingProspecto.totalContactos} contacto{viewingProspecto.totalContactos !== 1 ? 's' : ''} registrado{viewingProspecto.totalContactos !== 1 ? 's' : ''} · Último:{' '}
+                        {viewingProspecto.ultimoContacto
+                          ? new Date(viewingProspecto.ultimoContacto).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '—'}
+                        {viewingProspecto.metodoContacto && ` (${viewingProspecto.metodoContacto})`}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Sección: Gestión */}
               <div>

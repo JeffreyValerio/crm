@@ -219,16 +219,20 @@ export default function HomePage() {
       }
       // ── Prospectos ────────────────────────────────────────
       const prospectsRes = await fetch('/api/prospects/stats');
-      const prospectsData = await prospectsRes.json();
+      const prospectsText = await prospectsRes.text();
+      console.log('[stats-debug] status:', prospectsRes.status, 'body:', prospectsText.slice(0, 300));
       if (prospectsRes.ok) {
-        const statsArr: ProspectStat[] = prospectsData.stats || [];
-        if (activeUser.role === 'admin') {
-          setProspectStats(statsArr);
-        } else {
-          setMyProspectStat(statsArr[0] || null);
+        try {
+          const prospectsData = JSON.parse(prospectsText);
+          const statsArr: ProspectStat[] = prospectsData.stats || [];
+          if (activeUser.role === 'admin') {
+            setProspectStats(statsArr);
+          } else {
+            setMyProspectStat(statsArr[0] || null);
+          }
+        } catch (e) {
+          console.error('[stats-debug] JSON parse error:', e);
         }
-      } else {
-        console.error('[dashboard] prospects/stats error:', prospectsData);
       }
 
       // ── Nóminas ──────────────────────────────────────────
