@@ -570,7 +570,6 @@ export default function ProspectsPage() {
               <hr className="border-border" />
 
               {/* Registrar contacto — solo agente asignado */}
-              {viewingProspecto.asignadoA === session.userId && session.role !== 'admin' && (
                 <>
                   <hr className="border-border" />
                   <div>
@@ -605,7 +604,6 @@ export default function ProspectsPage() {
                     )}
                   </div>
                 </>
-              )}
 
               {/* Sección: Gestión */}
               <div>
