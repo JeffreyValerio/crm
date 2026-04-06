@@ -88,3 +88,13 @@ CLOUDINARY_API_SECRET=
 - The Prisma client is imported from `@/generated/prisma/client` via the singleton in `src/lib/prisma.ts` — never directly from `@prisma/client`.
 - Status badges always use the `Badge` component with semantic variants, never hardcoded Tailwind color classes.
 - Page-level loading states use `TableSkeleton` inside `MainLayout`, not plain text or a bare spinner.
+
+## Approach
+- Think before acting. Read existing files before writing code.
+- Be concise in output but thorough in reasoning.
+- Prefer editing over rewriting whole files.
+- Do not re-read files you have already read unless the file may have changed.
+- Test your code before declaring done.
+- No sycophantic openers or closing fluff.
+- Keep solutions simple and direct.
+- User instructions always override this file.

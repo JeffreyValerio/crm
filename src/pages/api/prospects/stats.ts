@@ -21,13 +21,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const cedulasConCliente = new Set(clientesExistentes.map(c => c.numeroIdentificacion));
 
     if (session.role === 'admin') {
-      const prospectos = await prisma.prospecto.findMany({
-        select: {
-          asignadoA: true,
-          ultimoContacto: true,
-          idCliente: true,
-        },
-      });
+      // Sin select explícito para evitar conflicto con Prisma client cacheado en dev
+      const prospectos = await prisma.prospecto.findMany();
 
       // Cargar usuarios asignados por separado
       const userIds = [...new Set(prospectos.map(p => p.asignadoA).filter((id): id is string => !!id))];
@@ -67,18 +62,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const entry = map.get(uid)!;
         entry.totalProspectos++;
 
-        const uc = p.ultimoContacto;
+        const uc = (p as any).ultimoContacto as Date | null;
         if (uc && uc >= todayStart) entry.contactadosHoy++;
         if (!uc || uc < twoDaysAgo) entry.conAlerta++;
-        if (p.idCliente && cedulasConCliente.has(p.idCliente)) entry.convertidos++;
+        const cedula = (p as any).idCliente as string | null;
+        if (cedula && cedulasConCliente.has(cedula)) entry.convertidos++;
       }
 
       return res.status(200).json({ stats: Array.from(map.values()) });
     } else {
-      // Para usuario: contar prospects propios y cuántos tienen cliente
+      // Para usuario: sin select explícito para compatibilidad con Prisma client en dev
       const misProspectos = await prisma.prospecto.findMany({
         where: { asignadoA: session.userId },
-        select: { ultimoContacto: true, idCliente: true },
       });
 
       let total = 0, conAlerta = 0, contactadosHoy = 0, convertidos = 0;
