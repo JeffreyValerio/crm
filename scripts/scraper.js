@@ -38,15 +38,40 @@ async function runSearch(page) {
   });
   if (!btnId) throw new Error('Botón Buscar no encontrado');
   await page.evaluate((id) => document.querySelector('#' + id).click(), btnId);
+
+  // Esperar a que aparezca el grid con resultados
+  let gridId = null;
   for (let t = 0; t < 15; t++) {
     await new Promise(r => setTimeout(r, 1000));
-    const found = await page.evaluate(() => {
+    gridId = await page.evaluate(() => {
       const grid = Ext.ComponentQuery.query('gridpanel').find(g => g.getStore().getCount() > 0);
       return grid ? grid.getId() : null;
     });
-    if (found) return found;
+    if (gridId) break;
   }
-  throw new Error('Timeout esperando resultados');
+  if (!gridId) throw new Error('Timeout esperando resultados');
+
+  // Forzar pageSize grande y recargar para traer todos los registros
+  const total = await page.evaluate((gid) => {
+    const store = Ext.getCmp(gid).getStore();
+    return store.getTotalCount();
+  }, gridId);
+  console.log(`Total en servidor: ${total}. Recargando con pageSize=${total}...`);
+
+  await page.evaluate((gid, total) => {
+    const store = Ext.getCmp(gid).getStore();
+    store.pageSize = total;
+    store.loadPage(1);
+  }, gridId, total);
+
+  // Esperar a que el store tenga todos los registros
+  for (let t = 0; t < 30; t++) {
+    await new Promise(r => setTimeout(r, 1000));
+    const count = await page.evaluate((gid) => Ext.getCmp(gid).getStore().getCount(), gridId);
+    if (count >= total) break;
+  }
+
+  return gridId;
 }
 
 (async () => {
