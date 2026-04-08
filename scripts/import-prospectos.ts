@@ -48,7 +48,7 @@ async function main() {
   let omitidos = 0;
 
   for (const r of registros) {
-    if (!r.nro_orden || r._error) {
+    if (!r.nro_orden || r._error || !r.latitud || !r.longitud) {
       omitidos++;
       continue;
     }
