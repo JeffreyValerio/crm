@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
+import { FileText, Layers } from 'lucide-react';
 
 interface ProductType {
   id: string;
@@ -71,39 +70,54 @@ export function FloatingPlansButton() {
           </DialogHeader>
 
           {loading ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Cargando productos...</p>
+            <div className="flex flex-col gap-4 py-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="space-y-2">
+                  <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4].map(j => (
+                      <div key={j} className="h-7 w-40 rounded-full bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : productTypes.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">No hay productos activos disponibles</p>
             </div>
           ) : (
-            <div className="space-y-6">
-              {productTypes.map((type) => (
-                <div key={type.id} className="space-y-3">
-                  <h3 className="text-lg font-semibold">{type.nombre}</h3>
-                  {type.descripcion && (
-                    <p className="text-sm text-muted-foreground">{type.descripcion}</p>
-                  )}
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {type.products
-                      ?.filter((plan) => plan.activo)
-                      .map((plan) => (
-                        <Card key={plan.id}>
-                          <CardHeader>
-                            <CardTitle className="text-lg">{plan.nombre}</CardTitle>
-                          </CardHeader>
-                          {plan.descripcion && (
-                            <CardContent>
-                              <p className="text-sm text-muted-foreground">{plan.descripcion}</p>
-                            </CardContent>
-                          )}
-                        </Card>
+            <div className="divide-y divide-border">
+              {productTypes.map((type) => {
+                const activePlans = type.products?.filter(p => p.activo) ?? [];
+                return (
+                  <div key={type.id} className="py-4 first:pt-0 last:pb-0">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Layers className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {type.nombre}
+                      </span>
+                      <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                        {activePlans.length} plan{activePlans.length !== 1 ? 'es' : ''}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {activePlans.map((plan) => (
+                        <div
+                          key={plan.id}
+                          className="inline-flex items-center rounded-md border bg-muted/40 px-3 py-1.5 text-sm font-medium leading-tight"
+                          title={plan.descripcion || undefined}
+                        >
+                          {plan.nombre}
+                        </div>
                       ))}
+                    </div>
+                    {type.descripcion && (
+                      <p className="mt-2 text-xs text-muted-foreground">{type.descripcion}</p>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </DialogContent>

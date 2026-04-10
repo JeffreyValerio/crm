@@ -9,10 +9,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método no permitido' });
 
   try {
+    const now = new Date();
+    const year = parseInt((req.query.year as string) || now.getFullYear().toString(), 10);
+    const month = parseInt((req.query.month as string) || (now.getMonth() + 1).toString(), 10);
+
+    const monthStart = new Date(Date.UTC(year, month - 1, 1));
+    const monthEnd = new Date(Date.UTC(year, month, 1));
+
     const twoDaysAgo = new Date();
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
 
     // Obtener todas las cédulas que tienen cliente registrado
     const clientesExistentes = await prisma.client.findMany({
@@ -38,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         apellidos: string | null;
         email: string;
         totalProspectos: number;
-        contactadosHoy: number;
+        contactadosMes: number;
         conAlerta: number;
         convertidos: number;
       }>();
@@ -54,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             apellidos: usuario?.apellidos ?? null,
             email: usuario?.email ?? '',
             totalProspectos: 0,
-            contactadosHoy: 0,
+            contactadosMes: 0,
             conAlerta: 0,
             convertidos: 0,
           });
@@ -63,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         entry.totalProspectos++;
 
         const uc = (p as any).ultimoContacto as Date | null;
-        if (uc && uc >= todayStart) entry.contactadosHoy++;
+        if (uc && uc >= monthStart && uc < monthEnd) entry.contactadosMes++;
         if (!uc || uc < twoDaysAgo) entry.conAlerta++;
         const cedula = (p as any).idCliente as string | null;
         if (cedula && cedulasConCliente.has(cedula)) entry.convertidos++;
@@ -76,11 +81,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { asignadoA: session.userId },
       });
 
-      let total = 0, conAlerta = 0, contactadosHoy = 0, convertidos = 0;
+      let total = 0, conAlerta = 0, contactadosMes = 0, convertidos = 0;
       for (const p of misProspectos) {
         total++;
         const uc = p.ultimoContacto;
-        if (uc && uc >= todayStart) contactadosHoy++;
+        if (uc && uc >= monthStart && uc < monthEnd) contactadosMes++;
         if (!uc || uc < twoDaysAgo) conAlerta++;
         if (p.idCliente && cedulasConCliente.has(p.idCliente)) convertidos++;
       }
@@ -92,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           apellidos: null,
           email: '',
           totalProspectos: total,
-          contactadosHoy,
+          contactadosMes,
           conAlerta,
           convertidos,
         }],

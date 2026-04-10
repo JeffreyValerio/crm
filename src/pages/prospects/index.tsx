@@ -139,6 +139,11 @@ export default function ProspectsPage() {
   const [obsInternas, setObsInternas] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
 
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkUserId, setBulkUserId] = useState('');
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   const [contactLoading, setContactLoading] = useState<string | null>(null);
   const [contactMetodo, setContactMetodo] = useState<'LLAMADA' | 'WHATSAPP'>('LLAMADA');
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -166,6 +171,7 @@ export default function ProspectsPage() {
   }, [session]);
 
   async function fetchProspectos(page: number, asignadoOverride?: string) {
+    setSelectedIds(new Set());
     setLoading(true);
     const asignadoFilter = asignadoOverride !== undefined ? asignadoOverride : filterAsignado;
     const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
@@ -215,6 +221,28 @@ export default function ProspectsPage() {
       toast.error('Error al actualizar prospecto');
     } finally {
       setAssignLoading(false);
+    }
+  }
+
+  async function handleBulkAssign() {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/api/prospects/bulk-assign', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), asignadoA: bulkUserId || null }),
+      });
+      if (!res.ok) throw new Error('Error al asignar');
+      const data = await res.json();
+      toast.success(`${data.updated} prospecto${data.updated !== 1 ? 's' : ''} asignado${data.updated !== 1 ? 's' : ''}`);
+      setSelectedIds(new Set());
+      setBulkUserId('');
+      fetchProspectos(currentPage);
+    } catch {
+      toast.error('Error al asignar en bloque');
+    } finally {
+      setBulkLoading(false);
     }
   }
 
@@ -344,6 +372,22 @@ export default function ProspectsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {session.role === 'admin' && (
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer accent-primary"
+                        checked={prospectos.length > 0 && prospectos.every(p => selectedIds.has(p.id))}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedIds(new Set(prospectos.map(p => p.id)));
+                          } else {
+                            setSelectedIds(new Set());
+                          }
+                        }}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Cliente</TableHead>
                   <TableHead>Tel. Celular</TableHead>
                   <TableHead>Provincia</TableHead>
@@ -355,7 +399,7 @@ export default function ProspectsPage() {
               <TableBody>
                 {prospectos.length === 0 ? (
                   <TableEmptyState
-                    colSpan={session.role === 'admin' ? 6 : 5}
+                    colSpan={session.role === 'admin' ? 7 : 5}
                     message="No hay prospectos que coincidan"
                   />
                 ) : (
@@ -368,6 +412,22 @@ export default function ProspectsPage() {
                           : ''
                       }
                     >
+                      {/* Checkbox (admin only) */}
+                      {session.role === 'admin' && (
+                        <TableCell className="w-10">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 cursor-pointer accent-primary"
+                            checked={selectedIds.has(p.id)}
+                            onChange={e => {
+                              const next = new Set(selectedIds);
+                              if (e.target.checked) next.add(p.id);
+                              else next.delete(p.id);
+                              setSelectedIds(next);
+                            }}
+                          />
+                        </TableCell>
+                      )}
                       {/* Cliente */}
                       <TableCell className="font-medium">
                         <div>{p.cliente || '—'}</div>
@@ -471,6 +531,40 @@ export default function ProspectsPage() {
           </div>
         )}
       </div>
+
+      {/* ── Barra flotante de selección en bloque (admin) ───────────────────── */}
+      {session.role === 'admin' && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-xl border bg-background shadow-lg px-4 py-3">
+          <span className="text-sm font-medium whitespace-nowrap">
+            {selectedIds.size} seleccionado{selectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <Select
+            value={bulkUserId}
+            onChange={e => setBulkUserId(e.target.value)}
+            className="w-48"
+          >
+            <option value="">Sin asignar</option>
+            {usuarios.map(u => (
+              <option key={u.id} value={u.id}>{nombreUsuario(u)}</option>
+            ))}
+          </Select>
+          <Button
+            size="sm"
+            onClick={handleBulkAssign}
+            disabled={bulkLoading}
+          >
+            {bulkLoading ? 'Asignando...' : 'Asignar'}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedIds(new Set())}
+            disabled={bulkLoading}
+          >
+            Cancelar
+          </Button>
+        </div>
+      )}
 
       {/* ── Dialog: Detalle ───────────────────────────────────────────────────── */}
       {viewingProspecto && (

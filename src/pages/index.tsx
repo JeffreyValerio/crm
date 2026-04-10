@@ -38,7 +38,7 @@ interface ProspectStat {
   apellidos: string | null;
   email: string;
   totalProspectos: number;
-  contactadosHoy: number;
+  contactadosMes: number;
   conAlerta: number;
   convertidos: number;
 }
@@ -218,7 +218,7 @@ export default function HomePage() {
         setComplianceStats(compStats);
       }
       // ── Prospectos ────────────────────────────────────────
-      const prospectsRes = await fetch('/api/prospects/stats');
+      const prospectsRes = await fetch(`/api/prospects/stats?year=${filterYear}&month=${filterMonth}`);
       const prospectsText = await prospectsRes.text();
       console.log('[stats-debug] status:', prospectsRes.status, 'body:', prospectsText.slice(0, 300));
       if (prospectsRes.ok) {
@@ -838,7 +838,7 @@ export default function HomePage() {
                   Ver prospectos <ArrowRight className="h-3 w-3" />
                 </Button>
               </div>
-              <CardDescription>Actividad de contactación por agente · hoy</CardDescription>
+              <CardDescription>Actividad de contactación por agente · {getPeriodLabel()}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -852,7 +852,7 @@ export default function HomePage() {
                     ? 'bg-yellow-50 dark:bg-yellow-950/20'
                     : '';
                   const contactPct = stat.totalProspectos > 0
-                    ? Math.round((stat.contactadosHoy / stat.totalProspectos) * 100)
+                    ? Math.round((stat.contactadosMes / stat.totalProspectos) * 100)
                     : 0;
                   const displayName = stat.nombre && stat.apellidos
                     ? `${stat.nombre} ${stat.apellidos}`
@@ -866,7 +866,7 @@ export default function HomePage() {
                       <span className="text-sm font-medium w-32 truncate flex-shrink-0">{displayName}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-muted-foreground">{stat.contactadosHoy}/{stat.totalProspectos} hoy</span>
+                          <span className="text-xs text-muted-foreground">{stat.contactadosMes}/{stat.totalProspectos} este mes</span>
                           <span className="text-xs font-medium">{contactPct}%</span>
                         </div>
                         <div className="w-full bg-muted rounded-full h-1.5">
