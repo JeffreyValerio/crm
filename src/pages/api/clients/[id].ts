@@ -337,6 +337,11 @@ export default async function handler(
         return res.status(404).json({ error: 'Usuario no encontrado' });
       }
 
+      const existingClient = await prisma.client.findUnique({ where: { id: id as string } });
+      if (!existingClient) {
+        return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
       const client = await prisma.client.update({
         where: { id: id as string },
         data: { createdBy },
