@@ -142,6 +142,7 @@ export default function ClientsPage() {
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [reassignClientId, setReassignClientId] = useState<string | null>(null);
   const [reassignUserId, setReassignUserId] = useState<string>('');
+  const [reassignOriginalUserId, setReassignOriginalUserId] = useState<string>('');
   const [reassignLoading, setReassignLoading] = useState(false);
 
   const {
@@ -696,6 +697,7 @@ Comentario: En espera de Instalacion`;
       }
       setReassignClientId(null);
       setReassignUserId('');
+      toast.success('Cliente reasignado correctamente');
       await loadClients();
     } catch {
       toast.error('Error al reasignar el cliente');
@@ -1167,6 +1169,7 @@ Comentario: En espera de Instalacion`;
                             onClick={() => {
                               setReassignClientId(client.id);
                               setReassignUserId(client.creator?.id ?? '');
+                              setReassignOriginalUserId(client.creator?.id ?? '');
                               setOpenMenuId(null);
                               setMenuPosition(null);
                             }}
@@ -2822,6 +2825,7 @@ Comentario: En espera de Instalacion`;
             if (!open) {
               setReassignClientId(null);
               setReassignUserId('');
+              setReassignOriginalUserId('');
             }
           }}
         >
@@ -2852,6 +2856,7 @@ Comentario: En espera de Instalacion`;
                 onClick={() => {
                   setReassignClientId(null);
                   setReassignUserId('');
+                  setReassignOriginalUserId('');
                 }}
                 disabled={reassignLoading}
               >
@@ -2859,7 +2864,7 @@ Comentario: En espera de Instalacion`;
               </Button>
               <Button
                 onClick={handleReassign}
-                disabled={!reassignUserId || reassignLoading}
+                disabled={!reassignUserId || reassignUserId === reassignOriginalUserId || reassignLoading}
               >
                 {reassignLoading ? 'Guardando...' : 'Mover'}
               </Button>
