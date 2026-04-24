@@ -2830,10 +2830,11 @@ Comentario: En espera de Instalacion`;
               <DialogTitle>Mover cliente a otro usuario</DialogTitle>
             </DialogHeader>
             <div className="py-2">
-              <label className="text-sm font-medium mb-2 block">
+              <label htmlFor="reassign-user" className="text-sm font-medium mb-2 block">
                 Selecciona el usuario destino
               </label>
               <Select
+                id="reassign-user"
                 value={reassignUserId}
                 onChange={(e) => setReassignUserId(e.target.value)}
               >
