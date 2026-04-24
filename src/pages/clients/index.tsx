@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle, ChevronLeft, ChevronRight, Search, UserCheck } from 'lucide-react';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { CldImage } from 'next-cloudinary';
@@ -140,6 +140,9 @@ export default function ClientsPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
+  const [reassignClientId, setReassignClientId] = useState<string | null>(null);
+  const [reassignUserId, setReassignUserId] = useState<string>('');
+  const [reassignLoading, setReassignLoading] = useState(false);
 
   const {
     register,
@@ -677,6 +680,30 @@ Comentario: En espera de Instalacion`;
     }
   }
 
+  async function handleReassign() {
+    if (!reassignClientId || !reassignUserId) return;
+    setReassignLoading(true);
+    try {
+      const res = await fetch(`/api/clients/${reassignClientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ createdBy: reassignUserId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || 'Error al reasignar el cliente');
+        return;
+      }
+      setReassignClientId(null);
+      setReassignUserId('');
+      await loadClients();
+    } catch {
+      toast.error('Error al reasignar el cliente');
+    } finally {
+      setReassignLoading(false);
+    }
+  }
+
   async function handleDownloadPDF(client: Client) {
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -1136,6 +1163,18 @@ Comentario: En espera de Instalacion`;
                       </button>
                       {currentUser?.role === 'admin' && (
                         <>
+                          <button
+                            onClick={() => {
+                              setReassignClientId(client.id);
+                              setReassignUserId(client.creator?.id ?? '');
+                              setOpenMenuId(null);
+                              setMenuPosition(null);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                          >
+                            <UserCheck className="h-4 w-4" />
+                            Mover a usuario
+                          </button>
                           <div className="h-px bg-border my-1" />
                           <button
                             onClick={() => {
@@ -1435,7 +1474,32 @@ Comentario: En espera de Instalacion`;
                     </label>
                     <div className="relative">
                       <Input
-                        {...register('numeroIdentificacion', { required: 'El número de identificación es obligatorio' })}
+                        {...(() => {
+                          const { onChange: rhfOnChange, ...rest } = register('numeroIdentificacion', {
+                            required: 'El número de identificación es obligatorio',
+                            validate: (value) => {
+                              const tipo = watch('tipoIdentificacion');
+                              if (tipo === 'NACIONAL' || tipo === 'JURIDICA' || tipo === 'DIMEX') {
+                                if (!/^\d+$/.test(value)) return 'Solo se permiten números para este tipo de identificación';
+                              } else {
+                                if (!/^[a-zA-Z0-9]+$/.test(value)) return 'Solo se permiten letras y números, sin guiones ni espacios';
+                              }
+                              return true;
+                            },
+                          });
+                          return {
+                            ...rest,
+                            onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                              const tipo = watch('tipoIdentificacion');
+                              if (tipo === 'NACIONAL' || tipo === 'JURIDICA' || tipo === 'DIMEX') {
+                                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                              } else {
+                                e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+                              }
+                              return rhfOnChange(e);
+                            },
+                          };
+                        })()}
                         placeholder="Ingrese el número de identificación"
                         className="pr-10"
                       />
@@ -2747,6 +2811,57 @@ Comentario: En espera de Instalacion`;
                   Editar
                 </Button>
               )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog reasignar cliente */}
+        <Dialog
+          open={!!reassignClientId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setReassignClientId(null);
+              setReassignUserId('');
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Mover cliente a otro usuario</DialogTitle>
+            </DialogHeader>
+            <div className="py-2">
+              <label className="text-sm font-medium mb-2 block">
+                Selecciona el usuario destino
+              </label>
+              <Select
+                value={reassignUserId}
+                onChange={(e) => setReassignUserId(e.target.value)}
+              >
+                <option value="">Seleccione un usuario</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre && u.apellidos ? `${u.nombre} ${u.apellidos}` : u.email}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setReassignClientId(null);
+                  setReassignUserId('');
+                }}
+                disabled={reassignLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleReassign}
+                disabled={!reassignUserId || reassignLoading}
+              >
+                {reassignLoading ? 'Guardando...' : 'Mover'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
