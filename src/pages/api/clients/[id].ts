@@ -320,5 +320,44 @@ export default async function handler(
     }
   }
 
+  if (req.method === 'PATCH') {
+    try {
+      if (session.role !== 'admin') {
+        return res.status(403).json({ error: 'No tienes permiso para reasignar este cliente' });
+      }
+
+      const { createdBy } = req.body;
+
+      if (!createdBy || typeof createdBy !== 'string') {
+        return res.status(400).json({ error: 'El campo createdBy es requerido y debe ser un string' });
+      }
+
+      const targetUser = await prisma.user.findUnique({ where: { id: createdBy } });
+      if (!targetUser) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+      const client = await prisma.client.update({
+        where: { id: id as string },
+        data: { createdBy },
+        include: {
+          plan: { include: { productType: true } },
+          creator: { select: { id: true, email: true, nombre: true, apellidos: true } },
+          statusComments: {
+            include: {
+              creator: { select: { id: true, email: true, nombre: true, apellidos: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+      });
+
+      return res.status(200).json({ client });
+    } catch (error) {
+      console.error('Error reassigning client:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   return res.status(405).json({ error: 'Method not allowed' });
 }
