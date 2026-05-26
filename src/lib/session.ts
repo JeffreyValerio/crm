@@ -1,4 +1,4 @@
-import { IronSessionOptions, getIronSession } from 'iron-session';
+import { SessionOptions, getIronSession } from 'iron-session';
 import { NextApiRequest, NextApiResponse } from 'next';
 
 export interface SessionData {
@@ -19,7 +19,7 @@ declare module 'iron-session' {
 const appUrl = process.env.NEXT_PUBLIC_URL || '';
 const useSecureCookie = appUrl.startsWith('https');
 
-export const sessionOptions: IronSessionOptions = {
+export const sessionOptions: SessionOptions = {
   password: process.env.SESSION_SECRET || 'changeme-to-a-random-secret-key-at-least-32-characters-long',
   cookieName: 'crm-session',
   cookieOptions: {
@@ -31,5 +31,5 @@ export const sessionOptions: IronSessionOptions = {
 };
 
 export async function getSession(req: NextApiRequest, res: NextApiResponse) {
-  return await getIronSession(req, res, sessionOptions);
+  return await getIronSession<SessionData>(req, res, sessionOptions);
 }

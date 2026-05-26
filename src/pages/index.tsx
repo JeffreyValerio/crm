@@ -179,7 +179,7 @@ export default function HomePage() {
       setEffectivenessData({ totalContacts, installed: installedCount, effectiveness });
 
       // ── Cumplimiento por vendedor ─────────────────────────
-      const TARGET_SALES = 10;
+      const TARGET_SALES = 6;
       const complianceMap = new Map<string, {
         userId: string; email: string;
         nombre?: string | null; apellidos?: string | null;
@@ -635,7 +635,7 @@ export default function HomePage() {
                   KPI de Cumplimiento
                 </CardTitle>
                 <CardDescription>
-                  Meta: 10 ventas instaladas por vendedor · {getPeriodLabel()}
+                  Meta: 6 ventas instaladas por vendedor · {getPeriodLabel()}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -697,7 +697,7 @@ export default function HomePage() {
                   (() => {
                     const pct = complianceStats[0]?.percentage || 0;
                     const installed = complianceStats[0]?.installed || 0;
-                    const target = complianceStats[0]?.target || 10;
+                    const target = complianceStats[0]?.target || 6;
                     const pending = complianceStats[0]?.pending || 0;
                     const strokeColor = pct >= 100 ? '#22c55e' : pct >= 50 ? '#eab308' : '#ef4444';
                     const textColor = pct >= 100 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-600';
