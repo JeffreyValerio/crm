@@ -293,6 +293,36 @@ export default function HomePage() {
       };
     }
 
+    if (saleStatus === 'NO_COMPLETO_FACEID') {
+      return {
+        label: 'No completó FaceID',
+        color: 'bg-amber-500',
+        textColor: 'text-foreground',
+        borderColor: 'border-amber-500',
+        icon: XCircle,
+      };
+    }
+
+    if (saleStatus === 'CANCELADO_POR_COBERTURA') {
+      return {
+        label: 'Cancelado por cobertura',
+        color: 'bg-red-400',
+        textColor: 'text-foreground',
+        borderColor: 'border-red-400',
+        icon: XCircle,
+      };
+    }
+
+    if (saleStatus === 'CLIENTE_NO_PERMITE_INSTALACION') {
+      return {
+        label: 'Cliente no permite instalación',
+        color: 'bg-rose-600',
+        textColor: 'text-foreground',
+        borderColor: 'border-rose-600',
+        icon: XCircle,
+      };
+    }
+
     // Estados de validación
     switch (status) {
       case 'EN_PROCESO_VALIDACION':
