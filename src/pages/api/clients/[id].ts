@@ -193,21 +193,23 @@ export default async function handler(
         }
 
         // Manejar cambio de estado de venta - Solo para admin
-        if (saleStatus && saleStatus !== currentClient.saleStatus) {
-          updateData.saleStatus = saleStatus;
+        if (saleStatus !== undefined && saleStatus !== (currentClient.saleStatus ?? '')) {
+          updateData.saleStatus = saleStatus || null; // '' → null (limpiar)
           updateData.saleComment = saleComment?.trim() || null;
 
-          // Crear comentario de estado
-          await prisma.statusComment.create({
-            data: {
-              clientId: id as string,
-              tipo: 'VENTA',
-              estadoAnterior: currentClient.saleStatus || '',
-              estadoNuevo: saleStatus,
-              comentario: saleComment?.trim() || '',
-              createdBy: session.userId,
-            },
-          });
+          // Crear comentario de estado solo cuando hay un valor nuevo real
+          if (saleStatus) {
+            await prisma.statusComment.create({
+              data: {
+                clientId: id as string,
+                tipo: 'VENTA',
+                estadoAnterior: currentClient.saleStatus || '',
+                estadoNuevo: saleStatus,
+                comentario: saleComment?.trim() || '',
+                createdBy: session.userId,
+              },
+            });
+          }
         } else if (saleComment !== undefined) {
           updateData.saleComment = saleComment.trim();
         }

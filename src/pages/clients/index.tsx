@@ -855,6 +855,9 @@ Comentario: En espera de Instalacion`;
       PENDIENTE_INSTALACION: 'Pendiente Instalación',
       INSTALADA: 'Instalada',
       CANCELADA: 'Cancelada',
+      NO_COMPLETO_FACEID: 'No completó FaceID',
+      CANCELADO_POR_COBERTURA: 'Cancelado por cobertura',
+      CLIENTE_NO_PERMITE_INSTALACION: 'Cliente no permite instalación',
     };
     return labels[status || ''] || status || 'N/A';
   }
@@ -977,6 +980,7 @@ Comentario: En espera de Instalacion`;
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Fecha</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Formulario</TableHead>
                   <TableHead>Identificación</TableHead>
@@ -995,12 +999,15 @@ Comentario: En espera de Instalacion`;
               <TableBody>
                 {clients.length === 0 ? (
                   <TableEmptyState
-                    colSpan={currentUser?.role === 'admin' ? 9 : 6}
+                    colSpan={currentUser?.role === 'admin' ? 10 : 7}
                     message={searchTerm.trim() ? 'No se encontraron clientes que coincidan con la búsqueda' : 'No hay clientes registrados'}
                   />
                 ) : (
                   clients.map((client) => (
                     <TableRow key={client.id}>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {new Date(client.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </TableCell>
                       <TableCell>{client.nombres} {client.apellidos}</TableCell>
                       <TableCell>{client.formulario || 'N/A'}</TableCell>
                       <TableCell>{client.numeroIdentificacion}</TableCell>
@@ -1951,6 +1958,9 @@ Comentario: En espera de Instalacion`;
                         <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
                         <option value="INSTALADA">Instalada</option>
                         <option value="CANCELADA">Cancelada</option>
+                        <option value="NO_COMPLETO_FACEID">No completó FaceID</option>
+                        <option value="CANCELADO_POR_COBERTURA">Cancelado por cobertura</option>
+                        <option value="CLIENTE_NO_PERMITE_INSTALACION">Cliente no permite instalación</option>
                       </Select>
                     </div>
                   </div>
