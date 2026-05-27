@@ -51,6 +51,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Si es venta realizada, crear el cliente y asignarlo al usuario actual
   if (resultado === 'VENTA_REALIZADA') {
+    // Limpiar teléfono: quitar +506, espacios y guiones — dejar solo los 8 dígitos.
+    function sanitizarTel(raw: string | null): string | null {
+      if (!raw) return null;
+      return raw.replace(/^\+506\s?/, '').replace(/[-\s]/g, '') || null;
+    }
+
     // Limpiar la cédula: quitar guiones, espacios y cualquier carácter no alfanumérico.
     // Si es solo dígitos, también quitar ceros iniciales (01-1753-0918 → 117530918).
     function sanitizarCedula(raw: string | null): string | null {
@@ -87,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           canton: prospecto.canton || 'Sin cantón',
           distrito: prospecto.distrito || 'Sin distrito',
           senasExactas: prospecto.direccion || '',
-          telefono: prospecto.telCelular || prospecto.telInstalacion || null,
+          telefono: sanitizarTel(prospecto.telCelular) || sanitizarTel(prospecto.telInstalacion) || null,
           email: prospecto.email || null,
           coordenadasLat: prospecto.latitud || null,
           coordenadasLng: prospecto.longitud || null,
