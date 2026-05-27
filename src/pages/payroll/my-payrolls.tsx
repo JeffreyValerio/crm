@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -135,7 +136,7 @@ export default function MyPayrollsPage() {
       pdf.save(filename);
     } catch (error) {
       console.error('Error generando PDF:', error);
-      alert('Error al generar el PDF');
+      toast.error('Error al generar el PDF');
     }
   }
 

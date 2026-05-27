@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -271,10 +272,10 @@ export default function PayrollPage() {
         await loadPayrolls();
       } else {
         const data = await response.json();
-        alert(data.error || 'Error al aprobar la nómina');
+        toast.error(data.error || 'Error al aprobar la nómina');
       }
     } catch (error) {
-      alert('Error al procesar la solicitud');
+      toast.error('Error al procesar la solicitud');
     } finally {
       setApprovingId(null);
     }
@@ -316,7 +317,7 @@ export default function PayrollPage() {
       pdf.save(filename);
     } catch (error) {
       console.error('Error generando PDF:', error);
-      alert('Error al generar el PDF');
+      toast.error('Error al generar el PDF');
     }
   }
 
@@ -334,12 +335,12 @@ export default function PayrollPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert(`Correo enviado correctamente a ${data.sentTo}`);
+        toast.success(`Correo enviado correctamente a ${data.sentTo}`);
       } else {
-        alert(data.error || 'Error al enviar el correo');
+        toast.error(data.error || 'Error al enviar el correo');
       }
     } catch (error) {
-      alert('Error al procesar la solicitud');
+      toast.error('Error al procesar la solicitud');
     } finally {
       setSendingEmailId(null);
     }
@@ -370,10 +371,10 @@ export default function PayrollPage() {
         }
       } else {
         const data = await response.json();
-        alert(data.error || 'Error al marcar como pagada');
+        toast.error(data.error || 'Error al marcar como pagada');
       }
     } catch (error) {
-      alert('Error al procesar la solicitud');
+      toast.error('Error al procesar la solicitud');
     } finally {
       setMarkingAsPaidId(null);
     }

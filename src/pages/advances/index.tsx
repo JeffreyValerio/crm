@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -139,7 +140,7 @@ export default function AdvancesPage() {
         setRequestDialogOpen(false);
         setRequestMonto('');
         setRequestObservaciones('');
-        alert('Solicitud de adelanto enviada correctamente');
+        toast.success('Solicitud de adelanto enviada correctamente');
       } else {
         setRequestError(data.error || 'Error al enviar la solicitud');
       }

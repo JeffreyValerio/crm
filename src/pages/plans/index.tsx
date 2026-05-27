@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -158,7 +159,7 @@ export default function PlansPage() {
       await loadPlans();
     } else {
       const data = await response.json();
-      alert(data.error || 'Error al eliminar el tipo de producto');
+      toast.error(data.error || 'Error al eliminar el tipo de producto');
     }
   }
 
@@ -223,10 +224,10 @@ export default function PlansPage() {
       if (response.ok) {
         await loadPlans();
       } else {
-        alert('Error al actualizar el producto');
+        toast.error('Error al actualizar el producto');
       }
     } catch (error) {
-      alert('Error al procesar la solicitud');
+      toast.error('Error al procesar la solicitud');
     }
   }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -169,7 +170,7 @@ export default function AdvancesAdminPage() {
         await loadAdvances();
         setApproveDialogOpen(false);
         setViewingAdvance(null);
-        alert('Adelanto aprobado correctamente');
+        toast.success('Adelanto aprobado correctamente');
       } else {
         setApproveError(data.error || 'Error al aprobar el adelanto');
       }
@@ -193,13 +194,13 @@ export default function AdvancesAdminPage() {
 
       if (response.ok) {
         await loadAdvances();
-        alert('Adelanto rechazado correctamente');
+        toast.success('Adelanto rechazado correctamente');
       } else {
         const data = await response.json();
-        alert(data.error || 'Error al rechazar el adelanto');
+        toast.error(data.error || 'Error al rechazar el adelanto');
       }
     } catch (error) {
-      alert('Error al procesar la solicitud');
+      toast.error('Error al procesar la solicitud');
     } finally {
       setRejectingId(null);
     }
