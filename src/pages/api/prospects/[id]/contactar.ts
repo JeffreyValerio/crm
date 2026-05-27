@@ -51,9 +51,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Si es venta realizada, crear el cliente y asignarlo al usuario actual
   if (resultado === 'VENTA_REALIZADA') {
+    // Limpiar la cédula: quitar guiones, espacios y cualquier carácter no alfanumérico.
+    // Si es solo dígitos, también quitar ceros iniciales (01-1753-0918 → 117530918).
+    function sanitizarCedula(raw: string | null): string | null {
+      if (!raw) return null;
+      const limpio = raw.replace(/[^a-zA-Z0-9]/g, '');
+      if (/^\d+$/.test(limpio)) return limpio.replace(/^0+/, '') || limpio;
+      return limpio || null;
+    }
+
+    const cedulaLimpia = sanitizarCedula(prospecto.idCliente);
+
     // Buscar si ya existe un cliente con esa cédula para no duplicar
-    const cedulaExistente = prospecto.idCliente
-      ? await prisma.client.findFirst({ where: { numeroIdentificacion: prospecto.idCliente } })
+    const cedulaExistente = cedulaLimpia
+      ? await prisma.client.findFirst({ where: { numeroIdentificacion: cedulaLimpia } })
       : null;
 
     if (!cedulaExistente) {
@@ -71,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           nombres,
           apellidos,
           tipoIdentificacion: 'NACIONAL',
-          numeroIdentificacion: prospecto.idCliente || `PROSPECTO-${prospecto.id}`,
+          numeroIdentificacion: cedulaLimpia || `PROSPECTO-${prospecto.id}`,
           provincia: prospecto.provincia || 'Sin provincia',
           canton: prospecto.canton || 'Sin cantón',
           distrito: prospecto.distrito || 'Sin distrito',
