@@ -23,6 +23,8 @@ import {
 import { useRouter } from 'next/router';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatTel, formatCedula } from '@/lib/formatters';
+import { nombreUsuario } from '@/lib/labels';
 
 interface Usuario {
   id: string;
@@ -123,25 +125,6 @@ function diasSinContacto(p: Prospecto): number {
   if (!p.ultimoContacto) return 999;
   const diff = Date.now() - new Date(p.ultimoContacto).getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-// Quita +506, espacios y guiones — deja solo los 8 dígitos
-function formatTel(tel: string | null | undefined): string | null {
-  if (!tel) return null;
-  return tel.replace(/^\+506\s?/, '').replace(/[-\s]/g, '') || null;
-}
-
-// Cédula: quita guiones; si es puramente numérica quita el 0 inicial (01-1753-0918 → 117530918)
-function formatCedula(cedula: string | null | undefined): string | null {
-  if (!cedula) return null;
-  const sinGuiones = cedula.replace(/-/g, '');
-  if (/^\d+$/.test(sinGuiones)) return sinGuiones.replace(/^0+/, '') || sinGuiones;
-  return sinGuiones;
-}
-
-function nombreUsuario(u: Usuario | null) {
-  if (!u) return '—';
-  return [u.nombre, u.apellidos].filter(Boolean).join(' ') || u.email;
 }
 
 // ── component ─────────────────────────────────────────────────────────────────

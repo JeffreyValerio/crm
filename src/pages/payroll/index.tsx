@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
+import { formatearColones, formatearPeriodo } from '@/lib/formatters';
+import { getPayrollStatusLabel, getUserDisplayName } from '@/lib/labels';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -381,19 +383,6 @@ export default function PayrollPage() {
   }
 
 
-  function getEstadoLabel(estado: string) {
-    switch (estado) {
-      case 'PENDIENTE':
-        return 'Pendiente';
-      case 'APROBADO':
-        return 'Aprobado';
-      case 'PAGADO':
-        return 'Pagado';
-      default:
-        return estado;
-    }
-  }
-
   function getEstadoIcon(estado: string) {
     switch (estado) {
       case 'PENDIENTE':
@@ -420,27 +409,6 @@ export default function PayrollPage() {
     }
   }
 
-  function formatearColones(monto: number | string) {
-    const num = typeof monto === 'string' ? parseFloat(monto) : monto;
-    return `₡${num.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
-
-  function formatearPeriodo(periodo: string) {
-    const [año, mes] = periodo.split('-');
-    const meses = [
-      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
-    ];
-    return `${meses[parseInt(mes) - 1]} ${año}`;
-  }
-
-  function getUserDisplayName(user: { nombre?: string | null; apellidos?: string | null; email?: string } | null | undefined): string {
-    if (!user) return 'N/A';
-    if (user.nombre && user.apellidos) {
-      return `${user.nombre} ${user.apellidos}`;
-    }
-    return user.email || 'N/A';
-  }
 
   if (loading) {
     return (
@@ -565,7 +533,7 @@ export default function PayrollPage() {
                             getEstadoColor(payroll.estado)
                           )}>
                             {getEstadoIcon(payroll.estado)}
-                            {getEstadoLabel(payroll.estado)}
+                            {getPayrollStatusLabel(payroll.estado)}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -884,7 +852,7 @@ export default function PayrollPage() {
                         getEstadoColor(viewingPayroll.estado)
                       )}>
                         {getEstadoIcon(viewingPayroll.estado)}
-                        {getEstadoLabel(viewingPayroll.estado)}
+                        {getPayrollStatusLabel(viewingPayroll.estado)}
                       </span>
                     </p>
                   </div>

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
+import { formatearColones } from '@/lib/formatters';
+import { getAdvanceStatusLabel, getUserDisplayName } from '@/lib/labels';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -206,23 +208,6 @@ export default function AdvancesAdminPage() {
     }
   }
 
-  function getEstadoLabel(estado: string) {
-    switch (estado) {
-      case 'PENDIENTE':
-        return 'Pendiente';
-      case 'APROBADO':
-        return 'Aprobado';
-      case 'RECHAZADO':
-        return 'Rechazado';
-      case 'EN_COBRO':
-        return 'En Cobro';
-      case 'COMPLETADO':
-        return 'Completado';
-      default:
-        return estado;
-    }
-  }
-
   function getEstadoIcon(estado: string) {
     switch (estado) {
       case 'PENDIENTE':
@@ -249,19 +234,6 @@ export default function AdvancesAdminPage() {
       case 'COMPLETADO':  return 'success';
       default:            return 'default';
     }
-  }
-
-  function getUserDisplayName(user: { nombre?: string | null; apellidos?: string | null; email?: string } | null | undefined): string {
-    if (!user) return 'N/A';
-    if (user.nombre && user.apellidos) {
-      return `${user.nombre} ${user.apellidos}`;
-    }
-    return user.email || 'N/A';
-  }
-
-  function formatearColones(monto: number | string) {
-    const num = typeof monto === 'string' ? parseFloat(monto) : monto;
-    return `₡${num.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   if (loading) {
@@ -372,7 +344,7 @@ export default function AdvancesAdminPage() {
                       <TableCell>
                         <Badge variant={getEstadoBadgeVariant(advance.estado)}>
                           {getEstadoIcon(advance.estado)}
-                          {getEstadoLabel(advance.estado)}
+                          {getAdvanceStatusLabel(advance.estado)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -449,7 +421,7 @@ export default function AdvancesAdminPage() {
                     <p className="text-sm">
                       <Badge variant={getEstadoBadgeVariant(viewingAdvance.estado)}>
                         {getEstadoIcon(viewingAdvance.estado)}
-                        {getEstadoLabel(viewingAdvance.estado)}
+                        {getAdvanceStatusLabel(viewingAdvance.estado)}
                       </Badge>
                     </p>
                   </div>

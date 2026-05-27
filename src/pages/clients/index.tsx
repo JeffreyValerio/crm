@@ -14,6 +14,7 @@ import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { CldImage } from 'next-cloudinary';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
+import { getUserDisplayName, getValidationStatusLabel, getSaleStatusLabel } from '@/lib/labels';
 
 interface ProductType {
   id: string;
@@ -836,38 +837,6 @@ Comentario: En espera de Instalacion`;
       console.error('Error al generar PDF:', error);
       toast.error('Error al generar el PDF. Por favor, intente nuevamente.');
     }
-  }
-
-  function getValidationStatusLabel(status: string | null) {
-    const labels: Record<string, string> = {
-      EN_PROCESO_VALIDACION: 'En validación',
-      APROBADA: 'Aprobada',
-      REQUIERE_DEPOSITO: 'Requiere Depósito',
-      NO_APLICA: 'No Aplica',
-      INCOBRABLE: 'Incobrable',
-      DEUDA_MENOR_ANIO: 'Deuda Menor a un Año',
-    };
-    return labels[status || ''] || status || 'N/A';
-  }
-
-  function getSaleStatusLabel(status: string | null) {
-    const labels: Record<string, string> = {
-      PENDIENTE_INSTALACION: 'Pendiente Instalación',
-      INSTALADA: 'Instalada',
-      CANCELADA: 'Cancelada',
-      NO_COMPLETO_FACEID: 'No completó FaceID',
-      CANCELADO_POR_COBERTURA: 'Cancelado por cobertura',
-      CLIENTE_NO_PERMITE_INSTALACION: 'Cliente no permite instalación',
-    };
-    return labels[status || ''] || status || 'N/A';
-  }
-
-  function getUserDisplayName(user: { nombre?: string | null; apellidos?: string | null; email?: string } | null | undefined): string {
-    if (!user) return 'N/A';
-    if (user.nombre && user.apellidos) {
-      return `${user.nombre} ${user.apellidos}`;
-    }
-    return user.email || 'N/A';
   }
 
   if (loading) {
