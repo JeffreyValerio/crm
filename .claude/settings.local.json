@@ -9,7 +9,10 @@
       "Bash(npm run:*)",
       "Bash(npx tsc:*)",
       "Bash(npx prisma:*)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix: corregir build errors y actualizar meta KPI a 6 ventas *)",
+      "Bash(git config *)",
+      "Bash(git push *)"
     ]
   }
 }

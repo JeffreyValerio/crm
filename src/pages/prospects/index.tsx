@@ -15,7 +15,6 @@ import {
   UserCheck,
   Eye,
   Phone,
-  MessageCircle,
   AlertTriangle,
   Copy,
   Check,
@@ -84,6 +83,33 @@ interface Prospecto {
   ultimoContacto: string | null;
 }
 
+// ── constantes de resultado de contacto ─────────────────────────────────────
+
+type ResultadoContacto =
+  | 'VENTA_REALIZADA'
+  | 'CLIENTE_INTERESADO'
+  | 'SEGUIMIENTO'
+  | 'SIN_COBERTURA'
+  | 'LLAMAR_MAS_TARDE'
+  | 'CLIENTE_NO_INTERESADO'
+  | 'OTRO_PROVEEDOR'
+  | 'CLIENTE_MOLESTO';
+
+const RESULTADO_OPTIONS: { value: ResultadoContacto; label: string }[] = [
+  { value: 'VENTA_REALIZADA',       label: '✅ Venta realizada' },
+  { value: 'CLIENTE_INTERESADO',    label: '⭐ Cliente interesado' },
+  { value: 'SEGUIMIENTO',           label: '🔄 Seguimiento' },
+  { value: 'SIN_COBERTURA',         label: '📵 Sin cobertura' },
+  { value: 'LLAMAR_MAS_TARDE',      label: '⏰ Llamar más tarde' },
+  { value: 'CLIENTE_NO_INTERESADO', label: '👎 Cliente no interesado' },
+  { value: 'OTRO_PROVEEDOR',        label: '🔀 Cuenta con otro proveedor' },
+  { value: 'CLIENTE_MOLESTO',       label: '😡 Cliente molesto' },
+];
+
+const RESULTADO_LABELS: Record<string, string> = Object.fromEntries(
+  RESULTADO_OPTIONS.map(o => [o.value, o.label])
+);
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function tieneAlerta(p: Prospecto): boolean {
@@ -145,7 +171,7 @@ export default function ProspectsPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
 
   const [contactLoading, setContactLoading] = useState<string | null>(null);
-  const [contactMetodo, setContactMetodo] = useState<'LLAMADA' | 'WHATSAPP'>('LLAMADA');
+  const [contactMetodo, setContactMetodo] = useState<ResultadoContacto>('CLIENTE_INTERESADO');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Inline obs editing state (for assigned agent in detail dialog)
@@ -246,24 +272,32 @@ export default function ProspectsPage() {
     }
   }
 
-  async function handleContactar(prospecto: Prospecto, metodo: 'LLAMADA' | 'WHATSAPP') {
+  async function handleContactar(prospecto: Prospecto, resultado: ResultadoContacto) {
     setContactLoading(prospecto.id);
     try {
       const res = await fetch(`/api/prospects/${prospecto.id}/contactar`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metodo }),
+        body: JSON.stringify({ resultado }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Error al registrar');
       }
-      const updated = await res.json();
-      toast.success(`Contacto por ${metodo === 'LLAMADA' ? 'llamada' : 'WhatsApp'} registrado`);
+      const data = await res.json();
+
       // Actualizar el dialog en tiempo real
-      if (updated.prospecto) {
-        setViewingProspecto(prev => prev ? { ...prev, ...updated.prospecto } : prev);
+      if (data.prospecto) {
+        setViewingProspecto(prev => prev ? { ...prev, ...data.prospecto } : prev);
       }
+
+      if (resultado === 'VENTA_REALIZADA' && data.clienteCreado) {
+        setClienteConvertido(data.clienteCreado);
+        toast.success('¡Venta registrada! Cliente creado correctamente.');
+      } else {
+        toast.success(`Resultado registrado: ${RESULTADO_LABELS[resultado] ?? resultado}`);
+      }
+
       fetchProspectos(currentPage);
     } catch {
       toast.error('Error al registrar contacto');
@@ -445,10 +479,8 @@ export default function ProspectsPage() {
                       {/* Contactos */}
                       <TableCell>
                         <div className="flex items-center gap-1.5">
-                          {p.metodoContacto === 'LLAMADA' ? (
+                          {p.metodoContacto ? (
                             <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                          ) : p.metodoContacto === 'WHATSAPP' ? (
-                            <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
                           ) : (
                             <Phone className="h-3.5 w-3.5 text-muted-foreground/40" />
                           )}
@@ -673,11 +705,12 @@ export default function ProspectsPage() {
                     <div className="flex gap-2 items-center">
                       <Select
                         value={contactMetodo}
-                        onChange={e => setContactMetodo(e.target.value as 'LLAMADA' | 'WHATSAPP')}
+                        onChange={e => setContactMetodo(e.target.value as ResultadoContacto)}
                         className="flex-1"
                       >
-                        <option value="LLAMADA">📞 Llamada</option>
-                        <option value="WHATSAPP">💬 WhatsApp</option>
+                        {RESULTADO_OPTIONS.map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
                       </Select>
                       <Button
                         onClick={() => handleContactar(viewingProspecto, contactMetodo)}
@@ -693,7 +726,9 @@ export default function ProspectsPage() {
                         {viewingProspecto.ultimoContacto
                           ? new Date(viewingProspecto.ultimoContacto).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
                           : '—'}
-                        {viewingProspecto.metodoContacto && ` (${viewingProspecto.metodoContacto})`}
+                        {viewingProspecto.metodoContacto && (
+                          <> · {RESULTADO_LABELS[viewingProspecto.metodoContacto] ?? viewingProspecto.metodoContacto}</>
+                        )}
                       </p>
                     )}
                   </div>
@@ -724,13 +759,8 @@ export default function ProspectsPage() {
                           })
                         : '—'}
                       {viewingProspecto.ultimoContacto && viewingProspecto.metodoContacto && (
-                        <span className="ml-1.5 inline-flex items-center gap-1 text-muted-foreground">
-                          {viewingProspecto.metodoContacto === 'LLAMADA' ? (
-                            <Phone className="h-3 w-3" />
-                          ) : (
-                            <MessageCircle className="h-3 w-3" />
-                          )}
-                          {viewingProspecto.metodoContacto}
+                        <span className="ml-1.5 text-muted-foreground text-xs">
+                          {RESULTADO_LABELS[viewingProspecto.metodoContacto] ?? viewingProspecto.metodoContacto}
                         </span>
                       )}
                     </p>
