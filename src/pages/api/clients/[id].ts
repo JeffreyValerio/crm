@@ -124,8 +124,8 @@ export default async function handler(
         canton: canton?.trim(),
         distrito: distrito?.trim(),
         senasExactas: senasExactas?.trim(),
-        coordenadasLat: coordenadasLat?.trim() || null,
-        coordenadasLng: coordenadasLng?.trim() || null,
+        coordenadasLat: coordenadasLat?.trim().replace(/,\s*$/, '') || null,
+        coordenadasLng: coordenadasLng?.trim().replace(/,\s*$/, '') || null,
         numeroMedidor: numeroMedidor?.trim() || null,
         planId: planId || null,
       };
