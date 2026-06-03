@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 
-const TARGET_SALES = 6;
+const TARGET_POR_MES = 6;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).end();
@@ -14,6 +14,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const y = year ? parseInt(year as string) : null;
   const m = month ? parseInt(month as string) : null;
+
+  // Meta dinámica: 6 × cantidad de meses del período
+  const meta = y && !m ? TARGET_POR_MES * 12 : TARGET_POR_MES;
 
   // Rango de fechas en UTC para evitar problemas de zona horaria
   let dateRange: { gte: Date; lt: Date } | null = null;
@@ -105,8 +108,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       cumplimiento = Array.from(compMap.values()).map(s => ({
         ...s,
-        target: TARGET_SALES,
-        percentage: Math.round(Math.min((s.installed / TARGET_SALES) * 100, 100)),
+        target: meta,
+        percentage: Math.round(Math.min((s.installed / meta) * 100, 100)),
       }));
     } else {
       const myInstalled = grouped.filter(g => g.saleStatus === 'INSTALADA').reduce((s, g) => s + g._count.id, 0);
@@ -118,14 +121,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         apellidos: null,
         installed: myInstalled,
         pending: myPending,
-        target: TARGET_SALES,
-        percentage: Math.round(Math.min((myInstalled / TARGET_SALES) * 100, 100)),
+        target: meta,
+        percentage: Math.round(Math.min((myInstalled / meta) * 100, 100)),
       }];
     }
 
     return res.status(200).json({
       totalClients,
       instalaciones,
+      meta,
       efectividad: totalClients > 0 ? Math.round((instalaciones / totalClients) * 10000) / 100 : 0,
       statsParEstado: grouped.map(g => ({
         validationStatus: g.validationStatus,

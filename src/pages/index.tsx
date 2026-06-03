@@ -77,6 +77,7 @@ export default function HomePage() {
   } | null>(null);
   const hasMounted = useRef(false);
   const [payrollSummary, setPayrollSummary] = useState<{ pendingCount: number; pendingTotal: number } | null>(null);
+  const [kpiMeta, setKpiMeta] = useState<number>(6);
   const [prospectStats, setProspectStats] = useState<ProspectStat[]>([]);
   const [myProspectStat, setMyProspectStat] = useState<ProspectStat | null>(null);
 
@@ -156,6 +157,7 @@ export default function HomePage() {
 
         setTotalClients(data.totalClients ?? 0);
         setStats(data.statsParEstado ?? []);
+        setKpiMeta(data.meta ?? 6);
         setEffectivenessData({
           totalContacts: data.totalClients ?? 0,
           installed: data.instalaciones ?? 0,
@@ -172,7 +174,7 @@ export default function HomePage() {
             apellidos: activeUser.apellidos || null,
             installed: 0,
             pending: 0,
-            target: 6,
+            target: kpiMeta,
             percentage: 0,
           }]);
         } else {
@@ -624,7 +626,7 @@ export default function HomePage() {
                   KPI de Cumplimiento
                 </CardTitle>
                 <CardDescription>
-                  Meta: 6 ventas instaladas por vendedor · {getPeriodLabel()}
+                  Meta: {kpiMeta} ventas instaladas por vendedor · {getPeriodLabel()}
                 </CardDescription>
               </CardHeader>
               <CardContent>
