@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { MainLayout } from '@/components/layout/main-layout';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
@@ -7,6 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle, Receipt } from 'lucide-react';
+
+const TrendsCharts = dynamic(
+  () => import('@/components/dashboard/trends-charts').then(m => m.TrendsCharts),
+  { ssr: false, loading: () => <div className="h-[560px] animate-pulse rounded-lg bg-muted/40" /> }
+);
 
 interface ClientStats {
   validationStatus: string | null;
@@ -78,6 +84,11 @@ export default function HomePage() {
   const hasMounted = useRef(false);
   const [payrollSummary, setPayrollSummary] = useState<{ pendingCount: number; pendingTotal: number } | null>(null);
   const [kpiMeta, setKpiMeta] = useState<number>(6);
+  const [trendsData, setTrendsData] = useState<{
+    tendencia: Array<{ mes: string; registrados: number; instalaciones: number }>;
+    comparativa: Array<{ mes: string; [k: string]: number | string }>;
+    vendedores: string[];
+  } | null>(null);
   const [prospectStats, setProspectStats] = useState<ProspectStat[]>([]);
   const [myProspectStat, setMyProspectStat] = useState<ProspectStat | null>(null);
 
@@ -144,11 +155,16 @@ export default function HomePage() {
       if (filterMonth) params.append('month', filterMonth);
       if (activeUser.role === 'admin' && filterCreatedBy) params.append('createdBy', filterCreatedBy);
 
-      // Las tres llamadas en paralelo
-      const [statsRes, prospectsRes, payrollRes] = await Promise.all([
+      // Las cuatro llamadas en paralelo
+      const trendsParams = new URLSearchParams();
+      if (filterYear) trendsParams.append('year', filterYear);
+      if (activeUser.role === 'admin' && filterCreatedBy) trendsParams.append('createdBy', filterCreatedBy);
+
+      const [statsRes, prospectsRes, payrollRes, trendsRes] = await Promise.all([
         fetch(`/api/dashboard/stats?${params.toString()}`),
         fetch(`/api/prospects/stats?year=${filterYear}&month=${filterMonth}`),
         fetch('/api/payroll'),
+        fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
       ]);
 
       // ── Stats de clientes ─────────────────────────────────
@@ -206,6 +222,12 @@ export default function HomePage() {
           pendingCount: pendingP.length,
           pendingTotal: pendingP.reduce((sum, p) => sum + Number(p.total), 0),
         });
+      }
+
+      // ── Tendencias ────────────────────────────────────────
+      if (trendsRes.ok) {
+        const trendsData = await trendsRes.json();
+        setTrendsData(trendsData);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -931,6 +953,17 @@ export default function HomePage() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* Gráficos de tendencia */}
+        {trendsData && (
+          <TrendsCharts
+            tendencia={trendsData.tendencia}
+            comparativa={trendsData.comparativa}
+            vendedores={trendsData.vendedores}
+            year={filterYear || new Date().getFullYear().toString()}
+            role={user?.role || 'user'}
+          />
         )}
       </div>
     </MainLayout>
