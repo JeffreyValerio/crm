@@ -15,6 +15,8 @@ import { CldImage } from 'next-cloudinary';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { getUserDisplayName, getValidationStatusLabel, getSaleStatusLabel } from '@/lib/labels';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface ProductType {
   id: string;
@@ -145,6 +147,8 @@ export default function ClientsPage() {
   const [reassignUserId, setReassignUserId] = useState<string>('');
   const [reassignOriginalUserId, setReassignOriginalUserId] = useState<string>('');
   const [reassignLoading, setReassignLoading] = useState(false);
+  const [viewTab, setViewTab] = useState<'info' | 'fotos' | 'historial'>('info');
+  const [editTab, setEditTab] = useState<'datos' | 'ubicacion' | 'tecnico' | 'fotos' | 'estado'>('datos');
 
   const {
     register,
@@ -428,6 +432,7 @@ export default function ClientsPage() {
   }
 
   async function handleOpenDialog(client?: Client) {
+    setEditTab('datos');
     if (client) {
       setEditingClient(client);
       // Activar flag de inicialización para evitar que los useEffect limpien los valores
@@ -678,6 +683,7 @@ Comentario: En espera de Instalacion`;
     if (response.ok) {
       const data = await response.json();
       setViewingClient(data.client);
+      setViewTab('info');
       setViewDialogOpen(true);
     }
   }
@@ -1188,7 +1194,37 @@ Comentario: En espera de Instalacion`;
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit, (errs) => {
+                const datosF = ['nombres','apellidos','tipoIdentificacion','numeroIdentificacion','fechaNacimiento','email','telefono'];
+                const ubicF = ['provincia','canton','distrito','senasExactas','coordenadasLat','coordenadasLng'];
+                const tecF = ['stb','numeroMedidor','productTypeId','planId'];
+                const fotosF = ['cedulaFrontalUrl','cedulaTraseraUrl','selfieUrl'];
+                const keys = Object.keys(errs);
+                if (keys.some(k => datosF.includes(k))) setEditTab('datos');
+                else if (keys.some(k => ubicF.includes(k))) setEditTab('ubicacion');
+                else if (keys.some(k => tecF.includes(k))) setEditTab('tecnico');
+                else if (keys.some(k => fotosF.includes(k))) setEditTab('fotos');
+              })} className="space-y-4">
+              {/* Tab nav */}
+              <div className="flex border-b -mx-6 px-6">
+                {[
+                  { key: 'datos', label: 'Datos' },
+                  { key: 'ubicacion', label: 'Ubicación' },
+                  { key: 'tecnico', label: 'Técnico' },
+                  { key: 'fotos', label: 'Fotos' },
+                  ...(editingClient && currentUser?.role === 'admin' ? [{ key: 'estado', label: 'Estado' }] : []),
+                ].map(tab => (
+                  <button key={tab.key} type="button" onClick={() => setEditTab(tab.key as any)}
+                    className={cn(
+                      "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px",
+                      editTab === tab.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              {/* FOTOS TAB */}
+              <div className={editTab !== 'fotos' ? 'hidden' : ''}>
               {/* Fotos */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="font-semibold text-base flex items-center gap-2">
@@ -1365,6 +1401,9 @@ Comentario: En espera de Instalacion`;
                 </div>
               </div>
 
+              </div>{/* end fotos tab */}
+              {/* DATOS TAB */}
+              <div className={editTab !== 'datos' ? 'hidden' : ''}>
               {/* Datos personales */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="font-semibold text-base flex items-center gap-2">
@@ -1627,6 +1666,9 @@ Comentario: En espera de Instalacion`;
                 </div>
               </div>
 
+              </div>{/* end datos tab */}
+              {/* UBICACION TAB */}
+              <div className={editTab !== 'ubicacion' ? 'hidden' : ''}>
               {/* Ubicación */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="font-semibold text-base flex items-center gap-2">
@@ -1809,6 +1851,9 @@ Comentario: En espera de Instalacion`;
                 </div>
               </div>
 
+              </div>{/* end ubicacion tab */}
+              {/* TECNICO TAB */}
+              <div className={editTab !== 'tecnico' ? 'hidden' : ''}>
               {/* Técnico y Plan */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="font-semibold text-base flex items-center gap-2">
@@ -1914,6 +1959,9 @@ Comentario: En espera de Instalacion`;
                 </div>
               </div>
 
+              </div>{/* end tecnico tab */}
+              {/* ESTADO TAB */}
+              <div className={editTab !== 'estado' ? 'hidden' : ''}>
               {/* Estados - Solo en edición y solo para admin */}
               {editingClient && currentUser?.role === 'admin' && (
                 <div className="space-y-4">
@@ -2023,6 +2071,7 @@ Comentario: En espera de Instalacion`;
                   )}
                 </div>
               )}
+              </div>{/* end estado tab */}
 
               <DialogFooter>
                 <Button
@@ -2042,788 +2091,175 @@ Comentario: En espera de Instalacion`;
 
         {/* Dialog para ver detalles */}
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto max-w-5xl">
-            <DialogHeader>
-              <DialogTitle>Detalles del Cliente</DialogTitle>
-              <DialogDescription>
-                Información completa del cliente
-              </DialogDescription>
-            </DialogHeader>
-
+          <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
             {viewingClient && (
-              <div className="space-y-6">
-                {/* Fotos */}
-                <div>
-                  <h3 className="font-semibold mb-3">Fotos</h3>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {viewingClient.cedulaFrontalUrl && (
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Cédula Frontal</label>
-                        {viewingClient.cedulaFrontalUrl.includes('cloudinary.com') ? (
-                          <CldImage
-                            src={getCloudinaryPublicId(viewingClient.cedulaFrontalUrl) || viewingClient.cedulaFrontalUrl}
-                            alt="Cédula Frontal"
-                            width={200}
-                            height={150}
-                            className="rounded-md border"
-                            crop={{
-                              type: 'auto',
-                              source: true
-                            }}
-                          />
-                        ) : (
-                          <img
-                            src={viewingClient.cedulaFrontalUrl}
-                            alt="Cédula Frontal"
-                            className="rounded-md border w-[200px] h-[150px] object-cover"
-                          />
+              <div>
+                {/* Header */}
+                <div className="pr-8 mb-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <DialogTitle className="text-xl leading-tight">
+                        {viewingClient.nombres} {viewingClient.apellidos}
+                      </DialogTitle>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {viewingClient.validationStatus && (
+                          <Badge variant={validationBadgeVariant(viewingClient.validationStatus)}>
+                            {getValidationStatusLabel(viewingClient.validationStatus)}
+                          </Badge>
+                        )}
+                        {viewingClient.saleStatus && (
+                          <Badge variant={saleBadgeVariant(viewingClient.saleStatus)}>
+                            {getSaleStatusLabel(viewingClient.saleStatus)}
+                          </Badge>
                         )}
                       </div>
-                    )}
-                    {viewingClient.cedulaTraseraUrl && (
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Cédula Trasera</label>
-                        {viewingClient.cedulaTraseraUrl.includes('cloudinary.com') ? (
-                          <CldImage
-                            src={getCloudinaryPublicId(viewingClient.cedulaTraseraUrl) || viewingClient.cedulaTraseraUrl}
-                            alt="Cédula Trasera"
-                            width={200}
-                            height={150}
-                            className="rounded-md border"
-                            crop={{
-                              type: 'auto',
-                              source: true
-                            }}
-                          />
-                        ) : (
-                          <img
-                            src={viewingClient.cedulaTraseraUrl}
-                            alt="Cédula Trasera"
-                            className="rounded-md border w-[200px] h-[150px] object-cover"
-                          />
-                        )}
-                      </div>
-                    )}
-                    {viewingClient.selfieUrl && (
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Selfie</label>
-                        {viewingClient.selfieUrl.includes('cloudinary.com') ? (
-                          <CldImage
-                            src={getCloudinaryPublicId(viewingClient.selfieUrl) || viewingClient.selfieUrl}
-                            alt="Selfie"
-                            width={200}
-                            height={150}
-                            className="rounded-md border"
-                            crop={{
-                              type: 'auto',
-                              source: true
-                            }}
-                          />
-                        ) : (
-                          <img
-                            src={viewingClient.selfieUrl}
-                            alt="Selfie"
-                            className="rounded-md border w-[200px] h-[150px] object-cover"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Datos personales */}
-                <div>
-                  <h3 className="font-semibold mb-3">Datos Personales</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Nombres</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.nombres}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.nombres, 'view-nombres')}
-                          title="Copiar"
-                        >
-                          {copiedField === 'view-nombres' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Apellidos</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.apellidos}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.apellidos, 'view-apellidos')}
-                          title="Copiar"
-                        >
-                          {copiedField === 'view-apellidos' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="WhatsApp"
+                        onClick={() => { handleWhatsApp(viewingClient); setViewDialogOpen(false); }}>
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Descargar PDF"
+                        onClick={() => handleDownloadPDF(viewingClient)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      {viewingClient.coordenadasLat && viewingClient.coordenadasLng && (
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Mapa Claro"
+                          onClick={() => window.open('https://www.claro.cr/mapacobertura/', '_blank')}>
+                          <MapPin className="h-4 w-4" />
                         </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Tipo de Identificación</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.tipoIdentificacion}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.tipoIdentificacion, 'view-tipoIdentificacion')}
-                          title="Copiar"
-                        >
-                          {copiedField === 'view-tipoIdentificacion' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Número de Identificación</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.numeroIdentificacion}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.numeroIdentificacion, 'view-numeroIdentificacion')}
-                          title="Copiar"
-                        >
-                          {copiedField === 'view-numeroIdentificacion' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    {viewingClient.fechaNacimiento && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Fecha de Nacimiento</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={new Date(viewingClient.fechaNacimiento!).toLocaleDateString('es-CR')}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(new Date(viewingClient.fechaNacimiento!).toLocaleDateString('es-CR'), 'view-fechaNacimiento')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-fechaNacimiento' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    {viewingClient.stb && (
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">STB</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={String(viewingClient.stb)}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(String(viewingClient.stb), 'view-stb')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-stb' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Contacto */}
-                <div>
-                  <h3 className="font-semibold mb-3">Contacto</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Email</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.email || 'N/A'}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.email || '', 'view-email')}
-                          title="Copiar"
-                          disabled={!viewingClient.email}
-                        >
-                          {copiedField === 'view-email' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Teléfono</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.telefono || 'N/A'}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.telefono || '', 'view-telefono')}
-                          title="Copiar"
-                          disabled={!viewingClient.telefono}
-                        >
-                          {copiedField === 'view-telefono' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
+                      )}
+                      <Button size="sm" className="h-8 px-3 gap-1.5"
+                        onClick={() => { setViewDialogOpen(false); handleOpenDialog(viewingClient); }}>
+                        <Edit className="h-3.5 w-3.5" /> Editar
+                      </Button>
                     </div>
                   </div>
                 </div>
 
-                {/* Ubicación */}
-                <div>
-                  <h3 className="font-semibold mb-3">Ubicación</h3>
-                  <div className="space-y-2">
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Provincia</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={viewingClient.provincia}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(viewingClient.provincia, 'view-provincia')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-provincia' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Cantón</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={viewingClient.canton}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(viewingClient.canton, 'view-canton')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-canton' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Distrito</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={viewingClient.distrito}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(viewingClient.distrito, 'view-distrito')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-distrito' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Señas Exactas</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.senasExactas}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.senasExactas, 'view-senasExactas')}
-                          title="Copiar"
-                        >
-                          {copiedField === 'view-senasExactas' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    {(viewingClient.coordenadasLat || viewingClient.coordenadasLng) && (
-                      <div className="space-y-3">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground mb-2 block">Latitud</label>
-                            <div className="relative">
-                              <Input
-                                readOnly
-                                value={viewingClient.coordenadasLat || 'N/A'}
-                                className="pr-10"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => handleCopyToClipboard(viewingClient.coordenadasLat || '', 'view-coordenadasLat')}
-                                title="Copiar"
-                                disabled={!viewingClient.coordenadasLat}
-                              >
-                                {copiedField === 'view-coordenadasLat' ? (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <Copy className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground mb-2 block">Longitud</label>
-                            <div className="relative">
-                              <Input
-                                readOnly
-                                value={viewingClient.coordenadasLng || 'N/A'}
-                                className="pr-10"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => handleCopyToClipboard(viewingClient.coordenadasLng || '', 'view-coordenadasLng')}
-                                title="Copiar"
-                                disabled={!viewingClient.coordenadasLng}
-                              >
-                                {copiedField === 'view-coordenadasLng' ? (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <Copy className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                        {viewingClient.coordenadasLat && viewingClient.coordenadasLng && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                            onClick={() => window.open('https://www.claro.cr/mapacobertura/', '_blank')}
-                          >
-                            <MapPin className="h-4 w-4" />
-                            Mapa Claro
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                {/* Tab bar */}
+                <div className="flex border-b -mx-6 px-6 mt-4 mb-4">
+                  {(['info', 'fotos', 'historial'] as const).map(tab => (
+                    <button key={tab} type="button" onClick={() => setViewTab(tab)}
+                      className={cn(
+                        "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
+                        viewTab === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {tab === 'info' ? 'Información' : tab === 'fotos' ? 'Fotos' : `Historial${viewingClient.statusComments?.length ? ` (${viewingClient.statusComments.length})` : ''}`}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Técnico y Plan */}
-                <div>
-                  <h3 className="font-semibold mb-3">Información Técnica</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Número de Medidor</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.numeroMedidor || 'N/A'}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.numeroMedidor || '', 'view-numeroMedidor')}
-                          title="Copiar"
-                          disabled={!viewingClient.numeroMedidor}
-                        >
-                          {copiedField === 'view-numeroMedidor' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">Plan</label>
-                      <div className="relative">
-                        <Input
-                          readOnly
-                          value={viewingClient.plan?.nombre || 'N/A'}
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(viewingClient.plan?.nombre || '', 'view-plan')}
-                          title="Copiar"
-                          disabled={!viewingClient.plan?.nombre}
-                        >
-                          {copiedField === 'view-plan' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Metadatos - Solo para admin */}
-                {currentUser?.role === 'admin' && (
-                  <div>
-                    <h3 className="font-semibold mb-3">Información del Sistema</h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Creado Por</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={getUserDisplayName(viewingClient.creator)}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(getUserDisplayName(viewingClient.creator), 'view-creator')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-creator' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Fecha de Creación</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={new Date(viewingClient.createdAt).toLocaleString('es-CR')}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(new Date(viewingClient.createdAt).toLocaleString('es-CR'), 'view-createdAt')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-createdAt' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Estados - Solo para admin */}
-                {currentUser?.role === 'admin' && (
-                  <div>
-                    <h3 className="font-semibold mb-3">Estados</h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Estado de Validación</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={getValidationStatusLabel(viewingClient.validationStatus)}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(getValidationStatusLabel(viewingClient.validationStatus), 'view-validationStatus')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-validationStatus' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Estado de Venta</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={getSaleStatusLabel(viewingClient.saleStatus)}
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(getSaleStatusLabel(viewingClient.saleStatus), 'view-saleStatus')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-saleStatus' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    {viewingClient.validationComment && (
-                      <div className="mt-3">
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Comentario de Validación</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={viewingClient.validationComment}
-                            className="pr-10 bg-muted"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(viewingClient.validationComment!, 'view-validationComment')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-validationComment' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    {viewingClient.saleComment && (
-                      <div className="mt-3">
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Comentario de Venta</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={viewingClient.saleComment}
-                            className="pr-10 bg-muted"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(viewingClient.saleComment!, 'view-saleComment')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-saleComment' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    {viewingClient.saleStatus && viewingClient.formulario && (
-                      <div className="mt-3">
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Formulario</label>
-                        <div className="relative">
-                          <Input
-                            readOnly
-                            value={viewingClient.formulario}
-                            className="pr-10 bg-muted"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(viewingClient.formulario!, 'view-formulario')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'view-formulario' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
+                {/* INFO TAB */}
+                {viewTab === 'info' && (
+                  <div className="space-y-5">
+                    <ViewSection title="Personal">
+                      <ViewRow label="Nombres" value={viewingClient.nombres} copyKey="v-nombres" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                      <ViewRow label="Apellidos" value={viewingClient.apellidos} copyKey="v-apellidos" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                      <ViewRow label="Tipo ID" value={viewingClient.tipoIdentificacion} copyKey="v-tipoid" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                      <ViewRow label="Cédula" value={viewingClient.numeroIdentificacion} copyKey="v-cedula" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                      {viewingClient.fechaNacimiento && <ViewRow label="Nacimiento" value={new Date(viewingClient.fechaNacimiento).toLocaleDateString('es-CR')} copyKey="v-nac" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                      {viewingClient.stb != null && <ViewRow label="STB" value={String(viewingClient.stb)} copyKey="v-stb" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                    </ViewSection>
+                    <ViewSection title="Contacto">
+                      {viewingClient.telefono && <ViewRow label="Teléfono" value={viewingClient.telefono} copyKey="v-tel" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                      {viewingClient.email && <ViewRow label="Email" value={viewingClient.email} copyKey="v-email" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                    </ViewSection>
+                    <ViewSection title="Ubicación">
+                      <ViewRow label="Provincia" value={viewingClient.provincia} copyKey="v-prov" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                      <ViewRow label="Cantón" value={viewingClient.canton} copyKey="v-canton" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                      <ViewRow label="Distrito" value={viewingClient.distrito} copyKey="v-dist" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                      <ViewRow label="Señas" value={viewingClient.senasExactas} copyKey="v-senas" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                      {viewingClient.coordenadasLat && <ViewRow label="Latitud" value={viewingClient.coordenadasLat} copyKey="v-lat" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                      {viewingClient.coordenadasLng && <ViewRow label="Longitud" value={viewingClient.coordenadasLng} copyKey="v-lng" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                    </ViewSection>
+                    <ViewSection title="Técnico">
+                      {viewingClient.numeroMedidor && <ViewRow label="Medidor" value={viewingClient.numeroMedidor} copyKey="v-med" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                      {viewingClient.plan?.nombre && <ViewRow label="Plan" value={viewingClient.plan.nombre} copyKey="v-plan" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                      {viewingClient.formulario && <ViewRow label="Formulario" value={viewingClient.formulario} copyKey="v-form" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                    </ViewSection>
+                    {currentUser?.role === 'admin' && (
+                      <ViewSection title="Sistema y Estado">
+                        <ViewRow label="Creado por" value={getUserDisplayName(viewingClient.creator)} copyKey="v-creator" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                        <ViewRow label="Registro" value={new Date(viewingClient.createdAt).toLocaleString('es-CR')} copyKey="v-fecha" copiedField={copiedField} onCopy={handleCopyToClipboard} />
+                        {viewingClient.validationComment && <ViewRow label="Coment. validación" value={viewingClient.validationComment} copyKey="v-valcom" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                        {viewingClient.saleComment && <ViewRow label="Coment. venta" value={viewingClient.saleComment} copyKey="v-salecom" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
+                      </ViewSection>
                     )}
                   </div>
                 )}
 
-                {/* Historial de Comentarios de Estado */}
-                {viewingClient.statusComments && viewingClient.statusComments.length > 0 && (
+                {/* FOTOS TAB */}
+                {viewTab === 'fotos' && (
+                  <div className="grid gap-5 sm:grid-cols-3">
+                    {[
+                      { url: viewingClient.cedulaFrontalUrl, label: 'Cédula Frontal' },
+                      { url: viewingClient.cedulaTraseraUrl, label: 'Cédula Trasera' },
+                      { url: viewingClient.selfieUrl, label: 'Selfie' },
+                    ].map(({ url, label }) => (
+                      <div key={label}>
+                        <p className="text-sm font-medium text-muted-foreground mb-2">{label}</p>
+                        {url ? (
+                          url.includes('cloudinary.com') ? (
+                            <CldImage src={getCloudinaryPublicId(url) || url} alt={label} width={280} height={200}
+                              className="rounded-lg border w-full object-cover"
+                              crop={{ type: 'auto', source: true }} />
+                          ) : (
+                            <img src={url} alt={label} className="rounded-lg border w-full h-[160px] object-cover" />
+                          )
+                        ) : (
+                          <div className="rounded-lg border border-dashed bg-muted/30 h-[160px] flex items-center justify-center">
+                            <p className="text-xs text-muted-foreground">Sin foto</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* HISTORIAL TAB */}
+                {viewTab === 'historial' && (
                   <div>
-                    <h3 className="font-semibold mb-3">Historial de Cambios de Estado</h3>
-                    <div className="space-y-3">
-                      {viewingClient.statusComments.map((comment) => (
-                        <Card key={comment.id}>
-                          <CardContent className="pt-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <span className="text-sm font-medium text-primary">
-                                  {comment.tipo === 'VALIDACION' ? 'Validación' : 'Venta'}
-                                </span>
-                                {comment.estadoAnterior && (
-                                  <span className="text-sm text-muted-foreground ml-2">
-                                    {comment.estadoAnterior} →
+                    {(!viewingClient.statusComments || viewingClient.statusComments.length === 0) ? (
+                      <p className="text-sm text-muted-foreground text-center py-10">Sin cambios de estado registrados</p>
+                    ) : (
+                      <div className="relative pl-6">
+                        <div className="absolute left-2 top-0 bottom-4 w-px bg-border" />
+                        <div className="space-y-3">
+                          {viewingClient.statusComments.map((comment) => (
+                            <div key={comment.id} className="relative">
+                              <div className="absolute -left-[18px] top-2 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
+                              <div className="rounded-lg border bg-card p-3">
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                                      {comment.tipo === 'VALIDACION' ? 'Validación' : 'Venta'}
+                                    </span>
+                                    {comment.estadoAnterior && (
+                                      <span className="text-xs text-muted-foreground">{comment.estadoAnterior} →</span>
+                                    )}
+                                    <span className="text-xs font-medium">{comment.estadoNuevo}</span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                    {new Date(comment.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
                                   </span>
-                                )}
-                                <span className="text-sm font-medium ml-2">
-                                  {comment.estadoNuevo}
-                                </span>
+                                </div>
+                                {comment.comentario && <p className="text-sm text-muted-foreground">{comment.comentario}</p>}
+                                <p className="text-xs text-muted-foreground mt-1.5">Por: {getUserDisplayName(comment.creator)}</p>
                               </div>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(comment.createdAt).toLocaleString('es-CR')}
-                              </span>
                             </div>
-                            {comment.comentario && (
-                              <p className="text-sm text-muted-foreground mb-2">{comment.comentario}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              Por: {getUserDisplayName(comment.creator)}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
-
-            <DialogFooter>
-              <Button onClick={() => setViewDialogOpen(false)}>
-                Cerrar
-              </Button>
-              {viewingClient && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setViewDialogOpen(false);
-                    handleOpenDialog(viewingClient);
-                  }}
-                >
-                  Editar
-                </Button>
-              )}
-            </DialogFooter>
           </DialogContent>
         </Dialog>
+
 
         {/* Dialog reasignar cliente */}
         <Dialog
@@ -2880,5 +2316,69 @@ Comentario: En espera de Instalacion`;
         </Dialog>
       </div>
     </MainLayout>
+  );
+}
+
+// ── Badge variant helpers ──────────────────────────────────────────────────────
+type BadgeVariant = 'default' | 'success' | 'warning' | 'destructive' | 'info' | 'pending';
+
+function validationBadgeVariant(status: string | null): BadgeVariant {
+  switch (status) {
+    case 'APROBADA': return 'success';
+    case 'REQUIERE_DEPOSITO': return 'warning';
+    case 'DEUDA_MENOR_ANIO': return 'warning';
+    case 'NO_APLICA': return 'info';
+    case 'INCOBRABLE': return 'destructive';
+    default: return 'pending';
+  }
+}
+
+function saleBadgeVariant(status: string | null): BadgeVariant {
+  switch (status) {
+    case 'INSTALADA': return 'success';
+    case 'PENDIENTE_INSTALACION': return 'pending';
+    case 'CANCELADA': return 'destructive';
+    case 'CANCELADO_POR_COBERTURA': return 'destructive';
+    case 'CLIENTE_NO_PERMITE_INSTALACION': return 'destructive';
+    case 'NO_COMPLETO_FACEID': return 'warning';
+    default: return 'default';
+  }
+}
+
+// ── View dialog sub-components ─────────────────────────────────────────────────
+function ViewSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{title}</p>
+      <div className="divide-y rounded-lg border bg-muted/20 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ViewRow({
+  label, value, copyKey, copiedField, onCopy,
+}: {
+  label: string;
+  value: string;
+  copyKey: string;
+  copiedField: string | null;
+  onCopy: (v: string, k: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <span className="text-xs text-muted-foreground w-32 flex-shrink-0">{label}</span>
+      <span className="text-sm flex-1 min-w-0 break-words">{value}</span>
+      <button
+        onClick={() => onCopy(value, copyKey)}
+        className="flex-shrink-0 p-1 rounded hover:bg-accent transition-colors"
+        title="Copiar"
+      >
+        {copiedField === copyKey
+          ? <Check className="h-3.5 w-3.5 text-green-500" />
+          : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+      </button>
+    </div>
   );
 }
