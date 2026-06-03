@@ -991,8 +991,18 @@ Comentario: En espera de Instalacion`;
                       <TableCell>{client.plan?.nombre || 'N/A'}</TableCell>
                       {currentUser?.role === 'admin' && (
                         <>
-                          <TableCell>{getValidationStatusLabel(client.validationStatus)}</TableCell>
-                          <TableCell>{getSaleStatusLabel(client.saleStatus)}</TableCell>
+                          <TableCell>
+                            <Badge variant={validationBadgeVariant(client.validationStatus)}>
+                              {getValidationStatusLabel(client.validationStatus)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {client.saleStatus && (
+                              <Badge variant={saleBadgeVariant(client.saleStatus)}>
+                                {getSaleStatusLabel(client.saleStatus)}
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell>{getUserDisplayName(client.creator)}</TableCell>
                         </>
                       )}
