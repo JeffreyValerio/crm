@@ -149,6 +149,8 @@ export default function ClientsPage() {
   const [reassignLoading, setReassignLoading] = useState(false);
   const [viewTab, setViewTab] = useState<'info' | 'fotos' | 'historial'>('info');
   const [editTab, setEditTab] = useState<'datos' | 'ubicacion' | 'tecnico' | 'fotos' | 'estado'>('datos');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     register,
@@ -623,19 +625,18 @@ export default function ClientsPage() {
   };
 
   async function handleDelete(id: string) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
-      return;
-    }
-
-    const response = await fetch(`/api/clients/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (response.ok) {
-      await loadClients();
-      toast.success('Cliente eliminado correctamente');
-    } else {
-      toast.error('Error al eliminar el cliente');
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await loadClients();
+        toast.success('Cliente eliminado correctamente');
+      } else {
+        toast.error('Error al eliminar el cliente');
+      }
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmId(null);
     }
   }
 
@@ -1164,7 +1165,7 @@ Comentario: En espera de Instalacion`;
                           <div className="h-px bg-border my-1" />
                           <button
                             onClick={() => {
-                              handleDelete(client.id);
+                              setDeleteConfirmId(client.id);
                               setOpenMenuId(null);
                               setMenuPosition(null);
                             }}
@@ -2261,6 +2262,26 @@ Comentario: En espera de Instalacion`;
           </DialogContent>
         </Dialog>
 
+
+        {/* Dialog confirmar eliminación */}
+        <Dialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Eliminar cliente</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground py-2">
+              Esta acción es permanente y no se puede deshacer. ¿Confirmas que querés eliminar este cliente?
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteConfirmId(null)} disabled={deleting}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)} disabled={deleting}>
+                {deleting ? 'Eliminando...' : 'Eliminar'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Dialog reasignar cliente */}
         <Dialog
