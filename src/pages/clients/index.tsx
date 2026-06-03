@@ -1800,14 +1800,7 @@ Comentario: En espera de Instalacion`;
                       variant="outline"
                       size="sm"
                       className="gap-2"
-                      onClick={() => {
-                        const lat = parseFloat(watch('coordenadasLat') ?? '');
-                        const lon = parseFloat(watch('coordenadasLng') ?? '');
-                        if (isNaN(lat) || isNaN(lon)) return;
-                        navigator.clipboard.writeText(`${lat}, ${lon}`);
-                        window.open(`https://www.claro.cr/mapacobertura/?lat=${lat}&lon=${lon}&zoom=16`, '_blank');
-                        toast.info('Si el mapa no centró, pegá las coordenadas en el campo superior.');
-                      }}
+                      onClick={() => window.open('https://www.claro.cr/mapacobertura/', '_blank')}
                     >
                       <MapPin className="h-4 w-4" />
                       Ver cobertura Claro
@@ -2512,17 +2505,10 @@ Comentario: En espera de Instalacion`;
                             variant="outline"
                             size="sm"
                             className="gap-2"
-                            onClick={() => {
-                              const lat = parseFloat(viewingClient.coordenadasLat ?? '');
-                              const lon = parseFloat(viewingClient.coordenadasLng ?? '');
-                              if (isNaN(lat) || isNaN(lon)) return;
-                              navigator.clipboard.writeText(`${lat}, ${lon}`);
-                              window.open(`https://www.claro.cr/mapacobertura/?lat=${lat}&lon=${lon}&zoom=16`, '_blank');
-                              toast.info('Si el mapa no centró, pegá las coordenadas en el campo superior.');
-                            }}
+                            onClick={() => window.open('https://www.claro.cr/mapacobertura/', '_blank')}
                           >
                             <MapPin className="h-4 w-4" />
-                            Ver cobertura Claro
+                            Mapa Claro
                           </Button>
                         )}
                       </div>
