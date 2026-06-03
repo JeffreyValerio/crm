@@ -126,7 +126,7 @@ export default function ClientsPage() {
   const [filterValidationStatus, setFilterValidationStatus] = useState<string>('');
   const [filterSaleStatus, setFilterSaleStatus] = useState<string>('');
   const [filterCreatedBy, setFilterCreatedBy] = useState<string>('');
-  const [filterYear, setFilterYear] = useState<string>('');
+  const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
   const [filterMonth, setFilterMonth] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
