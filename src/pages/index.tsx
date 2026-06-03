@@ -154,15 +154,15 @@ export default function HomePage() {
       if (statsRes.ok) {
         const data = await statsRes.json();
 
-        setTotalClients(data.totalClients);
-        setStats(data.statsParEstado);
+        setTotalClients(data.totalClients ?? 0);
+        setStats(data.statsParEstado ?? []);
         setEffectivenessData({
-          totalContacts: data.totalClients,
-          installed: data.instalaciones,
-          effectiveness: data.efectividad,
+          totalContacts: data.totalClients ?? 0,
+          installed: data.instalaciones ?? 0,
+          effectiveness: data.efectividad ?? 0,
         });
 
-        const compStats: ComplianceStats[] = data.cumplimiento;
+        const compStats: ComplianceStats[] = data.cumplimiento ?? [];
         if (activeUser.role !== 'admin' && currentUserId) {
           const mine = compStats.find((s: ComplianceStats) => s.userId === currentUserId);
           setComplianceStats(mine ? [mine] : [{
@@ -178,6 +178,10 @@ export default function HomePage() {
         } else {
           setComplianceStats(compStats);
         }
+      } else {
+        // Fallback: mostrar métricas vacías si el API falla
+        console.error('Dashboard stats error:', statsRes.status, await statsRes.text().catch(() => ''));
+        setEffectivenessData({ totalContacts: 0, installed: 0, effectiveness: 0 });
       }
 
       // ── Prospectos ────────────────────────────────────────
