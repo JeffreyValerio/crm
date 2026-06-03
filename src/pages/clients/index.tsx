@@ -126,6 +126,8 @@ export default function ClientsPage() {
   const [filterValidationStatus, setFilterValidationStatus] = useState<string>('');
   const [filterSaleStatus, setFilterSaleStatus] = useState<string>('');
   const [filterCreatedBy, setFilterCreatedBy] = useState<string>('');
+  const [filterYear, setFilterYear] = useState<string>('');
+  const [filterMonth, setFilterMonth] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -296,14 +298,14 @@ export default function ClientsPage() {
     if (!loading && currentUser) {
       loadClients();
     }
-  }, [filterValidationStatus, filterSaleStatus, filterCreatedBy, searchTerm, currentPage, loading, currentUser]);
+  }, [filterValidationStatus, filterSaleStatus, filterCreatedBy, filterYear, filterMonth, searchTerm, currentPage, loading, currentUser]);
 
   // Resetear a página 1 cuando cambia la búsqueda o los filtros
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [searchTerm, filterValidationStatus, filterSaleStatus, filterCreatedBy]);
+  }, [searchTerm, filterValidationStatus, filterSaleStatus, filterCreatedBy, filterYear, filterMonth]);
 
   // Debounce para la búsqueda
   useEffect(() => {
@@ -343,9 +345,11 @@ export default function ClientsPage() {
     }
 
     // Búsqueda
-    if (searchTerm.trim()) {
-      params.append('search', searchTerm.trim());
-    }
+    if (searchTerm.trim()) params.append('search', searchTerm.trim());
+
+    // Filtro de período
+    if (filterYear) params.append('year', filterYear);
+    if (filterMonth) params.append('month', filterMonth);
 
     // Paginación
     params.append('page', currentPage.toString());
@@ -941,6 +945,35 @@ Comentario: En espera de Instalacion`;
                   </div>
                 </>
               )}
+              {/* Filtro de período — disponible para todos */}
+              <div className="min-w-[130px]">
+                <label className="text-sm font-medium mb-2 block">Mes</label>
+                <Select value={filterMonth} onChange={(e) => { setFilterMonth(e.target.value); setCurrentPage(1); }}>
+                  <option value="">Todos</option>
+                  <option value="1">Enero</option>
+                  <option value="2">Febrero</option>
+                  <option value="3">Marzo</option>
+                  <option value="4">Abril</option>
+                  <option value="5">Mayo</option>
+                  <option value="6">Junio</option>
+                  <option value="7">Julio</option>
+                  <option value="8">Agosto</option>
+                  <option value="9">Septiembre</option>
+                  <option value="10">Octubre</option>
+                  <option value="11">Noviembre</option>
+                  <option value="12">Diciembre</option>
+                </Select>
+              </div>
+              <div className="min-w-[100px]">
+                <label className="text-sm font-medium mb-2 block">Año</label>
+                <Select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setCurrentPage(1); }}>
+                  <option value="">Todos</option>
+                  {[0, 1, 2].map((i) => {
+                    const y = new Date().getFullYear() - i;
+                    return <option key={y} value={String(y)}>{y}</option>;
+                  })}
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>

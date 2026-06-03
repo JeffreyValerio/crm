@@ -14,56 +14,56 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
-      const { validationStatus, saleStatus, createdBy, search, page = '1', limit = '10' } = req.query;
+      const { validationStatus, saleStatus, createdBy, search, year, month, page = '1', limit = '10' } = req.query;
 
-      const where: any = {};
+      const conditions: object[] = [];
 
-      // Construir filtros base
-      const baseFilters: any = {};
-
-      // Solo permitir filtros de estado y creador si el usuario es admin
+      // Filtro de rol y creador
       if (session.role === 'admin') {
-        if (validationStatus) {
-          baseFilters.validationStatus = validationStatus;
-        }
-
-        if (saleStatus) {
-          baseFilters.saleStatus = saleStatus;
-        }
-
-        if (createdBy) {
-          baseFilters.createdBy = createdBy;
-        }
+        if (validationStatus) conditions.push({ validationStatus });
+        if (saleStatus) conditions.push({ saleStatus });
+        if (createdBy) conditions.push({ createdBy });
       } else {
-        // Usuarios no admin solo ven sus propios clientes
-        baseFilters.createdBy = session.userId;
+        conditions.push({ createdBy: session.userId });
       }
 
-      // Búsqueda por texto (nombres, apellidos, número de identificación, teléfono, email)
+      // Búsqueda por texto
       if (search && typeof search === 'string' && search.trim()) {
-        const searchTerm = search.trim();
-        const searchConditions = [
-          { nombres: { contains: searchTerm, mode: 'insensitive' } },
-          { apellidos: { contains: searchTerm, mode: 'insensitive' } },
-          { numeroIdentificacion: { contains: searchTerm, mode: 'insensitive' } },
-          { telefono: { contains: searchTerm, mode: 'insensitive' } },
-          { email: { contains: searchTerm, mode: 'insensitive' } },
-          { formulario: { contains: searchTerm, mode: 'insensitive' } },
-        ];
-        
-        // Si hay filtros base, combinar con AND
-        if (Object.keys(baseFilters).length > 0) {
-          where.AND = [
-            baseFilters,
-            { OR: searchConditions }
-          ];
-        } else {
-          where.OR = searchConditions;
-        }
-      } else {
-        // Si no hay búsqueda, usar solo los filtros base
-        Object.assign(where, baseFilters);
+        const s = search.trim();
+        conditions.push({
+          OR: [
+            { nombres: { contains: s, mode: 'insensitive' } },
+            { apellidos: { contains: s, mode: 'insensitive' } },
+            { numeroIdentificacion: { contains: s, mode: 'insensitive' } },
+            { telefono: { contains: s, mode: 'insensitive' } },
+            { email: { contains: s, mode: 'insensitive' } },
+            { formulario: { contains: s, mode: 'insensitive' } },
+          ],
+        });
       }
+
+      // Filtro de período: INSTALADA → instaladaAt, resto → createdAt
+      const y = year ? parseInt(year as string) : null;
+      const m = month ? parseInt(month as string) : null;
+      if (y) {
+        const dateRange = m
+          ? { gte: new Date(Date.UTC(y, m - 1, 1)), lt: new Date(Date.UTC(y, m, 1)) }
+          : { gte: new Date(Date.UTC(y, 0, 1)), lt: new Date(Date.UTC(y + 1, 0, 1)) };
+        conditions.push({
+          OR: [
+            { saleStatus: 'INSTALADA', instaladaAt: dateRange },
+            {
+              OR: [{ saleStatus: { not: 'INSTALADA' } }, { saleStatus: null }],
+              createdAt: dateRange,
+            },
+          ],
+        });
+      }
+
+      const where: any =
+        conditions.length === 0 ? {} :
+        conditions.length === 1 ? conditions[0] :
+        { AND: conditions };
 
       // Paginación
       const pageNumber = parseInt(page as string, 10);
