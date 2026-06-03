@@ -15,8 +15,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const y = year ? parseInt(year as string) : null;
   const m = month ? parseInt(month as string) : null;
 
-  // Meta dinámica: 6 × cantidad de meses del período
-  const meta = y && !m ? TARGET_POR_MES * 12 : TARGET_POR_MES;
+  // Meta dinámica según período
+  // - Mes específico → 6
+  // - Año actual sin mes → 6 × meses transcurridos (hasta el mes actual)
+  // - Año pasado sin mes → 6 × 12
+  let meta = TARGET_POR_MES;
+  if (y && !m) {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const mesesDelPeriodo = y === currentYear ? currentMonth : 12;
+    meta = TARGET_POR_MES * mesesDelPeriodo;
+  }
 
   // Rango de fechas en UTC para evitar problemas de zona horaria
   let dateRange: { gte: Date; lt: Date } | null = null;
