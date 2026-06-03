@@ -171,13 +171,31 @@ export default async function handler(
         updateData.selfieUrl = selfieUrl || null;
       }
 
+      // Labels para notificaciones
+      const validationLabels: Record<string, string> = {
+        EN_PROCESO_VALIDACION: 'En proceso de validación',
+        APROBADA: 'Aprobada ✅',
+        REQUIERE_DEPOSITO: 'Requiere depósito ⚠️',
+        NO_APLICA: 'No aplica',
+        INCOBRABLE: 'Incobrable ❌',
+        DEUDA_MENOR_ANIO: 'Deuda menor a un año ⚠️',
+      };
+      const saleLabels: Record<string, string> = {
+        PENDIENTE_INSTALACION: 'Pendiente de instalación 📋',
+        INSTALADA: 'Instalada ✅',
+        CANCELADA: 'Cancelada ❌',
+        NO_COMPLETO_FACEID: 'No completó FaceID ⚠️',
+        CANCELADO_POR_COBERTURA: 'Cancelado por cobertura ❌',
+        CLIENTE_NO_PERMITE_INSTALACION: 'Cliente no permite instalación ❌',
+      };
+      const nombreCliente = `${currentClient.nombres} ${currentClient.apellidos}`;
+
       // Manejar cambio de estado de validación - Solo para admin
       if (session.role === 'admin') {
         if (validationStatus && validationStatus !== currentClient.validationStatus) {
           updateData.validationStatus = validationStatus;
           updateData.validationComment = validationComment?.trim() || null;
 
-          // Crear comentario de estado
           await prisma.statusComment.create({
             data: {
               clientId: id as string,
@@ -188,13 +206,26 @@ export default async function handler(
               createdBy: session.userId,
             },
           });
+
+          // Notificar al vendedor si no es el mismo admin
+          if (currentClient.createdBy !== session.userId) {
+            await prisma.notification.create({
+              data: {
+                userId: currentClient.createdBy,
+                tipo: 'VALIDACION',
+                titulo: 'Estado de validación actualizado',
+                mensaje: `Tu cliente ${nombreCliente} fue marcado como: ${validationLabels[validationStatus] ?? validationStatus}`,
+                clientId: id as string,
+              },
+            });
+          }
         } else if (validationComment !== undefined) {
           updateData.validationComment = validationComment.trim();
         }
 
         // Manejar cambio de estado de venta - Solo para admin
         if (saleStatus !== undefined && saleStatus !== (currentClient.saleStatus ?? '')) {
-          updateData.saleStatus = saleStatus || null; // '' → null (limpiar)
+          updateData.saleStatus = saleStatus || null;
           updateData.saleComment = saleComment?.trim() || null;
 
           if (saleStatus === 'INSTALADA') {
@@ -203,7 +234,6 @@ export default async function handler(
             updateData.instaladaAt = null;
           }
 
-          // Crear comentario de estado solo cuando hay un valor nuevo real
           if (saleStatus) {
             await prisma.statusComment.create({
               data: {
@@ -215,6 +245,19 @@ export default async function handler(
                 createdBy: session.userId,
               },
             });
+
+            // Notificar al vendedor si no es el mismo admin
+            if (currentClient.createdBy !== session.userId) {
+              await prisma.notification.create({
+                data: {
+                  userId: currentClient.createdBy,
+                  tipo: 'VENTA',
+                  titulo: 'Estado de venta actualizado',
+                  mensaje: `Tu cliente ${nombreCliente} fue marcado como: ${saleLabels[saleStatus] ?? saleStatus}`,
+                  clientId: id as string,
+                },
+              });
+            }
           }
         } else if (saleComment !== undefined) {
           updateData.saleComment = saleComment.trim();

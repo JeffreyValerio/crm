@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { NotificationsBell } from '@/components/ui/notifications-bell';
 import { Menu } from 'lucide-react';
 
 interface HeaderProps {
@@ -39,6 +40,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <h2 className="text-base sm:text-lg font-semibold">Panel de Control</h2>
       </div>
       <div className="flex items-center gap-3 sm:gap-4">
+        <NotificationsBell />
         <ThemeToggle />
         <div className="text-right">
           <button
