@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle, ChevronLeft, ChevronRight, Search, UserCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle, ChevronLeft, ChevronRight, Search, UserCheck, MapPin } from 'lucide-react';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { CldImage } from 'next-cloudinary';
@@ -1731,67 +1731,86 @@ Comentario: En espera de Instalacion`;
                     <p className="text-sm text-destructive mt-1">{errors.senasExactas.message}</p>
                   )}
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Coordenadas Latitud <span className="text-destructive">*</span>
-                    </label>
-                    <div className="relative">
-                      <Input
-                        {...register('coordenadasLat', { required: 'Las coordenadas de latitud son obligatorias' })}
-                        placeholder="Ej: 9.9281"
-                        type="text"
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() => handleCopyToClipboard(watch('coordenadasLat'), 'coordenadasLat')}
-                        title="Copiar"
-                      >
-                        {copiedField === 'coordenadasLat' ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
+                <div className="space-y-3">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Coordenadas Latitud <span className="text-destructive">*</span>
+                      </label>
+                      <div className="relative">
+                        <Input
+                          {...register('coordenadasLat', { required: 'Las coordenadas de latitud son obligatorias' })}
+                          placeholder="Ej: 9.9281"
+                          type="text"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(watch('coordenadasLat'), 'coordenadasLat')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'coordenadasLat' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {errors.coordenadasLat && (
+                        <p className="text-sm text-destructive mt-1">{errors.coordenadasLat.message}</p>
+                      )}
                     </div>
-                    {errors.coordenadasLat && (
-                      <p className="text-sm text-destructive mt-1">{errors.coordenadasLat.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Coordenadas Longitud <span className="text-destructive">*</span>
-                    </label>
-                    <div className="relative">
-                      <Input
-                        {...register('coordenadasLng', { required: 'Las coordenadas de longitud son obligatorias' })}
-                        placeholder="Ej: -84.0907"
-                        type="text"
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() => handleCopyToClipboard(watch('coordenadasLng'), 'coordenadasLng')}
-                        title="Copiar"
-                      >
-                        {copiedField === 'coordenadasLng' ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Coordenadas Longitud <span className="text-destructive">*</span>
+                      </label>
+                      <div className="relative">
+                        <Input
+                          {...register('coordenadasLng', { required: 'Las coordenadas de longitud son obligatorias' })}
+                          placeholder="Ej: -84.0907"
+                          type="text"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(watch('coordenadasLng'), 'coordenadasLng')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'coordenadasLng' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {errors.coordenadasLng && (
+                        <p className="text-sm text-destructive mt-1">{errors.coordenadasLng.message}</p>
+                      )}
                     </div>
-                    {errors.coordenadasLng && (
-                      <p className="text-sm text-destructive mt-1">{errors.coordenadasLng.message}</p>
-                    )}
                   </div>
+                  {watch('coordenadasLat') && watch('coordenadasLng') && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => {
+                        const coords = `${watch('coordenadasLat')}, ${watch('coordenadasLng')}`;
+                        navigator.clipboard.writeText(coords);
+                        window.open('https://www.claro.cr/mapacobertura/', '_blank');
+                        toast.info('Coordenadas copiadas. Pegalas en el campo "Latitud, Longitud" del mapa de Claro.');
+                      }}
+                    >
+                      <MapPin className="h-4 w-4" />
+                      Ver cobertura Claro
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -2432,57 +2451,76 @@ Comentario: En espera de Instalacion`;
                       </div>
                     </div>
                     {(viewingClient.coordenadasLat || viewingClient.coordenadasLng) && (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground mb-2 block">Latitud</label>
-                          <div className="relative">
-                            <Input
-                              readOnly
-                              value={viewingClient.coordenadasLat || 'N/A'}
-                              className="pr-10"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                              onClick={() => handleCopyToClipboard(viewingClient.coordenadasLat || '', 'view-coordenadasLat')}
-                              title="Copiar"
-                              disabled={!viewingClient.coordenadasLat}
-                            >
-                              {copiedField === 'view-coordenadasLat' ? (
-                                <Check className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
+                      <div className="space-y-3">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground mb-2 block">Latitud</label>
+                            <div className="relative">
+                              <Input
+                                readOnly
+                                value={viewingClient.coordenadasLat || 'N/A'}
+                                className="pr-10"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => handleCopyToClipboard(viewingClient.coordenadasLat || '', 'view-coordenadasLat')}
+                                title="Copiar"
+                                disabled={!viewingClient.coordenadasLat}
+                              >
+                                {copiedField === 'view-coordenadasLat' ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground mb-2 block">Longitud</label>
+                            <div className="relative">
+                              <Input
+                                readOnly
+                                value={viewingClient.coordenadasLng || 'N/A'}
+                                className="pr-10"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => handleCopyToClipboard(viewingClient.coordenadasLng || '', 'view-coordenadasLng')}
+                                title="Copiar"
+                                disabled={!viewingClient.coordenadasLng}
+                              >
+                                {copiedField === 'view-coordenadasLng' ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground mb-2 block">Longitud</label>
-                          <div className="relative">
-                            <Input
-                              readOnly
-                              value={viewingClient.coordenadasLng || 'N/A'}
-                              className="pr-10"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                              onClick={() => handleCopyToClipboard(viewingClient.coordenadasLng || '', 'view-coordenadasLng')}
-                              title="Copiar"
-                              disabled={!viewingClient.coordenadasLng}
-                            >
-                              {copiedField === 'view-coordenadasLng' ? (
-                                <Check className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        {viewingClient.coordenadasLat && viewingClient.coordenadasLng && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => {
+                              const coords = `${viewingClient.coordenadasLat}, ${viewingClient.coordenadasLng}`;
+                              navigator.clipboard.writeText(coords);
+                              window.open('https://www.claro.cr/mapacobertura/', '_blank');
+                              toast.info('Coordenadas copiadas. Pegalas en el campo "Latitud, Longitud" del mapa de Claro.');
+                            }}
+                          >
+                            <MapPin className="h-4 w-4" />
+                            Ver cobertura Claro
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
