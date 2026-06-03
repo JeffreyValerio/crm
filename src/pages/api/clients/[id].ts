@@ -197,6 +197,12 @@ export default async function handler(
           updateData.saleStatus = saleStatus || null; // '' → null (limpiar)
           updateData.saleComment = saleComment?.trim() || null;
 
+          if (saleStatus === 'INSTALADA') {
+            updateData.instaladaAt = new Date();
+          } else if (currentClient.saleStatus === 'INSTALADA') {
+            updateData.instaladaAt = null;
+          }
+
           // Crear comentario de estado solo cuando hay un valor nuevo real
           if (saleStatus) {
             await prisma.statusComment.create({

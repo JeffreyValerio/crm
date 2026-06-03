@@ -150,9 +150,10 @@ export default function HomePage() {
       const data = await response.json();
       const clients = data.clients || [];
 
-      // Filtrar por año y mes (UTC para evitar problemas de zona horaria en enero)
+      // Filtrar por año y mes. Clientes INSTALADA usan instaladaAt; el resto usan createdAt.
       const filtered = clients.filter((c: any) => {
-        const d = new Date(c.createdAt);
+        const dateStr = c.saleStatus === 'INSTALADA' && c.instaladaAt ? c.instaladaAt : c.createdAt;
+        const d = new Date(dateStr);
         const y = d.getUTCFullYear().toString();
         const m = (d.getUTCMonth() + 1).toString();
         return (!filterYear || filterYear === y) && (!filterMonth || filterMonth === m);

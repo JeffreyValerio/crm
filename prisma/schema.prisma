@@ -131,6 +131,7 @@ model Client {
   creator               User               @relation(fields: [createdBy], references: [id])
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
+  instaladaAt           DateTime?
   statusComments        StatusComment[]
 }
 
