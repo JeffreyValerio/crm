@@ -142,7 +142,7 @@ export default function ClientsPage() {
   const [initializingForm, setInitializingForm] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const [reassignClientId, setReassignClientId] = useState<string | null>(null);
   const [reassignUserId, setReassignUserId] = useState<string>('');
   const [reassignOriginalUserId, setReassignOriginalUserId] = useState<string>('');
@@ -1004,10 +1004,11 @@ Comentario: En espera de Instalacion`;
                               e.stopPropagation();
                               const button = e.currentTarget;
                               const rect = button.getBoundingClientRect();
-                              setMenuPosition({
-                                top: rect.bottom + 8,
-                                right: window.innerWidth - rect.right,
-                              });
+                              const spaceBelow = window.innerHeight - rect.bottom;
+                              setMenuPosition(spaceBelow < 220
+                                ? { bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right }
+                                : { top: rect.bottom + 4, right: window.innerWidth - rect.right }
+                              );
                               setOpenMenuId(openMenuId === client.id ? null : client.id);
                             }}
                             className="h-8 w-8 p-0"
@@ -1092,7 +1093,7 @@ Comentario: En espera de Instalacion`;
             <div 
               className="fixed z-50 w-56 rounded-md border bg-background shadow-lg"
               style={{
-                top: `${menuPosition.top}px`,
+                ...(menuPosition.top !== undefined ? { top: `${menuPosition.top}px` } : { bottom: `${menuPosition.bottom}px` }),
                 right: `${menuPosition.right}px`,
               }}
               onClick={(e) => e.stopPropagation()}
