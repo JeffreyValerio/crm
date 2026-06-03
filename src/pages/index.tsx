@@ -139,105 +139,59 @@ export default function HomePage() {
 
     try {
       const params = new URLSearchParams();
-      params.append('limit', '10000');
-      if (activeUser.role === 'admin' && filterCreatedBy) {
-        params.append('createdBy', filterCreatedBy);
+      if (filterYear) params.append('year', filterYear);
+      if (filterMonth) params.append('month', filterMonth);
+      if (activeUser.role === 'admin' && filterCreatedBy) params.append('createdBy', filterCreatedBy);
+
+      // Las tres llamadas en paralelo
+      const [statsRes, prospectsRes, payrollRes] = await Promise.all([
+        fetch(`/api/dashboard/stats?${params.toString()}`),
+        fetch(`/api/prospects/stats?year=${filterYear}&month=${filterMonth}`),
+        fetch('/api/payroll'),
+      ]);
+
+      // ── Stats de clientes ─────────────────────────────────
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+
+        setTotalClients(data.totalClients);
+        setStats(data.statsParEstado);
+        setEffectivenessData({
+          totalContacts: data.totalClients,
+          installed: data.instalaciones,
+          effectiveness: data.efectividad,
+        });
+
+        const compStats: ComplianceStats[] = data.cumplimiento;
+        if (activeUser.role !== 'admin' && currentUserId) {
+          const mine = compStats.find((s: ComplianceStats) => s.userId === currentUserId);
+          setComplianceStats(mine ? [mine] : [{
+            userId: currentUserId,
+            email: activeUser.email || '',
+            nombre: activeUser.nombre || null,
+            apellidos: activeUser.apellidos || null,
+            installed: 0,
+            pending: 0,
+            target: 6,
+            percentage: 0,
+          }]);
+        } else {
+          setComplianceStats(compStats);
+        }
       }
 
-      const response = await fetch(`/api/clients?${params.toString()}`);
-      if (!response.ok) return;
-
-      const data = await response.json();
-      const clients = data.clients || [];
-
-      // Filtrar por año y mes. Clientes INSTALADA usan instaladaAt; el resto usan createdAt.
-      const filtered = clients.filter((c: any) => {
-        const dateStr = c.saleStatus === 'INSTALADA' && c.instaladaAt ? c.instaladaAt : c.createdAt;
-        const d = new Date(dateStr);
-        const y = d.getUTCFullYear().toString();
-        const m = (d.getUTCMonth() + 1).toString();
-        return (!filterYear || filterYear === y) && (!filterMonth || filterMonth === m);
-      });
-
-      // ── Stats por estado ──────────────────────────────────
-      setTotalClients(filtered.length);
-      const byLabel = new Map<string, ClientStats>();
-      filtered.forEach((c: any) => {
-        const info = getStatusInfo(c.validationStatus, c.saleStatus);
-        if (!byLabel.has(info.label)) {
-          byLabel.set(info.label, { validationStatus: c.validationStatus, saleStatus: c.saleStatus, count: 0 });
-        }
-        byLabel.get(info.label)!.count++;
-      });
-      setStats(Array.from(byLabel.values()));
-
-      // ── Efectividad ───────────────────────────────────────
-      const totalContacts = filtered.length;
-      const installedCount = filtered.filter((c: any) => c.saleStatus === 'INSTALADA').length;
-      const effectiveness = totalContacts > 0
-        ? Math.round((installedCount / totalContacts) * 10000) / 100
-        : 0;
-      setEffectivenessData({ totalContacts, installed: installedCount, effectiveness });
-
-      // ── Cumplimiento por vendedor ─────────────────────────
-      const TARGET_SALES = 6;
-      const complianceMap = new Map<string, {
-        userId: string; email: string;
-        nombre?: string | null; apellidos?: string | null;
-        installed: number; pending: number;
-      }>();
-      filtered.forEach((c: any) => {
-        if (!c.creator) return;
-        const { id: uid, email, nombre, apellidos } = c.creator;
-        if (!complianceMap.has(uid)) {
-          complianceMap.set(uid, { userId: uid, email, nombre, apellidos, installed: 0, pending: 0 });
-        }
-        const s = complianceMap.get(uid)!;
-        if (c.saleStatus === 'INSTALADA') s.installed++;
-        else if (c.saleStatus === 'PENDIENTE_INSTALACION') s.pending++;
-      });
-
-      const compStats: ComplianceStats[] = Array.from(complianceMap.values()).map((s) => ({
-        ...s,
-        target: TARGET_SALES,
-        percentage: Math.round(Math.min((s.installed / TARGET_SALES) * 100, 100)),
-      }));
-
-      if (activeUser.role !== 'admin' && currentUserId) {
-        const mine = compStats.find((s) => s.userId === currentUserId);
-        setComplianceStats(mine ? [mine] : [{
-          userId: currentUserId,
-          email: activeUser.email || '',
-          nombre: activeUser.nombre || null,
-          apellidos: activeUser.apellidos || null,
-          installed: 0,
-          pending: 0,
-          target: TARGET_SALES,
-          percentage: 0,
-        }]);
-      } else {
-        setComplianceStats(compStats);
-      }
       // ── Prospectos ────────────────────────────────────────
-      const prospectsRes = await fetch(`/api/prospects/stats?year=${filterYear}&month=${filterMonth}`);
-      const prospectsText = await prospectsRes.text();
-      console.log('[stats-debug] status:', prospectsRes.status, 'body:', prospectsText.slice(0, 300));
       if (prospectsRes.ok) {
-        try {
-          const prospectsData = JSON.parse(prospectsText);
-          const statsArr: ProspectStat[] = prospectsData.stats || [];
-          if (activeUser.role === 'admin') {
-            setProspectStats(statsArr);
-          } else {
-            setMyProspectStat(statsArr[0] || null);
-          }
-        } catch (e) {
-          console.error('[stats-debug] JSON parse error:', e);
+        const prospectsData = await prospectsRes.json();
+        const statsArr: ProspectStat[] = prospectsData.stats || [];
+        if (activeUser.role === 'admin') {
+          setProspectStats(statsArr);
+        } else {
+          setMyProspectStat(statsArr[0] || null);
         }
       }
 
-      // ── Nóminas ──────────────────────────────────────────
-      const payrollRes = await fetch('/api/payroll');
+      // ── Nóminas ───────────────────────────────────────────
       if (payrollRes.ok) {
         const payrollData = await payrollRes.json();
         const payrolls: Payroll[] = payrollData.payrolls || [];
