@@ -66,15 +66,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     { AND: conditions };
 
   try {
-    // ── 1. Agrupado por (validationStatus, saleStatus) ─────────────────────────
-    const grouped = await prisma.client.groupBy({
-      by: ['validationStatus', 'saleStatus'],
-      where,
-      _count: { id: true },
-    });
+    // ── 1. Agrupado por estado efectivo ────────────────────────────────────────
+    // Clientes con saleStatus → agrupar por saleStatus (tiene prioridad de display)
+    // Clientes sin saleStatus → agrupar por validationStatus
+    const [groupedBySale, groupedByValidation] = await Promise.all([
+      prisma.client.groupBy({
+        by: ['saleStatus'],
+        where: { AND: [where as object, { saleStatus: { not: null } }] },
+        _count: { id: true },
+      }),
+      prisma.client.groupBy({
+        by: ['validationStatus'],
+        where: { AND: [where as object, { saleStatus: null }] },
+        _count: { id: true },
+      }),
+    ]);
 
-    const totalClients = grouped.reduce((sum, g) => sum + g._count.id, 0);
-    const instalaciones = grouped
+    const statsParEstado = [
+      ...groupedBySale.map(g => ({ validationStatus: null, saleStatus: g.saleStatus, count: g._count.id })),
+      ...groupedByValidation.map(g => ({ validationStatus: g.validationStatus, saleStatus: null, count: g._count.id })),
+    ].sort((a, b) => b.count - a.count);
+
+    const totalClients = statsParEstado.reduce((sum, g) => sum + g.count, 0);
+    const instalaciones = groupedBySale
       .filter(g => g.saleStatus === 'INSTALADA')
       .reduce((sum, g) => sum + g._count.id, 0);
 
@@ -122,8 +136,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         percentage: Math.round(Math.min((s.installed / meta) * 100, 100)),
       }));
     } else {
-      const myInstalled = grouped.filter(g => g.saleStatus === 'INSTALADA').reduce((s, g) => s + g._count.id, 0);
-      const myPending = grouped.find(g => g.saleStatus === 'PENDIENTE_INSTALACION')?._count.id ?? 0;
+      const myInstalled = groupedBySale.filter(g => g.saleStatus === 'INSTALADA').reduce((s, g) => s + g._count.id, 0);
+      const myPending = groupedBySale.find(g => g.saleStatus === 'PENDIENTE_INSTALACION')?._count.id ?? 0;
       cumplimiento = [{
         userId: session.userId,
         email: session.email || '',
@@ -141,11 +155,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       instalaciones,
       meta,
       efectividad: totalClients > 0 ? Math.round((instalaciones / totalClients) * 10000) / 100 : 0,
-      statsParEstado: grouped.map(g => ({
-        validationStatus: g.validationStatus,
-        saleStatus: g.saleStatus,
-        count: g._count.id,
-      })),
+      statsParEstado,
       cumplimiento,
     });
   } catch (error) {
