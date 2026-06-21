@@ -89,10 +89,10 @@ export async function sendProspectosAsignadosEmail(
             <tbody>${filas}</tbody>
           </table>
 
-          <div style="text-align: center; margin: 24px 0;">
+          <div style="text-align: center; margin: 28px 0;">
             <a href="${appUrl}/prospects"
-               style="background-color: #2563eb; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
-              Ver mis prospectos
+               style="background-color: #2563eb; color: #ffffff; padding: 14px 36px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 700; font-size: 15px; letter-spacing: 0.3px; border: 2px solid #1d4ed8; box-shadow: 0 2px 6px rgba(37,99,235,0.4);">
+              👉 Ver mis prospectos
             </a>
           </div>
 
