@@ -270,6 +270,13 @@ export default function ProspectsPage() {
       }
       const data = await res.json();
 
+      if (data.eliminado) {
+        toast.success('Prospecto eliminado por sin cobertura.');
+        setViewingProspecto(null);
+        fetchProspectos(currentPage);
+        return;
+      }
+
       // Actualizar el dialog en tiempo real
       if (data.prospecto) {
         setViewingProspecto(prev => prev ? { ...prev, ...data.prospecto } : prev);

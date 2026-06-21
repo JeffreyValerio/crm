@@ -36,6 +36,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: 'Sin acceso' });
   }
 
+  // Sin cobertura: eliminar el prospecto directamente
+  if (resultado === 'SIN_COBERTURA') {
+    await prisma.prospecto.delete({ where: { id } });
+    return res.status(200).json({ eliminado: true });
+  }
+
   // Actualizar el prospecto
   const updated = await prisma.prospecto.update({
     where: { id },
