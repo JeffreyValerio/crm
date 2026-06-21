@@ -49,7 +49,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         include: {
           asignado: { select: { id: true, nombre: true, apellidos: true, email: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { asignadoAt: { sort: 'desc', nulls: 'last' } },
+          { createdAt: 'desc' },
+        ],
         skip,
         take: limitNum,
       }),
