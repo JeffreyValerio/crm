@@ -83,6 +83,7 @@ interface Client {
   statusComments?: StatusComment[];
   createdAt: string;
   updatedAt: string;
+  assignedAt: string | null;
 }
 
 interface ClientFormData {
@@ -1015,7 +1016,14 @@ Comentario: En espera de Instalacion`;
                   clients.map((client) => (
                     <TableRow key={client.id}>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {new Date(client.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {client.assignedAt && currentUser?.role !== 'admin' ? (
+                          <div>
+                            <span className="text-xs text-primary font-medium block">Asignado</span>
+                            {new Date(client.assignedAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </div>
+                        ) : (
+                          new Date(client.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
+                        )}
                       </TableCell>
                       <TableCell>{client.nombres} {client.apellidos}</TableCell>
                       <TableCell>{client.formulario || 'N/A'}</TableCell>
