@@ -157,6 +157,7 @@ export default function ProspectsPage() {
   const [contactLoading, setContactLoading] = useState<string | null>(null);
   const [contactMetodo, setContactMetodo] = useState<ResultadoContacto>('CLIENTE_INTERESADO');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [sinCoberturaConfirm, setSinCoberturaConfirm] = useState(false);
 
   // Inline obs editing state (for assigned agent in detail dialog)
   const [editingObs, setEditingObs] = useState(false);
@@ -714,7 +715,13 @@ export default function ProspectsPage() {
                         ))}
                       </Select>
                       <Button
-                        onClick={() => handleContactar(viewingProspecto, contactMetodo)}
+                        onClick={() => {
+                          if (contactMetodo === 'SIN_COBERTURA') {
+                            setSinCoberturaConfirm(true);
+                          } else {
+                            handleContactar(viewingProspecto, contactMetodo);
+                          }
+                        }}
                         disabled={contactLoading === viewingProspecto.id}
                         className="flex-shrink-0"
                       >
@@ -847,6 +854,37 @@ export default function ProspectsPage() {
                 </div>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── Dialog: Confirmar Sin Cobertura ─────────────────────────────────── */}
+      {sinCoberturaConfirm && viewingProspecto && (
+        <Dialog open onOpenChange={() => setSinCoberturaConfirm(false)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>¿Eliminar prospecto?</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Al registrar <strong>Sin cobertura</strong>, el prospecto{' '}
+              <strong>{viewingProspecto.cliente}</strong> será eliminado permanentemente de la base de datos.
+              Esta acción no se puede deshacer.
+            </p>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setSinCoberturaConfirm(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={contactLoading === viewingProspecto.id}
+                onClick={() => {
+                  setSinCoberturaConfirm(false);
+                  handleContactar(viewingProspecto, 'SIN_COBERTURA');
+                }}
+              >
+                Sí, eliminar
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
