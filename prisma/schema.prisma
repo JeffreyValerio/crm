@@ -148,6 +148,7 @@ model Client {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   instaladaAt           DateTime?
+  assignedAt            DateTime?
   statusComments        StatusComment[]
 }
 

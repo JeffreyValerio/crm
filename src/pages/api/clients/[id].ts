@@ -395,7 +395,7 @@ export default async function handler(
 
       const client = await prisma.client.update({
         where: { id: id as string },
-        data: { createdBy },
+        data: { createdBy, assignedAt: new Date() },
         include: {
           plan: { include: { productType: true } },
           creator: { select: { id: true, email: true, nombre: true, apellidos: true } },
