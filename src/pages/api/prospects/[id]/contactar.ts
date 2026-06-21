@@ -11,6 +11,8 @@ const RESULTADOS_VALIDOS = [
   'CLIENTE_NO_INTERESADO',
   'OTRO_PROVEEDOR',
   'CLIENTE_MOLESTO',
+  'LLAMADA',
+  'WHATSAPP',
 ] as const;
 
 type Resultado = typeof RESULTADOS_VALIDOS[number];
