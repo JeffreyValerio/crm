@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { sendProspectosAsignadosEmail } from '@/lib/mail';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
@@ -69,6 +70,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         asignado: { select: { id: true, nombre: true, apellidos: true, email: true } },
       },
     });
+
+    // Enviar email al vendedor cuando se le asigna el prospecto
+    if (asignadoA && updated.asignado?.email) {
+      const destinatario = updated.asignado.nombre && updated.asignado.apellidos
+        ? `${updated.asignado.nombre} ${updated.asignado.apellidos}`
+        : updated.asignado.email;
+      sendProspectosAsignadosEmail(updated.asignado.email, destinatario, [{
+        cliente: updated.cliente,
+        nroOrden: updated.nroOrden,
+        telCelular: updated.telCelular,
+        provincia: updated.provincia,
+      }]).catch(err => console.error('[mail] Error enviando email de asignación:', err));
+    }
 
     return res.status(200).json({ prospecto: updated });
   }
