@@ -264,6 +264,7 @@ model Prospecto {
   observacionesInternas String?
   asignadoA         String?
   asignado          User?    @relation(fields: [asignadoA], references: [id])
+  asignadoAt        DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

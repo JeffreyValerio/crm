@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const result = await prisma.prospecto.updateMany({
       where: { id: { in: ids } },
-      data: { asignadoA: asignadoA || null },
+      data: { asignadoA: asignadoA || null, asignadoAt: asignadoA ? new Date() : null },
     });
     return res.status(200).json({ updated: result.count });
   } catch (error) {

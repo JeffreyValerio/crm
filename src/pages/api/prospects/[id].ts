@@ -56,7 +56,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const data: Record<string, unknown> = {};
-    if (asignadoA !== undefined) data.asignadoA = asignadoA || null;
+    if (asignadoA !== undefined) {
+      data.asignadoA = asignadoA || null;
+      data.asignadoAt = asignadoA ? new Date() : null;
+    }
     if (observacionesInternas !== undefined) data.observacionesInternas = observacionesInternas;
 
     const updated = await prisma.prospecto.update({
