@@ -142,6 +142,7 @@ export default function ProspectsPage() {
   const [session, setSession] = useState<{ role: string; userId: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAsignado, setFilterAsignado] = useState('');
+  const [filterTipificacion, setFilterTipificacion] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -185,13 +186,15 @@ export default function ProspectsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
-  async function fetchProspectos(page: number, asignadoOverride?: string) {
+  async function fetchProspectos(page: number, asignadoOverride?: string, tipificacionOverride?: string) {
     setSelectedIds(new Set());
     setLoading(true);
     const asignadoFilter = asignadoOverride !== undefined ? asignadoOverride : filterAsignado;
+    const tipificacionFilter = tipificacionOverride !== undefined ? tipificacionOverride : filterTipificacion;
     const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
     if (searchTerm.trim()) params.set('search', searchTerm.trim());
     if (asignadoFilter) params.set('asignadoA', asignadoFilter);
+    if (tipificacionFilter) params.set('metodoContacto', tipificacionFilter);
     try {
       const res = await fetch(`/api/prospects?${params}`);
       const data = await res.json();
@@ -392,6 +395,17 @@ export default function ProspectsPage() {
               ))}
             </Select>
           )}
+
+          <Select
+            value={filterTipificacion}
+            onChange={e => { const v = e.target.value; setFilterTipificacion(v); fetchProspectos(1, undefined, v); }}
+            className="w-56"
+          >
+            <option value="">Todas las tipificaciones</option>
+            {RESULTADO_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </Select>
         </div>
 
         {/* Tabla */}

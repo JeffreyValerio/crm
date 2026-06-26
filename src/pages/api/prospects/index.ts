@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     try {
-    const { search, asignadoA, page = '1', limit = '15' } = req.query;
+    const { search, asignadoA, metodoContacto, page = '1', limit = '15' } = req.query;
 
     const where: any = {};
 
@@ -17,6 +17,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where.asignadoA = session.userId;
     } else if (asignadoA) {
       where.asignadoA = asignadoA === 'sin_asignar' ? null : asignadoA;
+    }
+
+    // Filtro por tipificación (último método de contacto)
+    if (metodoContacto && typeof metodoContacto === 'string') {
+      where.metodoContacto = metodoContacto;
     }
 
     // Búsqueda por texto
