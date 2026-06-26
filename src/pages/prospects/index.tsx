@@ -438,7 +438,7 @@ export default function ProspectsPage() {
                   <TableHead>Contactos</TableHead>
                   {session.role === 'admin' && <TableHead>Asignado a</TableHead>}
                   {session.role === 'admin' && <TableHead>Fecha asignado</TableHead>}
-                  {session.role !== 'admin' && <TableHead>Asignado</TableHead>}
+                  {session.role !== 'admin' && <TableHead>Fecha asignado</TableHead>}
                   <TableHead className="w-28">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
