@@ -410,7 +410,7 @@ export default function ProspectsPage() {
 
         {/* Tabla */}
         {loading ? (
-          <TableSkeleton cols={session.role === 'admin' ? 5 : 4} rows={10} />
+          <TableSkeleton cols={session.role === 'admin' ? 6 : 4} rows={10} />
         ) : (
           <div className="rounded-md border">
             <Table>
@@ -437,6 +437,7 @@ export default function ProspectsPage() {
                   <TableHead>Provincia</TableHead>
                   <TableHead>Contactos</TableHead>
                   {session.role === 'admin' && <TableHead>Asignado a</TableHead>}
+                  {session.role === 'admin' && <TableHead>Fecha asignado</TableHead>}
                   {session.role !== 'admin' && <TableHead>Asignado</TableHead>}
                   <TableHead className="w-28">Acciones</TableHead>
                 </TableRow>
@@ -444,7 +445,7 @@ export default function ProspectsPage() {
               <TableBody>
                 {prospectos.length === 0 ? (
                   <TableEmptyState
-                    colSpan={session.role === 'admin' ? 7 : 6}
+                    colSpan={session.role === 'admin' ? 8 : 6}
                     message="No hay prospectos que coincidan"
                   />
                 ) : (
@@ -510,6 +511,15 @@ export default function ProspectsPage() {
                           ) : (
                             <span className="text-muted-foreground italic">Sin asignar</span>
                           )}
+                        </TableCell>
+                      )}
+
+                      {/* Fecha de asignación (admin only) */}
+                      {session.role === 'admin' && (
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {p.asignadoAt
+                            ? new Date(p.asignadoAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '—'}
                         </TableCell>
                       )}
 
