@@ -160,7 +160,7 @@ export default function ProspectsPage() {
   const [bulkLoading, setBulkLoading] = useState(false);
 
   const [contactLoading, setContactLoading] = useState<string | null>(null);
-  const [contactMetodo, setContactMetodo] = useState<ResultadoContacto>('CLIENTE_INTERESADO');
+  const [contactMetodo, setContactMetodo] = useState<ResultadoContacto | ''>('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [sinCoberturaConfirm, setSinCoberturaConfirm] = useState(false);
 
@@ -337,6 +337,7 @@ export default function ProspectsPage() {
     setViewingProspecto(p);
     setClienteConvertido(null);
     setEditingObs(false);
+    setContactMetodo('');
     if (p.idCliente) {
       try {
         const res = await fetch(`/api/prospects/${p.id}`);
@@ -738,6 +739,7 @@ export default function ProspectsPage() {
                         onChange={e => setContactMetodo(e.target.value as ResultadoContacto)}
                         className="flex-1"
                       >
+                        <option value="" disabled>— Seleccione —</option>
                         {RESULTADO_OPTIONS.map(o => (
                           <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
@@ -747,10 +749,10 @@ export default function ProspectsPage() {
                           if (contactMetodo === 'SIN_COBERTURA') {
                             setSinCoberturaConfirm(true);
                           } else {
-                            handleContactar(viewingProspecto, contactMetodo);
+                            handleContactar(viewingProspecto, contactMetodo as ResultadoContacto);
                           }
                         }}
-                        disabled={contactLoading === viewingProspecto.id}
+                        disabled={!contactMetodo || contactLoading === viewingProspecto.id}
                         className="flex-shrink-0"
                       >
                         {contactLoading === viewingProspecto.id ? 'Guardando...' : 'Registrar'}
