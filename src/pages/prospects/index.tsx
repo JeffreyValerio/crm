@@ -98,7 +98,8 @@ type ResultadoContacto =
   | 'OTRO_PROVEEDOR'
   | 'CLIENTE_MOLESTO'
   | 'LLAMADA'
-  | 'WHATSAPP';
+  | 'WHATSAPP'
+  | 'PYME';
 
 const RESULTADO_OPTIONS: { value: ResultadoContacto; label: string }[] = [
   { value: 'VENTA_REALIZADA',       label: '✅ Venta realizada' },
@@ -111,6 +112,7 @@ const RESULTADO_OPTIONS: { value: ResultadoContacto; label: string }[] = [
   { value: 'CLIENTE_MOLESTO',       label: '😡 Cliente molesto' },
   { value: 'LLAMADA',               label: '📞 Llamada' },
   { value: 'WHATSAPP',              label: '💬 WhatsApp' },
+  { value: 'PYME',                  label: '🏢 PYME' },
 ];
 
 const RESULTADO_LABELS: Record<string, string> = Object.fromEntries(
