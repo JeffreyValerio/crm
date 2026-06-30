@@ -14,6 +14,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { inflate as _inflate } from 'zlib';
 import { promisify } from 'util';
+import { writeFileSync } from 'fs';
+import { join } from 'path';
 
 const inflate = promisify(_inflate);
 
@@ -156,6 +158,14 @@ async function main() {
 
   if (!EJECUTAR && (total - totalConFibra - totalErrores) > 0) {
     console.log('Ejecuta con --ejecutar para confirmar el borrado.');
+  }
+
+  // Guardar stats para el email de notificación
+  if (EJECUTAR) {
+    writeFileSync(
+      join(process.cwd(), '.sync-stats.json'),
+      JSON.stringify({ totalConFibra, totalBorrados, totalErrores, fechaFin: new Date().toISOString() }),
+    );
   }
 }
 
