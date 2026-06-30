@@ -14,6 +14,11 @@ const TrendsCharts = dynamic(
   { ssr: false, loading: () => <div className="h-[560px] animate-pulse rounded-lg bg-muted/40" /> }
 );
 
+const ProspectActivityCharts = dynamic(
+  () => import('@/components/dashboard/prospect-activity-charts').then(m => m.ProspectActivityCharts),
+  { ssr: false, loading: () => <div className="h-48 animate-pulse rounded-lg bg-muted/40" /> }
+);
+
 interface ClientStats {
   validationStatus: string | null;
   saleStatus: string | null;
@@ -91,6 +96,10 @@ export default function HomePage() {
   } | null>(null);
   const [prospectStats, setProspectStats] = useState<ProspectStat[]>([]);
   const [myProspectStat, setMyProspectStat] = useState<ProspectStat | null>(null);
+  const [prospectActivity, setProspectActivity] = useState<{
+    porDia: Array<{ fecha: string; dia: number; contactos: number }>;
+    porTipificacion: Array<{ tipificacion: string; count: number }>;
+  }>({ porDia: [], porTipificacion: [] });
 
   // Función auxiliar para formatear el período seleccionado
   function getPeriodLabel(): string {
@@ -160,11 +169,12 @@ export default function HomePage() {
       if (filterYear) trendsParams.append('year', filterYear);
       if (activeUser.role === 'admin' && filterCreatedBy) trendsParams.append('createdBy', filterCreatedBy);
 
-      const [statsRes, prospectsRes, payrollRes, trendsRes] = await Promise.all([
+      const [statsRes, prospectsRes, payrollRes, trendsRes, activityRes] = await Promise.all([
         fetch(`/api/dashboard/stats?${params.toString()}`),
         fetch(`/api/prospects/stats?year=${filterYear}&month=${filterMonth}`),
         fetch('/api/payroll'),
         fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
+        fetch(`/api/prospects/activity?year=${filterYear}&month=${filterMonth}`),
       ]);
 
       // ── Stats de clientes ─────────────────────────────────
@@ -228,6 +238,15 @@ export default function HomePage() {
       if (trendsRes.ok) {
         const trendsData = await trendsRes.json();
         setTrendsData(trendsData);
+      }
+
+      // ── Actividad de prospectos ───────────────────────────
+      if (activityRes.ok) {
+        const activityData = await activityRes.json();
+        setProspectActivity({
+          porDia: activityData.porDia ?? [],
+          porTipificacion: activityData.porTipificacion ?? [],
+        });
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -851,62 +870,14 @@ export default function HomePage() {
                   Ver prospectos <ArrowRight className="h-3 w-3" />
                 </Button>
               </div>
-              <CardDescription>Actividad de contactación por agente · {getPeriodLabel()}</CardDescription>
+              <CardDescription>Actividad de contactación · {getPeriodLabel()}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {prospectStats.map((stat) => {
-                  const alertPct = stat.totalProspectos > 0
-                    ? stat.conAlerta / stat.totalProspectos
-                    : 0;
-                  const rowBg = alertPct >= 0.6
-                    ? 'bg-red-50 dark:bg-red-950/20'
-                    : alertPct >= 0.3
-                    ? 'bg-yellow-50 dark:bg-yellow-950/20'
-                    : '';
-                  const contactPct = stat.totalProspectos > 0
-                    ? Math.round((stat.contactadosMes / stat.totalProspectos) * 100)
-                    : 0;
-                  const displayName = stat.nombre && stat.apellidos
-                    ? `${stat.nombre} ${stat.apellidos}`
-                    : stat.email;
-                  return (
-                    <div key={stat.userId} className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-lg',
-                      rowBg || 'bg-muted/30'
-                    )}>
-                      <UserCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm font-medium w-32 truncate flex-shrink-0">{displayName}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-muted-foreground">{stat.contactadosMes}/{stat.totalProspectos} este mes</span>
-                          <span className="text-xs font-medium">{contactPct}%</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-1.5">
-                          <div
-                            className="h-1.5 rounded-full bg-indigo-500 transition-all duration-500"
-                            style={{ width: `${contactPct}%` }}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {stat.convertidos > 0 && (
-                          <div className="flex items-center gap-1 text-xs text-green-600" title="Convertidos en clientes">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>{stat.convertidos}</span>
-                          </div>
-                        )}
-                        {stat.conAlerta > 0 && (
-                          <div className="flex items-center gap-1 text-xs text-red-600" title="Con alerta">
-                            <AlertCircle className="h-3.5 w-3.5" />
-                            <span>{stat.conAlerta}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <ProspectActivityCharts
+                stats={prospectStats}
+                porDia={prospectActivity.porDia}
+                porTipificacion={prospectActivity.porTipificacion}
+              />
             </CardContent>
           </Card>
         )}
