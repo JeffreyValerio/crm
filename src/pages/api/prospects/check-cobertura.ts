@@ -13,8 +13,8 @@ function toWebMercator(lat: number, lng: number): { x: number; y: number } {
 
 async function checkFiberCoverage(lat: number, lng: number): Promise<boolean> {
   const { x, y } = toWebMercator(lat, lng);
-  // 800m de radio — suficiente para que las tiles rendericen pero preciso para zonas urbanas
-  const delta = 800;
+  // 200m de radio — preciso para la ubicación exacta del prospecto
+  const delta = 200;
 
   const params = new URLSearchParams({
     SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetMap',

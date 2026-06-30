@@ -19,6 +19,7 @@ import {
   Copy,
   Check,
   CheckCircle,
+  MapPin,
 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { ExternalLink } from 'lucide-react';
@@ -731,6 +732,18 @@ export default function ProspectsPage() {
                               title="Verificar cobertura fibra óptica Claro"
                             >
                               {coberturaStatus === 'loading' ? '⏳' : '📡'} Fibra
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              title="Ver en mapa Claro (coordenadas copiadas al portapapeles)"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${viewingProspecto.latitud}, ${viewingProspecto.longitud}`);
+                                window.open('https://www.claro.cr/mapacobertura/', '_blank', 'noopener');
+                              }}
+                            >
+                              <MapPin className="h-3.5 w-3.5 mr-1" /> Claro
                             </Button>
                             <Button
                               variant="ghost"
