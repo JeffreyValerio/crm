@@ -20,8 +20,6 @@ import {
   Check,
   CheckCircle,
   MapPin,
-  Trash2,
-  Loader2,
 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { ExternalLink } from 'lucide-react';
@@ -172,9 +170,6 @@ export default function ProspectsPage() {
   // Verificación de cobertura Claro fibra óptica
   const [coberturaStatus, setCoberturaStatus] = useState<'idle' | 'loading' | 'tiene' | 'no_tiene' | 'error'>('idle');
 
-  // Limpieza masiva de prospectos sin cobertura (admin)
-  const [limpiezaCorriendo, setLimpiezaCorriendo] = useState(false);
-  const [limpiezaLoading, setLimpiezaLoading] = useState(false);
 
   // Inline obs editing state (for assigned agent in detail dialog)
   const [editingObs, setEditingObs] = useState(false);
@@ -189,18 +184,6 @@ export default function ProspectsPage() {
       .then(d => setSession(d.user));
   }, []);
 
-  // Polling: verificar si hay una limpieza corriendo en background
-  useEffect(() => {
-    if (!session || session.role !== 'admin') return;
-    const check = () =>
-      fetch('/api/admin/limpiar-cobertura')
-        .then(r => r.json())
-        .then(d => setLimpiezaCorriendo(d.corriendo))
-        .catch(() => {});
-    check();
-    const interval = setInterval(check, 10_000);
-    return () => clearInterval(interval);
-  }, [session]);
 
   useEffect(() => {
     if (!session) return;
@@ -358,24 +341,6 @@ export default function ProspectsPage() {
     }
   }
 
-  async function iniciarLimpieza() {
-    setLimpiezaLoading(true);
-    try {
-      const res = await fetch('/api/admin/limpiar-cobertura', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || 'Error al iniciar limpieza');
-      } else {
-        setLimpiezaCorriendo(true);
-        toast.success('Limpieza iniciada en background. Se borrarán los prospectos sin cobertura fibra Claro.');
-      }
-    } catch {
-      toast.error('Error al iniciar limpieza');
-    } finally {
-      setLimpiezaLoading(false);
-    }
-  }
-
   async function checkCobertura(lat: string, lng: string) {
     setCoberturaStatus('loading');
     try {
@@ -422,21 +387,6 @@ export default function ProspectsPage() {
               {session.role !== 'admin' ? 'asignados a ti' : 'en total'}
             </p>
           </div>
-          {session.role === 'admin' && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/10"
-              onClick={iniciarLimpieza}
-              disabled={limpiezaLoading || limpiezaCorriendo}
-              title="Elimina todos los prospectos sin cobertura de fibra óptica Claro"
-            >
-              {limpiezaCorriendo || limpiezaLoading
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Trash2 className="h-4 w-4" />}
-              {limpiezaCorriendo ? 'Limpieza en curso...' : 'Limpiar sin cobertura'}
-            </Button>
-          )}
         </div>
 
         {/* Filtros */}
