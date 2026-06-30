@@ -14,6 +14,10 @@ jobs:
       DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
       DATABASE_SSL_REJECT_UNAUTHORIZED: 'false'
       SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       CI: 'true'
 
     steps:
@@ -37,3 +41,9 @@ jobs:
 
       - name: Import prospects to DB
         run: npm run prospects:import
+
+      - name: Limpiar sin cobertura
+        run: npm run prospects:limpiar -- --ejecutar
+
+      - name: Enviar email de resumen
+        run: tsx scripts/notify-sync.ts
