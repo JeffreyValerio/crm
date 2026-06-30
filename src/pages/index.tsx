@@ -153,28 +153,32 @@ export default function HomePage() {
   }
 
   async function loadDashboardData(
-    userOverride?: { role?: string; email?: string; nombre?: string; apellidos?: string } | null
+    userOverride?: { role?: string; email?: string; nombre?: string; apellidos?: string } | null,
+    yearOverride?: string,
+    monthOverride?: string,
   ) {
     const activeUser = userOverride ?? user;
     if (!activeUser) return;
 
+    const year = yearOverride ?? filterYear;
+    const month = monthOverride ?? filterMonth;
+
     try {
       const params = new URLSearchParams();
-      if (filterYear) params.append('year', filterYear);
-      if (filterMonth) params.append('month', filterMonth);
+      if (year) params.append('year', year);
+      if (month) params.append('month', month);
       if (activeUser.role === 'admin' && filterCreatedBy) params.append('createdBy', filterCreatedBy);
 
-      // Las cuatro llamadas en paralelo
       const trendsParams = new URLSearchParams();
-      if (filterYear) trendsParams.append('year', filterYear);
+      if (year) trendsParams.append('year', year);
       if (activeUser.role === 'admin' && filterCreatedBy) trendsParams.append('createdBy', filterCreatedBy);
 
       const [statsRes, prospectsRes, payrollRes, trendsRes, activityRes] = await Promise.all([
         fetch(`/api/dashboard/stats?${params.toString()}`),
-        fetch(`/api/prospects/stats?year=${filterYear}&month=${filterMonth}`),
+        fetch(`/api/prospects/stats?year=${year}&month=${month}`),
         fetch('/api/payroll'),
         fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
-        fetch(`/api/prospects/activity?year=${filterYear}&month=${filterMonth}`),
+        fetch(`/api/prospects/activity?year=${year}&month=${month}`),
       ]);
 
       // ── Stats de clientes ─────────────────────────────────
@@ -253,13 +257,13 @@ export default function HomePage() {
     }
   }
 
-  // Recargar solo cuando cambien los filtros (no en el mount inicial)
+  // Recargar cuando cambien los filtros — pasar valores explícitamente para evitar stale closure
   useEffect(() => {
     if (!hasMounted.current) {
       hasMounted.current = true;
       return;
     }
-    if (user) loadDashboardData();
+    if (user) loadDashboardData(null, filterYear, filterMonth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCreatedBy, filterYear, filterMonth]);
 

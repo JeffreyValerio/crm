@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -11,7 +13,8 @@ import {
   Cell,
   PieChart,
   Pie,
-  Legend,
+  CartesianGrid,
+  Dot,
 } from 'recharts';
 import { UserCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -75,6 +78,23 @@ const TAB_LABELS: Record<Tab, string> = {
 
 export function ProspectActivityCharts({ stats, porDia, porTipificacion }: Props) {
   const [tab, setTab] = useState<Tab>('agente');
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.classList.contains('dark'));
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const tooltipStyle = {
+    fontSize: 12,
+    borderRadius: 8,
+    background: isDark ? '#0f172a' : '#ffffff',
+    border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`,
+    color: isDark ? '#f1f5f9' : '#0f172a',
+  };
 
   const totalContactados = porDia.reduce((sum, d) => sum + d.contactos, 0);
 
@@ -158,16 +178,21 @@ export function ProspectActivityCharts({ stats, porDia, porTipificacion }: Props
             {totalContactados} prospectos contactados este mes
           </p>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={porDia} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+            <LineChart data={porDia} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={isDark ? '#1e293b' : '#e2e8f0'}
+                vertical={false}
+              />
               <XAxis
                 dataKey="dia"
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: isDark ? '#94a3b8' : '#64748b' }}
                 tickLine={false}
                 axisLine={false}
                 interval={4}
               />
               <YAxis
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 10, fill: isDark ? '#94a3b8' : '#64748b' }}
                 tickLine={false}
                 axisLine={false}
                 allowDecimals={false}
@@ -175,24 +200,21 @@ export function ProspectActivityCharts({ stats, porDia, porTipificacion }: Props
               <Tooltip
                 formatter={(value) => [value ?? 0, 'Contactados']}
                 labelFormatter={(label) => `Día ${label}`}
-                contentStyle={{
-                  fontSize: 12,
-                  borderRadius: 8,
-                  border: '1px solid hsl(var(--border))',
-                  background: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                }}
+                contentStyle={tooltipStyle}
               />
-              <Bar dataKey="contactos" radius={[3, 3, 0, 0]}>
-                {porDia.map((d, i) => (
-                  <Cell
-                    key={i}
-                    fill={d.contactos > 0 ? '#6366f1' : 'hsl(var(--muted))'}
-                    fillOpacity={d.contactos > 0 ? 1 : 0.4}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="contactos"
+                stroke="#6366f1"
+                strokeWidth={2}
+                dot={(props) => {
+                  const { cx, cy, payload } = props;
+                  if (payload.contactos === 0) return <></>;
+                  return <Dot cx={cx} cy={cy} r={3} fill="#6366f1" stroke="#6366f1" />;
+                }}
+                activeDot={{ r: 5, fill: '#6366f1' }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       )}
@@ -227,13 +249,7 @@ export function ProspectActivityCharts({ stats, porDia, porTipificacion }: Props
                       value ?? 0,
                       TIPIFICACION_LABELS[String(name)] ?? String(name),
                     ]}
-                    contentStyle={{
-                      fontSize: 12,
-                      borderRadius: 8,
-                      border: '1px solid hsl(var(--border))',
-                      background: 'hsl(var(--background))',
-                      color: 'hsl(var(--foreground))',
-                    }}
+                    contentStyle={tooltipStyle}
                   />
                 </PieChart>
               </ResponsiveContainer>
