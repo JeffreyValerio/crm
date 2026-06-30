@@ -55,17 +55,15 @@ export default async function handler(
       }
 
       // Verificar si el usuario tiene registros asociados
-      const [clientsCount, payrollsCount, advancesCount, statusCommentsCount] = await Promise.all([
+      const [clientsCount, advancesCount, statusCommentsCount] = await Promise.all([
         prisma.client.count({ where: { createdBy: id as string } }),
-        prisma.payroll.count({ where: { userId: id as string } }),
         prisma.advance.count({ where: { userId: id as string } }),
         prisma.statusComment.count({ where: { createdBy: id as string } }),
       ]);
 
-      if (clientsCount > 0 || payrollsCount > 0 || advancesCount > 0 || statusCommentsCount > 0) {
+      if (clientsCount > 0 || advancesCount > 0 || statusCommentsCount > 0) {
         const reasons = [];
         if (clientsCount > 0) reasons.push(`${clientsCount} cliente(s)`);
-        if (payrollsCount > 0) reasons.push(`${payrollsCount} nómina(s)`);
         if (advancesCount > 0) reasons.push(`${advancesCount} adelanto(s)`);
         if (statusCommentsCount > 0) reasons.push(`${statusCommentsCount} comentario(s)`);
         

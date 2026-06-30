@@ -57,17 +57,6 @@ export function getSaleStatusLabel(status: string | null): string {
   return labels[status || ''] || status || 'N/A';
 }
 
-// ── Estados de nómina ────────────────────────────────────────────────────────
-
-export function getPayrollStatusLabel(estado: string): string {
-  const labels: Record<string, string> = {
-    PENDIENTE: 'Pendiente',
-    APROBADO:  'Aprobado',
-    PAGADO:    'Pagado',
-  };
-  return labels[estado] ?? estado;
-}
-
 // ── Estados de adelanto ──────────────────────────────────────────────────────
 
 export function getAdvanceStatusLabel(estado: string): string {

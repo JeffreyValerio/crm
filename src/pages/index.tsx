@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle, Receipt } from 'lucide-react';
+import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle } from 'lucide-react';
 
 const TrendsCharts = dynamic(
   () => import('@/components/dashboard/trends-charts').then(m => m.TrendsCharts),
@@ -54,20 +54,6 @@ interface ProspectStat {
   convertidos: number;
 }
 
-interface Payroll {
-  id: string;
-  periodo: string;
-  quincena: number;
-  total: number | string;
-  estado: 'PENDIENTE' | 'APROBADO' | 'PAGADO';
-  user: {
-    id: string;
-    email: string;
-    nombre: string | null;
-    apellidos: string | null;
-  };
-}
-
 
 export default function HomePage() {
   const router = useRouter();
@@ -87,7 +73,6 @@ export default function HomePage() {
     effectiveness: number;
   } | null>(null);
   const hasMounted = useRef(false);
-  const [payrollSummary, setPayrollSummary] = useState<{ pendingCount: number; pendingTotal: number } | null>(null);
   const [kpiMeta, setKpiMeta] = useState<number>(6);
   const [trendsData, setTrendsData] = useState<{
     tendencia: Array<{ mes: string; registrados: number; instalaciones: number }>;
@@ -173,10 +158,9 @@ export default function HomePage() {
       if (year) trendsParams.append('year', year);
       if (activeUser.role === 'admin' && filterCreatedBy) trendsParams.append('createdBy', filterCreatedBy);
 
-      const [statsRes, prospectsRes, payrollRes, trendsRes, activityRes] = await Promise.all([
+      const [statsRes, prospectsRes, trendsRes, activityRes] = await Promise.all([
         fetch(`/api/dashboard/stats?${params.toString()}`),
         fetch(`/api/prospects/stats?year=${year}&month=${month}${filterCreatedBy ? `&asignadoA=${filterCreatedBy}` : ''}`),
-        fetch('/api/payroll'),
         fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
         fetch(`/api/prospects/activity?year=${year}&month=${month}${filterCreatedBy ? `&asignadoA=${filterCreatedBy}` : ''}`),
       ]);
@@ -225,17 +209,6 @@ export default function HomePage() {
         } else {
           setMyProspectStat(statsArr[0] || null);
         }
-      }
-
-      // ── Nóminas ───────────────────────────────────────────
-      if (payrollRes.ok) {
-        const payrollData = await payrollRes.json();
-        const payrolls: Payroll[] = payrollData.payrolls || [];
-        const pendingP = payrolls.filter((p) => p.estado === 'PENDIENTE');
-        setPayrollSummary({
-          pendingCount: pendingP.length,
-          pendingTotal: pendingP.reduce((sum, p) => sum + Number(p.total), 0),
-        });
       }
 
       // ── Tendencias ────────────────────────────────────────
@@ -884,50 +857,6 @@ export default function HomePage() {
                 porDia={prospectActivity.porDia}
                 porTipificacion={prospectActivity.porTipificacion}
               />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Nóminas */}
-        {payrollSummary !== null && (
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-primary" />
-                  Nóminas
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push(user?.role === 'admin' ? '/payroll' : '/payroll/my-payrolls')}
-                  className="text-xs h-7 px-2 gap-1"
-                >
-                  Ver todas <ArrowRight className="h-3 w-3" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2.5">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-yellow-500" />
-                  <span className="text-sm">Pendientes de pago</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xl font-bold">{payrollSummary.pendingCount}</span>
-                  {payrollSummary.pendingTotal > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      ₡{payrollSummary.pendingTotal.toLocaleString('es-CR')}
-                    </div>
-                  )}
-                </div>
-              </div>
-              {payrollSummary.pendingCount === 0 && (
-                <div className="text-center py-3 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-6 w-6 mx-auto mb-1 text-green-500 opacity-70" />
-                  Todo al día
-                </div>
-              )}
             </CardContent>
           </Card>
         )}

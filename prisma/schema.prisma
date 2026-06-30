@@ -24,8 +24,6 @@ model User {
   updatedAt         DateTime  @updatedAt
   clients           Client[]
   statusComments    StatusComment[]
-  payrolls          Payroll[]
-  approvedPayrolls  Payroll[] @relation("PayrollApprover")
   advances          Advance[]
   approvedAdvances  Advance[] @relation("AdvanceApprover")
   prospectos        Prospecto[]
@@ -94,12 +92,6 @@ enum SaleStatus {
   CLIENTE_NO_PERMITE_INSTALACION
 }
 
-enum PayrollStatus {
-  PENDIENTE
-  APROBADO
-  PAGADO
-}
-
 enum AdvanceStatus {
   PENDIENTE
   APROBADO
@@ -163,33 +155,6 @@ model StatusComment {
   createdBy     String
   creator       User     @relation(fields: [createdBy], references: [id])
   createdAt     DateTime @default(now())
-}
-
-model Payroll {
-  id              String        @id @default(cuid())
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  periodo         String        // Formato: "YYYY-MM" (ej: "2025-01")
-  quincena        Int           // 1 o 2
-  diasEsperados   Int                            // Días laborables esperados en la quincena
-  diasTrabajados  Int                            // Días realmente trabajados (editable por admin)
-  salarioBase     Decimal                       // Salario por quincena en colones
-  montoDiario     Decimal                       // Calculado: salarioBase / diasTrabajados
-  total           Decimal       // Calculado: salarioBase
-  estado          PayrollStatus @default(PENDIENTE)
-  aprobadoPor     String?
-  aprobador       User?         @relation("PayrollApprover", fields: [aprobadoPor], references: [id])
-  aprobadoAt      DateTime?
-  fechaPago       DateTime?
-  comprobanteUrl  String?
-  observaciones   String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  @@unique([userId, periodo, quincena])
-  @@index([userId])
-  @@index([periodo])
-  @@index([estado])
 }
 
 model Advance {

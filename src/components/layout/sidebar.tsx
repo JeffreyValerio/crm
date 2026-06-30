@@ -10,7 +10,6 @@ import {
   UserCircle,
   ChevronLeft,
   ChevronRight,
-  Receipt,
   Target
 } from 'lucide-react';
 
@@ -51,11 +50,6 @@ const navSections: NavSection[] = [
         title: 'Prospectos',
         href: '/prospects',
         icon: Target,
-      },
-      {
-        title: 'Nómina',
-        href: '/payroll',
-        icon: Receipt,
       },
     ],
   },

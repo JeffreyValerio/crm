@@ -21,10 +21,7 @@ async function main() {
   
   await prisma.advance.deleteMany({});
   console.log('   ✓ Advances eliminados');
-  
-  await prisma.payroll.deleteMany({});
-  console.log('   ✓ Payrolls eliminados');
-  
+
   await prisma.client.deleteMany({});
   console.log('   ✓ Clients eliminados');
   
