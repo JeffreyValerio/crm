@@ -1,10 +1,11 @@
 /**
  * Elimina prospectos sin cobertura de fibra óptica Claro.
+ * Procesa en lotes de 10: valida, borra los sin cobertura, continúa.
  *
  * Uso:
- *   npx ts-node scripts/limpiar-sin-cobertura.ts           → simulación (no borra nada)
- *   npx ts-node scripts/limpiar-sin-cobertura.ts --ejecutar → borra realmente
- *   npx ts-node scripts/limpiar-sin-cobertura.ts --asignado=<userId>  → solo ese agente
+ *   npm run prospects:limpiar                          → simulación (no borra nada)
+ *   npm run prospects:limpiar -- --ejecutar            → borra en tiempo real por lotes
+ *   npm run prospects:limpiar -- --asignado=<userId>   → solo ese agente
  */
 
 import 'dotenv/config';
@@ -33,7 +34,8 @@ const prisma = new PrismaClient({ adapter });
 
 const EJECUTAR = process.argv.includes('--ejecutar');
 const ASIGNADO = process.argv.find(a => a.startsWith('--asignado='))?.split('=')[1];
-const DELAY_MS = 300; // pausa entre consultas WMS para no saturar el servidor
+const DELAY_MS = 300;
+const LOTE = 10;
 
 function toWebMercator(lat: number, lng: number) {
   const x = lng * 20037508.34 / 180;
@@ -81,7 +83,7 @@ async function sleep(ms: number) {
 }
 
 async function main() {
-  console.log(`\n🔍 Modo: ${EJECUTAR ? '⚠️  EJECUCIÓN REAL (borrará prospectos)' : '🧪 SIMULACIÓN (no borra nada)'}`);
+  console.log(`\n🔍 Modo: ${EJECUTAR ? '⚠️  EJECUCIÓN REAL — borra por lotes de ${LOTE}' : '🧪 SIMULACIÓN (no borra nada)'}`);
   if (ASIGNADO) console.log(`👤 Filtro agente: ${ASIGNADO}`);
   console.log('');
 
@@ -93,77 +95,68 @@ async function main() {
 
   const prospectos = await prisma.prospecto.findMany({
     where,
-    select: {
-      id: true,
-      nroOrden: true,
-      cliente: true,
-      latitud: true,
-      longitud: true,
-      asignadoA: true,
-    },
+    select: { id: true, nroOrden: true, cliente: true, latitud: true, longitud: true },
   });
 
-  console.log(`📋 Prospectos con coordenadas: ${prospectos.length}\n`);
+  const total = prospectos.length;
+  console.log(`📋 Prospectos con coordenadas: ${total}\n`);
 
-  const sinCobertura: typeof prospectos = [];
-  const conCobertura: typeof prospectos = [];
-  const errores: { prospecto: (typeof prospectos)[0]; error: string }[] = [];
+  let totalBorrados = 0;
+  let totalConFibra = 0;
+  let totalErrores = 0;
+  const loteActual: string[] = []; // ids sin cobertura acumulados en el lote
 
-  for (let i = 0; i < prospectos.length; i++) {
+  for (let i = 0; i < total; i++) {
     const p = prospectos[i];
     const lat = parseFloat(p.latitud!);
     const lng = parseFloat(p.longitud!);
-    const prefix = `[${i + 1}/${prospectos.length}]`;
+    const prefix = `[${i + 1}/${total}]`;
 
     if (isNaN(lat) || isNaN(lng)) {
-      console.log(`${prefix} ⚠️  Coordenadas inválidas — ${p.cliente} (${p.nroOrden})`);
-      errores.push({ prospecto: p, error: 'Coordenadas inválidas' });
-      continue;
-    }
-
-    try {
-      const tiene = await tieneCoberturaFibra(lat, lng);
-      if (tiene) {
-        conCobertura.push(p);
-        console.log(`${prefix} ✅ Con fibra   — ${p.cliente} (${p.nroOrden})`);
-      } else {
-        sinCobertura.push(p);
-        console.log(`${prefix} ❌ Sin fibra   — ${p.cliente} (${p.nroOrden})`);
+      console.log(`${prefix} ⚠️  Coords inválidas  — ${p.cliente}`);
+      totalErrores++;
+    } else {
+      try {
+        const tiene = await tieneCoberturaFibra(lat, lng);
+        if (tiene) {
+          totalConFibra++;
+          console.log(`${prefix} ✅ Con fibra   — ${p.cliente}`);
+        } else {
+          loteActual.push(p.id);
+          console.log(`${prefix} ❌ Sin fibra   — ${p.cliente}`);
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        totalErrores++;
+        console.log(`${prefix} ⚠️  Error WMS   — ${p.cliente}: ${msg}`);
       }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      errores.push({ prospecto: p, error: msg });
-      console.log(`${prefix} ⚠️  Error WMS   — ${p.cliente} (${p.nroOrden}): ${msg}`);
     }
 
-    if (i < prospectos.length - 1) await sleep(DELAY_MS);
-  }
-
-  console.log('\n─────────────────────────────────────────');
-  console.log(`✅ Con cobertura:  ${conCobertura.length}`);
-  console.log(`❌ Sin cobertura:  ${sinCobertura.length}`);
-  console.log(`⚠️  Errores WMS:   ${errores.length}`);
-  console.log('─────────────────────────────────────────\n');
-
-  if (sinCobertura.length === 0) {
-    console.log('No hay prospectos para eliminar.');
-    return;
-  }
-
-  if (!EJECUTAR) {
-    console.log('Se eliminarían los siguientes prospectos:');
-    for (const p of sinCobertura) {
-      console.log(`  • ${p.cliente} — ${p.nroOrden} (${p.latitud}, ${p.longitud})`);
+    // Al completar cada lote (o al llegar al final), borrar los acumulados
+    const esUltimo = i === total - 1;
+    if (loteActual.length >= LOTE || (esUltimo && loteActual.length > 0)) {
+      if (EJECUTAR) {
+        const { count } = await prisma.prospecto.deleteMany({ where: { id: { in: [...loteActual] } } });
+        totalBorrados += count;
+        console.log(`\n🗑️  Lote eliminado: ${count} prospectos (total borrados: ${totalBorrados})\n`);
+      } else {
+        console.log(`\n   [SIMULACIÓN] Se borrarían ${loteActual.length} de este lote\n`);
+      }
+      loteActual.length = 0;
     }
-    console.log('\nEjecuta con --ejecutar para confirmar el borrado.');
-    return;
+
+    if (!esUltimo) await sleep(DELAY_MS);
   }
 
-  // Borrado real
-  console.log(`Eliminando ${sinCobertura.length} prospectos sin cobertura...`);
-  const ids = sinCobertura.map(p => p.id);
-  const { count } = await prisma.prospecto.deleteMany({ where: { id: { in: ids } } });
-  console.log(`\n✅ ${count} prospectos eliminados.`);
+  console.log('\n═════════════════════════════════════════');
+  console.log(`✅ Con cobertura:  ${totalConFibra}`);
+  console.log(`❌ Borrados:       ${totalBorrados}`);
+  console.log(`⚠️  Errores WMS:   ${totalErrores}`);
+  console.log('═════════════════════════════════════════\n');
+
+  if (!EJECUTAR && (total - totalConFibra - totalErrores) > 0) {
+    console.log('Ejecuta con --ejecutar para confirmar el borrado.');
+  }
 }
 
 main()
