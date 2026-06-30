@@ -21,6 +21,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
     if (session.role !== 'admin') {
       where.asignadoA = session.userId;
+    } else if (req.query.asignadoA) {
+      where.asignadoA = req.query.asignadoA;
     }
 
     const prospectos = await prisma.prospecto.findMany({

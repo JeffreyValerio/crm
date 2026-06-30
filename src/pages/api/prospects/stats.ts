@@ -26,8 +26,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const cedulasConCliente = new Set(clientesExistentes.map(c => c.numeroIdentificacion));
 
     if (session.role === 'admin') {
-      // Sin select explícito para evitar conflicto con Prisma client cacheado en dev
-      const prospectos = await prisma.prospecto.findMany();
+      const asignadoAFilter = req.query.asignadoA as string | undefined;
+      const whereAdmin = asignadoAFilter ? { asignadoA: asignadoAFilter } : {};
+      const prospectos = await prisma.prospecto.findMany({ where: whereAdmin });
 
       // Cargar usuarios asignados por separado
       const userIds = [...new Set(prospectos.map(p => p.asignadoA).filter((id): id is string => !!id))];

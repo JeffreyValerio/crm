@@ -175,10 +175,10 @@ export default function HomePage() {
 
       const [statsRes, prospectsRes, payrollRes, trendsRes, activityRes] = await Promise.all([
         fetch(`/api/dashboard/stats?${params.toString()}`),
-        fetch(`/api/prospects/stats?year=${year}&month=${month}`),
+        fetch(`/api/prospects/stats?year=${year}&month=${month}${filterCreatedBy ? `&asignadoA=${filterCreatedBy}` : ''}`),
         fetch('/api/payroll'),
         fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
-        fetch(`/api/prospects/activity?year=${year}&month=${month}`),
+        fetch(`/api/prospects/activity?year=${year}&month=${month}${filterCreatedBy ? `&asignadoA=${filterCreatedBy}` : ''}`),
       ]);
 
       // ── Stats de clientes ─────────────────────────────────
