@@ -97,17 +97,17 @@ async function main() {
     };
 
     if (r.id_cliente) {
-      // Upsert por cédula — una persona = un prospecto
+      // Si ya existe por cédula, no tocar nada
       await prisma.prospecto.upsert({
         where: { idCliente: r.id_cliente },
-        update: { ...datos, nroOrden: r.nro_orden },
+        update: {},
         create: { nroOrden: r.nro_orden, ...datos },
       });
     } else {
       // Sin cédula, cae en nroOrden
       await prisma.prospecto.upsert({
         where: { nroOrden: r.nro_orden },
-        update: datos,
+        update: {},
         create: { nroOrden: r.nro_orden, ...datos },
       });
     }
