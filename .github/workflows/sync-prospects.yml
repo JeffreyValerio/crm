@@ -46,4 +46,4 @@ jobs:
         run: npm run prospects:limpiar -- --ejecutar
 
       - name: Enviar email de resumen
-        run: tsx scripts/notify-sync.ts
+        run: npx tsx scripts/notify-sync.ts
