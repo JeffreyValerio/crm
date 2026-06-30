@@ -166,6 +166,9 @@ export default function ProspectsPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [sinCoberturaConfirm, setSinCoberturaConfirm] = useState(false);
 
+  // Verificación de cobertura Claro fibra óptica
+  const [coberturaStatus, setCoberturaStatus] = useState<'idle' | 'loading' | 'tiene' | 'no_tiene' | 'error'>('idle');
+
   // Inline obs editing state (for assigned agent in detail dialog)
   const [editingObs, setEditingObs] = useState(false);
   const [obsEditValue, setObsEditValue] = useState('');
@@ -335,11 +338,24 @@ export default function ProspectsPage() {
     }
   }
 
+  async function checkCobertura(lat: string, lng: string) {
+    setCoberturaStatus('loading');
+    try {
+      const res = await fetch(`/api/prospects/check-cobertura?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`);
+      if (!res.ok) { setCoberturaStatus('error'); return; }
+      const data = await res.json();
+      setCoberturaStatus(data.tieneFibra ? 'tiene' : 'no_tiene');
+    } catch {
+      setCoberturaStatus('error');
+    }
+  }
+
   async function openDetalle(p: Prospecto) {
     setViewingProspecto(p);
     setClienteConvertido(null);
     setEditingObs(false);
     setContactMetodo('');
+    setCoberturaStatus('idle');
     if (p.idCliente) {
       try {
         const res = await fetch(`/api/prospects/${p.id}`);
@@ -695,32 +711,61 @@ export default function ProspectsPage() {
                 </div>
 
                 {(viewingProspecto.latitud || viewingProspecto.longitud) && (
-                  <div className="mt-3 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Coordenadas</span>
-                      <p className="mt-0.5 font-mono text-xs">
-                        {viewingProspecto.latitud || '—'}, {viewingProspecto.longitud || '—'}
-                      </p>
-                    </div>
-                    {viewingProspecto.latitud && viewingProspecto.longitud && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() =>
-                          copyToClipboard(
-                            `${viewingProspecto.latitud}, ${viewingProspecto.longitud}`,
-                            'coords',
-                          )
-                        }
-                        title="Copiar coordenadas"
-                      >
-                        {copiedField === 'coords' ? (
-                          <Check className="h-3.5 w-3.5 text-green-500" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs text-muted-foreground">Coordenadas</span>
+                        <p className="mt-0.5 font-mono text-xs">
+                          {viewingProspecto.latitud || '—'}, {viewingProspecto.longitud || '—'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {viewingProspecto.latitud && viewingProspecto.longitud && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => checkCobertura(viewingProspecto.latitud!, viewingProspecto.longitud!)}
+                              disabled={coberturaStatus === 'loading'}
+                              title="Verificar cobertura fibra óptica Claro"
+                            >
+                              {coberturaStatus === 'loading' ? '⏳' : '📡'} Fibra
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() =>
+                                copyToClipboard(
+                                  `${viewingProspecto.latitud}, ${viewingProspecto.longitud}`,
+                                  'coords',
+                                )
+                              }
+                              title="Copiar coordenadas"
+                            >
+                              {copiedField === 'coords' ? (
+                                <Check className="h-3.5 w-3.5 text-green-500" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </Button>
+                          </>
                         )}
-                      </Button>
+                      </div>
+                    </div>
+                    {coberturaStatus !== 'idle' && coberturaStatus !== 'loading' && (
+                      <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-medium ${
+                        coberturaStatus === 'tiene'
+                          ? 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                          : coberturaStatus === 'no_tiene'
+                          ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                          : 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400'
+                      }`}>
+                        {coberturaStatus === 'tiene' && '✅ Cobertura de fibra óptica disponible (Claro)'}
+                        {coberturaStatus === 'no_tiene' && '❌ Sin cobertura de fibra óptica (Claro)'}
+                        {coberturaStatus === 'error' && '⚠️ No se pudo verificar la cobertura'}
+                      </div>
                     )}
                   </div>
                 )}
