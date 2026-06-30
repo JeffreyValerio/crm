@@ -184,7 +184,7 @@ model Prospecto {
   nroOrden          String   @unique
   estado            String?
   prioridad         String?
-  idCliente         String?
+  idCliente         String?  @unique
   contrato          String?
   contratoLigado    String?
   tipoOrden         String?

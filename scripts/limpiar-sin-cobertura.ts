@@ -14,7 +14,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { inflate as _inflate } from 'zlib';
 import { promisify } from 'util';
-import { writeFileSync } from 'fs';
+import { writeFileSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 const inflate = promisify(_inflate);
@@ -36,7 +36,7 @@ const prisma = new PrismaClient({ adapter });
 
 const EJECUTAR = process.argv.includes('--ejecutar');
 const ASIGNADO = process.argv.find(a => a.startsWith('--asignado='))?.split('=')[1];
-const DELAY_MS = 300;
+const DELAY_MS = 10;
 const LOTE = 10;
 
 function toWebMercator(lat: number, lng: number) {
@@ -89,9 +89,18 @@ async function main() {
   if (ASIGNADO) console.log(`👤 Filtro agente: ${ASIGNADO}`);
   console.log('');
 
+  const syncStartFile = join(process.cwd(), '.sync-start.json');
+  let importStartedAt: Date | undefined;
+  if (existsSync(syncStartFile)) {
+    const { importStartedAt: ts } = JSON.parse(readFileSync(syncStartFile, 'utf-8'));
+    importStartedAt = new Date(ts);
+    console.log(`📅 Solo procesando prospectos creados desde: ${importStartedAt.toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' })}\n`);
+  }
+
   const where: Record<string, unknown> = {
     latitud: { not: null },
     longitud: { not: null },
+    ...(importStartedAt && { createdAt: { gte: importStartedAt } }),
   };
   if (ASIGNADO) where.asignadoA = ASIGNADO;
 
