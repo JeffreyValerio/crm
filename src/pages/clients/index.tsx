@@ -1895,7 +1895,10 @@ Comentario: En espera de Instalacion`;
                       variant="outline"
                       size="sm"
                       className="gap-2"
-                      onClick={() => window.open('https://www.claro.cr/mapacobertura/', '_blank')}
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${watch('coordenadasLat')}, ${watch('coordenadasLng')}`);
+                        window.open('https://www.claro.cr/mapacobertura/', '_blank', 'noopener');
+                      }}
                     >
                       <MapPin className="h-4 w-4" />
                       Ver cobertura Claro
@@ -2177,8 +2180,11 @@ Comentario: En espera de Instalacion`;
                         <Download className="h-4 w-4" />
                       </Button>
                       {viewingClient.coordenadasLat && viewingClient.coordenadasLng && (
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Mapa Claro"
-                          onClick={() => window.open('https://www.claro.cr/mapacobertura/', '_blank')}>
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Ver en mapa Claro (coordenadas copiadas al portapapeles)"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${viewingClient.coordenadasLat}, ${viewingClient.coordenadasLng}`);
+                            window.open('https://www.claro.cr/mapacobertura/', '_blank', 'noopener');
+                          }}>
                           <MapPin className="h-4 w-4" />
                         </Button>
                       )}
