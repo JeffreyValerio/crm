@@ -76,14 +76,12 @@ const navSections: NavSection[] = [
 export function Sidebar() {
   const router = useRouter();
   const [userRole, setUserRole] = React.useState<string | null>(null);
-  const [isCollapsed, setIsCollapsed] = React.useState(() => {
-    // Cargar el estado desde localStorage, por defecto false (expandido)
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebarCollapsed');
-      return saved === 'true';
-    }
-    return false;
-  });
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    if (saved === 'true') setIsCollapsed(true);
+  }, []);
 
   React.useEffect(() => {
     async function checkRole() {
