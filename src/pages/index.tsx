@@ -408,21 +408,23 @@ export default function HomePage() {
   return (
     <MainLayout>
       <div className="space-y-6 sm:space-y-8">
-        {/* Header + Filtros inline */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Bienvenido, {user?.nombre ?? user?.email} · {getPeriodLabel()}
-            </p>
-          </div>
-          <div className="grid grid-cols-3 items-center gap-2">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Bienvenido, {user?.nombre ?? user?.email} · {getPeriodLabel()}
+          </p>
+        </div>
+
+        {/* Filtros — sticky mientras se hace scroll */}
+        <div className="sticky top-0 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-2 bg-background/90 backdrop-blur border-b border-border">
+          <div className={cn('grid items-center gap-2', user?.role === 'admin' ? 'grid-cols-3' : 'grid-cols-2')}>
             {user?.role === 'admin' && (
               <Select
                 aria-label="Filtrar por vendedor"
                 value={filterCreatedBy}
                 onChange={(e) => setFilterCreatedBy(e.target.value)}
-                className="h-9 w-full sm:w-auto text-sm"
+                className="h-9 text-sm"
               >
                 <option value="">Todos los vendedores</option>
                 {users.map((u) => {
@@ -441,7 +443,7 @@ export default function HomePage() {
               aria-label="Filtrar por mes"
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
-              className="h-9 flex-1 sm:flex-none text-sm"
+              className="h-9 text-sm"
             >
               <option value="">Todos los meses</option>
               <option value="1">Enero</option>
@@ -461,7 +463,7 @@ export default function HomePage() {
               aria-label="Filtrar por año"
               value={filterYear}
               onChange={(e) => setFilterYear(e.target.value)}
-              className="h-9 flex-1 sm:flex-none text-sm"
+              className="h-9 text-sm"
             >
               {[0, 1, 2].map((i) => {
                 const y = new Date().getFullYear() - i;
