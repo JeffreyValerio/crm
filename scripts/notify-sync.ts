@@ -9,7 +9,7 @@ import { join } from 'path';
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
-const NOTIFY_TO = 'jeffreyvalerio@hotmail.com';
+const NOTIFY_TO = 'jeffreyvalerio@hotmail.com, cvalerioa24@gmail.com';
 
 async function main() {
   // Leer stats del script de limpieza
