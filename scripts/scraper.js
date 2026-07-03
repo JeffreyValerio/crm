@@ -156,8 +156,8 @@ function mapRecord(d) {
     await page.goto('https://fieldservice.cabletica.com/dispatchFS/', { waitUntil: 'networkidle2', timeout: 30000 });
     await page.waitForSelector('.x-form-field', { timeout: 15000 });
     const loginInputs = await page.$$('input.x-form-field');
-    await loginInputs[0].type('ITS');
-    await loginInputs[1].type('ITS2016');
+    await loginInputs[0].type('VENTAS');
+    await loginInputs[1].type('26LYcr20X');
     await page.evaluate(() => {
       [...document.querySelectorAll('a,span,button')].find(e => e.textContent.trim() === 'Entrar').click();
     });
