@@ -12,6 +12,13 @@ const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 const NOTIFY_TO = 'jeffreyvalerio@hotmail.com, cvalerioa24@gmail.com';
 
 async function main() {
+  // Leer stats del import
+  const importStatsFile = join(process.cwd(), '.sync-import-stats.json');
+  let importStats = { totalEncontrados: 0, importados: 0, omitidos: 0 };
+  if (existsSync(importStatsFile)) {
+    importStats = JSON.parse(readFileSync(importStatsFile, 'utf-8'));
+  }
+
   // Leer stats del script de limpieza
   const statsFile = join(process.cwd(), '.sync-stats.json');
   let cleanupStats = { totalConFibra: 0, totalBorrados: 0, totalErrores: 0, fechaFin: new Date().toISOString() };
@@ -21,7 +28,6 @@ async function main() {
 
   // Contar estado actual de la DB
   const totalActual = await prisma.prospecto.count();
-  const conCoords = await prisma.prospecto.count({ where: { latitud: { not: null }, longitud: { not: null } } });
 
   const fechaFin = new Date(cleanupStats.fechaFin).toLocaleString('es-CR', {
     timeZone: 'America/Costa_Rica',
@@ -38,21 +44,28 @@ async function main() {
         <h2 style="color: #2563eb; margin-top: 0;">✅ Sync de prospectos completado</h2>
         <p style="color: #64748b; margin-bottom: 24px;">${fechaFin}</p>
 
-        <table style="width: 100%; border-collapse: collapse;">
+        <h3 style="font-size: 14px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">
+          Import
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-bottom: 16px;">
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 12px 16px; color: #64748b;">📋 Encontrados en el scraper</td>
+            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.totalEncontrados.toLocaleString('es-CR')}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 12px 16px; color: #2563eb;">➕ Nuevos insertados en DB</td>
+            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.importados.toLocaleString('es-CR')}</td>
+          </tr>
           <tr>
-            <td style="padding: 12px 16px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px 6px 0 0;">
-              <span style="font-size: 13px; color: #64748b;">Total prospectos en DB</span>
-              <div style="font-size: 28px; font-weight: bold; color: #1e293b;">${totalActual.toLocaleString('es-CR')}</div>
-            </td>
+            <td style="padding: 12px 16px; color: #64748b;">⏭️ Omitidos (ya existían)</td>
+            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.omitidos.toLocaleString('es-CR')}</td>
           </tr>
         </table>
 
-        <br>
-
         <h3 style="font-size: 14px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">
-          Resumen de limpieza
+          Limpieza de cobertura
         </h3>
-        <table style="width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; margin-bottom: 16px;">
           <tr style="border-bottom: 1px solid #e2e8f0;">
             <td style="padding: 12px 16px; color: #16a34a;">✅ Con cobertura fibra</td>
             <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${cleanupStats.totalConFibra.toLocaleString('es-CR')}</td>
@@ -64,6 +77,15 @@ async function main() {
           <tr>
             <td style="padding: 12px 16px; color: #d97706;">⚠️ Errores WMS</td>
             <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${cleanupStats.totalErrores.toLocaleString('es-CR')}</td>
+          </tr>
+        </table>
+
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 12px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px;">
+              <span style="font-size: 13px; color: #64748b;">Total prospectos en DB ahora</span>
+              <div style="font-size: 28px; font-weight: bold; color: #1e293b;">${totalActual.toLocaleString('es-CR')}</div>
+            </td>
           </tr>
         </table>
 

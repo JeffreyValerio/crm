@@ -115,6 +115,11 @@ async function main() {
   }
 
   console.log(`✓ Importados: ${importados} | Omitidos: ${omitidos}`);
+
+  fs.writeFileSync(
+    path.join(process.cwd(), '.sync-import-stats.json'),
+    JSON.stringify({ totalEncontrados: registros.length, importados, omitidos, fecha: new Date().toISOString() }),
+  );
 }
 
 main()
