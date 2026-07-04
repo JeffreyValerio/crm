@@ -446,7 +446,7 @@ export default function ConfiguracionPage() {
     return <MainLayout><TableSkeleton cols={5} /></MainLayout>;
   }
 
-  const vendors = users.filter(u => u.role !== 'admin');
+  const vendors = users;
 
   return (
     <MainLayout>
@@ -498,7 +498,7 @@ export default function ConfiguracionPage() {
             </CardHeader>
             <CardContent>
               {vendors.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">No hay vendedores registrados.</p>
+                <p className="text-sm text-muted-foreground py-6 text-center">No hay usuarios registrados.</p>
               ) : (
                 <TabMetasKPI vendors={vendors} />
               )}
