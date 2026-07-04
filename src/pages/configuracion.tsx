@@ -10,7 +10,7 @@ import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Plus, Edit, Trash2, Mail, Users, Target, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Users, Target, ChevronLeft, ChevronRight, List, ArrowUp, ArrowDown, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -407,11 +407,318 @@ function TabMetasKPI({ vendors }: { vendors: User[] }) {
   );
 }
 
+// ── Tab Tipificaciones ────────────────────────────────────────────────────────
+
+interface Tipificacion {
+  id: string;
+  valor: string;
+  etiqueta: string;
+  activa: boolean;
+  orden: number;
+  eliminaProspecto: boolean;
+  creaCliente: boolean;
+}
+
+function TabTipificaciones() {
+  const [tips, setTips] = useState<Tipificacion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editEtiqueta, setEditEtiqueta] = useState('');
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Tipificacion | null>(null);
+  const [newEtiqueta, setNewEtiqueta] = useState('');
+  const [newEliminaProspecto, setNewEliminaProspecto] = useState(false);
+  const [newCreaCliente, setNewCreaCliente] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+
+  async function fetchTips() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/tipificaciones');
+      if (res.ok) {
+        const data = await res.json();
+        setTips(data.tipificaciones ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { fetchTips(); }, []);
+
+  async function patch(id: string, body: Record<string, unknown>) {
+    setSavingId(id);
+    try {
+      const res = await fetch(`/api/tipificaciones/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      await fetchTips();
+    } catch { toast.error('Error al guardar'); }
+    finally { setSavingId(null); }
+  }
+
+  async function saveEtiqueta(id: string) {
+    if (!editEtiqueta.trim()) return;
+    await patch(id, { etiqueta: editEtiqueta });
+    setEditingId(null);
+  }
+
+  async function moveOrden(tip: Tipificacion, dir: 1 | -1) {
+    const idx = tips.indexOf(tip);
+    const swapWith = tips[idx + dir];
+    if (!swapWith) return;
+    await Promise.all([
+      patch(tip.id, { orden: swapWith.orden }),
+      patch(swapWith.id, { orden: tip.orden }),
+    ]);
+  }
+
+  async function handleDelete(tip: Tipificacion) {
+    const res = await fetch(`/api/tipificaciones/${tip.id}`, { method: 'DELETE' });
+    if (res.ok) { toast.success('Tipificación eliminada'); await fetchTips(); }
+    else { const d = await res.json(); toast.error(d.error || 'Error'); }
+    setDeleteConfirm(null);
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newEtiqueta.trim()) return;
+    setAddLoading(true);
+    try {
+      const res = await fetch('/api/tipificaciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ etiqueta: newEtiqueta.trim(), eliminaProspecto: newEliminaProspecto, creaCliente: newCreaCliente }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Tipificación creada');
+      setNewEtiqueta(''); setNewEliminaProspecto(false); setNewCreaCliente(false);
+      setAddOpen(false);
+      await fetchTips();
+    } catch { toast.error('Error al crear'); }
+    finally { setAddLoading(false); }
+  }
+
+  if (loading) return <div className="py-8 text-center text-sm text-muted-foreground">Cargando...</div>;
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-muted-foreground">{tips.length} tipificación(es)</p>
+        <Button onClick={() => setAddOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Nueva tipificación
+        </Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-20 text-center">Orden</TableHead>
+                <TableHead>Etiqueta</TableHead>
+                <TableHead className="text-center w-32">Crea cliente</TableHead>
+                <TableHead className="text-center w-36">Elimina prospecto</TableHead>
+                <TableHead className="text-center w-24">Activa</TableHead>
+                <TableHead className="text-right w-32">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tips.length === 0 ? (
+                <TableEmptyState colSpan={6} message="No hay tipificaciones" />
+              ) : tips.map((t, idx) => (
+                <TableRow key={t.id} className={!t.activa ? 'opacity-50' : ''}>
+                  {/* Orden */}
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-0.5">
+                      <button
+                        disabled={idx === 0 || savingId === t.id}
+                        onClick={() => moveOrden(t, -1)}
+                        className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
+                        title="Subir"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="text-xs text-muted-foreground w-5 text-center">{t.orden + 1}</span>
+                      <button
+                        disabled={idx === tips.length - 1 || savingId === t.id}
+                        onClick={() => moveOrden(t, 1)}
+                        className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
+                        title="Bajar"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </TableCell>
+
+                  {/* Etiqueta */}
+                  <TableCell>
+                    {editingId === t.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editEtiqueta}
+                          onChange={e => setEditEtiqueta(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') saveEtiqueta(t.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          className="h-7 text-sm"
+                          autoFocus
+                        />
+                        <button onClick={() => saveEtiqueta(t.id)} className="text-green-600 hover:text-green-700">
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:text-foreground">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        className="cursor-pointer hover:underline"
+                        onClick={() => { setEditingId(t.id); setEditEtiqueta(t.etiqueta); }}
+                        title="Clic para editar"
+                      >
+                        {t.etiqueta}
+                      </span>
+                    )}
+                  </TableCell>
+
+                  {/* Crea cliente */}
+                  <TableCell className="text-center">
+                    <button
+                      onClick={() => patch(t.id, { creaCliente: !t.creaCliente })}
+                      disabled={savingId === t.id}
+                      title={t.creaCliente ? 'Desactivar' : 'Activar'}
+                    >
+                      {t.creaCliente
+                        ? <Badge variant="success">Sí</Badge>
+                        : <Badge variant="default">No</Badge>}
+                    </button>
+                  </TableCell>
+
+                  {/* Elimina prospecto */}
+                  <TableCell className="text-center">
+                    <button
+                      onClick={() => patch(t.id, { eliminaProspecto: !t.eliminaProspecto })}
+                      disabled={savingId === t.id}
+                      title={t.eliminaProspecto ? 'Desactivar' : 'Activar'}
+                    >
+                      {t.eliminaProspecto
+                        ? <Badge variant="destructive">Sí</Badge>
+                        : <Badge variant="default">No</Badge>}
+                    </button>
+                  </TableCell>
+
+                  {/* Activa */}
+                  <TableCell className="text-center">
+                    <button
+                      onClick={() => patch(t.id, { activa: !t.activa })}
+                      disabled={savingId === t.id}
+                      title={t.activa ? 'Desactivar' : 'Activar'}
+                    >
+                      {t.activa
+                        ? <Badge variant="success">Activa</Badge>
+                        : <Badge variant="warning">Inactiva</Badge>}
+                    </button>
+                  </TableCell>
+
+                  {/* Acciones */}
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Eliminar"
+                      onClick={() => setDeleteConfirm(t)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <p className="text-xs text-muted-foreground">
+        Haz clic en la etiqueta para editarla · Haz clic en un badge para activar/desactivar · Usa las flechas para reordenar
+      </p>
+
+      {/* Crear nueva */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nueva tipificación</DialogTitle>
+            <DialogDescription>Define cómo se llamará y su comportamiento al registrarla.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAdd} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium block mb-1">Etiqueta (nombre visible)</label>
+              <Input
+                value={newEtiqueta}
+                onChange={e => setNewEtiqueta(e.target.value)}
+                placeholder="Ej: ✅ Venta realizada"
+                required
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={newCreaCliente}
+                  onChange={e => { setNewCreaCliente(e.target.checked); if (e.target.checked) setNewEliminaProspecto(false); }}
+                  className="h-4 w-4 accent-primary cursor-pointer"
+                />
+                <span className="text-sm">Crea cliente automáticamente</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={newEliminaProspecto}
+                  onChange={e => { setNewEliminaProspecto(e.target.checked); if (e.target.checked) setNewCreaCliente(false); }}
+                  className="h-4 w-4 accent-primary cursor-pointer"
+                />
+                <span className="text-sm">Elimina el prospecto</span>
+              </label>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={addLoading}>{addLoading ? 'Creando...' : 'Crear'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmar eliminación */}
+      {deleteConfirm && (
+        <Dialog open onOpenChange={() => setDeleteConfirm(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>¿Eliminar tipificación?</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Se eliminará <strong>{deleteConfirm.etiqueta}</strong> permanentemente.
+              Los prospectos con esta tipificación no se verán afectados.
+            </p>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancelar</Button>
+              <Button variant="destructive" onClick={() => handleDelete(deleteConfirm)}>Eliminar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: 'usuarios', label: 'Usuarios', icon: Users },
-  { key: 'metas',   label: 'Metas KPI', icon: Target },
+  { key: 'usuarios',        label: 'Usuarios',        icon: Users  },
+  { key: 'metas',           label: 'Metas KPI',       icon: Target },
+  { key: 'tipificaciones',  label: 'Tipificaciones',  icon: List   },
 ] as const;
 
 type Tab = typeof TABS[number]['key'];
@@ -502,6 +809,22 @@ export default function ConfiguracionPage() {
               ) : (
                 <TabMetasKPI vendors={vendors} />
               )}
+            </CardContent>
+          </Card>
+        )}
+        {tab === 'tipificaciones' && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <List className="h-4 w-4 text-primary" />
+                Tipificaciones de prospectos
+              </CardTitle>
+              <CardDescription>
+                Define los resultados disponibles al registrar un contacto con un prospecto. Puedes configurar cuáles crean un cliente o eliminan el prospecto automáticamente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TabTipificaciones />
             </CardContent>
           </Card>
         )}

@@ -239,6 +239,18 @@ model Prospecto {
   @@index([cliente])
 }
 
+model Tipificacion {
+  id               String   @id @default(cuid())
+  valor            String   @unique
+  etiqueta         String
+  activa           Boolean  @default(true)
+  orden            Int      @default(0)
+  eliminaProspecto Boolean  @default(false)
+  creaCliente      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 model KpiMeta {
   id        String   @id @default(cuid())
   periodo   String   @unique // "YYYY-MM"

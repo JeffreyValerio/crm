@@ -87,38 +87,19 @@ interface Prospecto {
   ultimoContacto: string | null;
 }
 
-// ── constantes de resultado de contacto ─────────────────────────────────────
+// ── tipificaciones dinámicas desde DB ───────────────────────────────────────
 
-type ResultadoContacto =
-  | 'VENTA_REALIZADA'
-  | 'CLIENTE_INTERESADO'
-  | 'SEGUIMIENTO'
-  | 'SIN_COBERTURA'
-  | 'LLAMAR_MAS_TARDE'
-  | 'CLIENTE_NO_INTERESADO'
-  | 'OTRO_PROVEEDOR'
-  | 'CLIENTE_MOLESTO'
-  | 'LLAMADA'
-  | 'WHATSAPP'
-  | 'PYME';
+type ResultadoContacto = string;
 
-const RESULTADO_OPTIONS: { value: ResultadoContacto; label: string }[] = [
-  { value: 'VENTA_REALIZADA',       label: '✅ Venta realizada' },
-  { value: 'CLIENTE_INTERESADO',    label: '⭐ Cliente interesado' },
-  { value: 'SEGUIMIENTO',           label: '🔄 Seguimiento' },
-  { value: 'SIN_COBERTURA',         label: '📵 Sin cobertura' },
-  { value: 'LLAMAR_MAS_TARDE',      label: '⏰ Llamar más tarde' },
-  { value: 'CLIENTE_NO_INTERESADO', label: '👎 Cliente no interesado' },
-  { value: 'OTRO_PROVEEDOR',        label: '🔀 Cuenta con otro proveedor' },
-  { value: 'CLIENTE_MOLESTO',       label: '😡 Cliente molesto' },
-  { value: 'LLAMADA',               label: '📞 Llamada' },
-  { value: 'WHATSAPP',              label: '💬 WhatsApp' },
-  { value: 'PYME',                  label: '🏢 PYME' },
-];
-
-const RESULTADO_LABELS: Record<string, string> = Object.fromEntries(
-  RESULTADO_OPTIONS.map(o => [o.value, o.label])
-);
+interface Tipificacion {
+  id: string;
+  valor: string;
+  etiqueta: string;
+  activa: boolean;
+  orden: number;
+  eliminaProspecto: boolean;
+  creaCliente: boolean;
+}
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -162,6 +143,7 @@ export default function ProspectsPage() {
   const [bulkUserId, setBulkUserId] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
 
+  const [tipificaciones, setTipificaciones] = useState<Tipificacion[]>([]);
   const [contactLoading, setContactLoading] = useState<string | null>(null);
   const [contactMetodo, setContactMetodo] = useState<ResultadoContacto | ''>('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -182,6 +164,9 @@ export default function ProspectsPage() {
     fetch('/api/auth/me')
       .then(r => { if (!r.ok) window.location.href = '/login'; return r.json(); })
       .then(d => setSession(d.user));
+    fetch('/api/tipificaciones?soloActivas=true')
+      .then(r => r.json())
+      .then(d => setTipificaciones(d.tipificaciones || []));
   }, []);
 
 
@@ -298,11 +283,11 @@ export default function ProspectsPage() {
         setViewingProspecto(prev => prev ? { ...prev, ...data.prospecto } : prev);
       }
 
-      if (resultado === 'VENTA_REALIZADA' && data.clienteCreado) {
+      if (data.clienteCreado) {
         setClienteConvertido(data.clienteCreado);
         toast.success('¡Venta registrada! Cliente creado correctamente.');
       } else {
-        toast.success(`Resultado registrado: ${RESULTADO_LABELS[resultado] ?? resultado}`);
+        toast.success(`Resultado registrado: ${getTipEtiqueta(resultado)}`);
       }
 
       fetchProspectos(currentPage);
@@ -375,6 +360,15 @@ export default function ProspectsPage() {
   const isAssignedAgent = (p: Prospecto) =>
     session.role !== 'admin' && p.asignadoA === session.userId;
 
+  function getTipEtiqueta(valor: string | null | undefined): string {
+    if (!valor) return '—';
+    return tipificaciones.find(t => t.valor === valor)?.etiqueta ?? valor;
+  }
+
+  function getSelectedTip(): Tipificacion | undefined {
+    return tipificaciones.find(t => t.valor === contactMetodo);
+  }
+
   return (
     <MainLayout>
       <div className="space-y-4">
@@ -424,8 +418,8 @@ export default function ProspectsPage() {
             className="w-56"
           >
             <option value="">Todas las tipificaciones</option>
-            {RESULTADO_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+            {tipificaciones.map(t => (
+              <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
             ))}
           </Select>
         </div>
@@ -802,13 +796,14 @@ export default function ProspectsPage() {
                         className="flex-1"
                       >
                         <option value="" disabled>— Seleccione —</option>
-                        {RESULTADO_OPTIONS.map(o => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
+                        {tipificaciones.map(t => (
+                          <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
                         ))}
                       </Select>
                       <Button
                         onClick={() => {
-                          if (contactMetodo === 'SIN_COBERTURA') {
+                          const tip = getSelectedTip();
+                          if (tip?.eliminaProspecto) {
                             setSinCoberturaConfirm(true);
                           } else {
                             handleContactar(viewingProspecto, contactMetodo as ResultadoContacto);
@@ -827,7 +822,7 @@ export default function ProspectsPage() {
                           ? new Date(viewingProspecto.ultimoContacto).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
                           : '—'}
                         {viewingProspecto.metodoContacto && (
-                          <> · {RESULTADO_LABELS[viewingProspecto.metodoContacto] ?? viewingProspecto.metodoContacto}</>
+                          <> · {getTipEtiqueta(viewingProspecto.metodoContacto)}</>
                         )}
                       </p>
                     )}
@@ -860,7 +855,7 @@ export default function ProspectsPage() {
                         : '—'}
                       {viewingProspecto.ultimoContacto && viewingProspecto.metodoContacto && (
                         <span className="ml-1.5 text-muted-foreground text-xs">
-                          {RESULTADO_LABELS[viewingProspecto.metodoContacto] ?? viewingProspecto.metodoContacto}
+                          {getTipEtiqueta(viewingProspecto.metodoContacto)}
                         </span>
                       )}
                     </p>
@@ -958,7 +953,7 @@ export default function ProspectsPage() {
               <DialogTitle>¿Eliminar prospecto?</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              Al registrar <strong>Sin cobertura</strong>, el prospecto{' '}
+              Al registrar <strong>{getTipEtiqueta(contactMetodo)}</strong>, el prospecto{' '}
               <strong>{viewingProspecto.cliente}</strong> será eliminado permanentemente de la base de datos.
               Esta acción no se puede deshacer.
             </p>
@@ -971,7 +966,7 @@ export default function ProspectsPage() {
                 disabled={contactLoading === viewingProspecto.id}
                 onClick={() => {
                   setSinCoberturaConfirm(false);
-                  handleContactar(viewingProspecto, 'SIN_COBERTURA');
+                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto);
                 }}
               >
                 Sí, eliminar
