@@ -10,9 +10,11 @@ async function waitForGrid(page, maxSec = 20) {
   for (let t = 0; t < maxSec; t++) {
     await waitMs(1000);
     const info = await page.evaluate(() => {
-      const grid = Ext.ComponentQuery.query('gridpanel').find(g => !g.isHidden() && g.getStore().getCount() > 0);
-      if (!grid) return null;
-      return { id: grid.getId(), count: grid.getStore().getCount(), total: grid.getStore().getTotalCount() };
+      try {
+        const grid = Ext.ComponentQuery.query('gridpanel').find(g => !g.isHidden() && g.getStore && g.getStore().getCount() > 0);
+        if (!grid) return null;
+        return { id: grid.getId(), count: grid.getStore().getCount(), total: grid.getStore().getTotalCount() };
+      } catch { return null; }
     });
     if (info) return info;
   }
@@ -206,9 +208,22 @@ function mapRecord(d) {
     });
     await waitMs(300);
 
+    // Esperar a que el grid esté disponible antes de inspeccionarlo
+    let gridReady = false;
+    for (let t = 0; t < 15; t++) {
+      gridReady = await page.evaluate(() => {
+        const grid = Ext.getCmp('grid-1046') || Ext.ComponentQuery.query('gridpanel').find(g => !g.isHidden());
+        return !!(grid && grid.getStore);
+      });
+      if (gridReady) break;
+      await waitMs(1000);
+    }
+    if (!gridReady) throw new Error('Grid no disponible tras esperar 15s');
+
     // Inspeccionar y actualizar extraParams del store directamente
     const extraParamsBefore = await page.evaluate(() => {
       const grid = Ext.getCmp('grid-1046') || Ext.ComponentQuery.query('gridpanel').find(g => !g.isHidden());
+      if (!grid) return '{}';
       const proxy = grid.getStore().getProxy();
       return JSON.stringify(proxy.extraParams || {});
     });
