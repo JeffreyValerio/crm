@@ -2,15 +2,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { 
-  Users, 
-  LayoutDashboard, 
+import {
+  LayoutDashboard,
   LogOut,
   Package,
   UserCircle,
   ChevronLeft,
   ChevronRight,
-  Target
+  Target,
+  Settings
 } from 'lucide-react';
 
 interface NavItem {
@@ -56,16 +56,16 @@ const navSections: NavSection[] = [
   {
     title: 'Configuración',
     items: [
-  {
-    title: 'Planes',
-    href: '/plans',
-    icon: Package,
-    adminOnly: true,
-  },
-  {
-    title: 'Usuarios',
-    href: '/users',
-    icon: Users,
+      {
+        title: 'Planes',
+        href: '/plans',
+        icon: Package,
+        adminOnly: true,
+      },
+      {
+        title: 'Configuración',
+        href: '/configuracion',
+        icon: Settings,
         adminOnly: true,
       },
     ],

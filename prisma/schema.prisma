@@ -28,6 +28,7 @@ model User {
   approvedAdvances  Advance[] @relation("AdvanceApprover")
   prospectos        Prospecto[]
   notifications     Notification[]
+  userKpiMetas      UserKpiMeta[]
 }
 
 model Notification {
@@ -244,4 +245,17 @@ model KpiMeta {
   meta      Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model UserKpiMeta {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodo   String   // "YYYY-MM"
+  meta      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, periodo])
+  @@index([userId])
 }

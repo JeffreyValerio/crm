@@ -112,6 +112,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       percentage: number;
     }> = [];
 
+    // Periodos involucrados (para lookup de metas por usuario)
+    const periodosInvolucrados: string[] = [];
+    if (y && m) {
+      periodosInvolucrados.push(`${y}-${String(m).padStart(2, '0')}`);
+    } else if (y) {
+      const now = new Date();
+      const mesesDelPeriodo = y === now.getFullYear() ? now.getMonth() + 1 : 12;
+      for (let i = 1; i <= mesesDelPeriodo; i++) {
+        periodosInvolucrados.push(`${y}-${String(i).padStart(2, '0')}`);
+      }
+    }
+
     if (session.role === 'admin') {
       const complianceRaw = await prisma.client.groupBy({
         by: ['createdBy', 'saleStatus'],
@@ -120,11 +132,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       const userIds = [...new Set(complianceRaw.map(r => r.createdBy))];
-      const users = await prisma.user.findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, email: true, nombre: true, apellidos: true },
-      });
+      const [users, userKpis, globalKpis] = await Promise.all([
+        prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, email: true, nombre: true, apellidos: true },
+        }),
+        periodosInvolucrados.length > 0
+          ? prisma.userKpiMeta.findMany({
+              where: { userId: { in: userIds }, periodo: { in: periodosInvolucrados } },
+            })
+          : Promise.resolve([]),
+        periodosInvolucrados.length > 0
+          ? prisma.kpiMeta.findMany({ where: { periodo: { in: periodosInvolucrados } } })
+          : Promise.resolve([]),
+      ]);
+
       const userMap = new Map(users.map(u => [u.id, u]));
+      const globalKpiMap = new Map(globalKpis.map(k => [k.periodo, k.meta]));
+
+      // Calcular meta por usuario sumando sus metas de cada período
+      function userTargetForPeriods(uid: string): number {
+        return periodosInvolucrados.reduce((sum, p) => {
+          const userSpecific = userKpis.find(k => k.userId === uid && k.periodo === p);
+          return sum + (userSpecific?.meta ?? globalKpiMap.get(p) ?? DEFAULT_META_POR_MES);
+        }, 0) || DEFAULT_META_POR_MES;
+      }
 
       const compMap = new Map<string, { userId: string; email: string; nombre: string | null; apellidos: string | null; installed: number; pending: number }>();
       for (const row of complianceRaw) {
@@ -138,12 +170,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         else if (row.saleStatus === 'PENDIENTE_INSTALACION') entry.pending += row._count.id;
       }
 
-      cumplimiento = Array.from(compMap.values()).map(s => ({
-        ...s,
-        target: meta,
-        percentage: Math.round(Math.min((s.installed / meta) * 100, 100)),
-      }));
+      cumplimiento = Array.from(compMap.values()).map(s => {
+        const target = userTargetForPeriods(s.userId);
+        return {
+          ...s,
+          target,
+          percentage: Math.round(Math.min((s.installed / target) * 100, 100)),
+        };
+      });
     } else {
+      // Meta del propio usuario
+      const myUserKpis = periodosInvolucrados.length > 0
+        ? await prisma.userKpiMeta.findMany({
+            where: { userId: session.userId, periodo: { in: periodosInvolucrados } },
+          })
+        : [];
+      const globalKpis = periodosInvolucrados.length > 0
+        ? await prisma.kpiMeta.findMany({ where: { periodo: { in: periodosInvolucrados } } })
+        : [];
+      const globalKpiMap = new Map(globalKpis.map(k => [k.periodo, k.meta]));
+      const myTarget = periodosInvolucrados.reduce((sum, p) => {
+        const userSpecific = myUserKpis.find(k => k.periodo === p);
+        return sum + (userSpecific?.meta ?? globalKpiMap.get(p) ?? DEFAULT_META_POR_MES);
+      }, 0) || DEFAULT_META_POR_MES;
+
       const myInstalled = groupedBySale.filter(g => g.saleStatus === 'INSTALADA').reduce((s, g) => s + g._count.id, 0);
       const myPending = groupedBySale.find(g => g.saleStatus === 'PENDIENTE_INSTALACION')?._count.id ?? 0;
       cumplimiento = [{
@@ -153,8 +203,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         apellidos: null,
         installed: myInstalled,
         pending: myPending,
-        target: meta,
-        percentage: Math.round(Math.min((myInstalled / meta) * 100, 100)),
+        target: myTarget,
+        percentage: Math.round(Math.min((myInstalled / myTarget) * 100, 100)),
       }];
     }
 
