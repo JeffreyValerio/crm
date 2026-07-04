@@ -6,8 +6,10 @@ import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle } from 'lucide-react';
+import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 
 const TrendsCharts = dynamic(
   () => import('@/components/dashboard/trends-charts').then(m => m.TrendsCharts),
@@ -73,7 +75,10 @@ export default function HomePage() {
     effectiveness: number;
   } | null>(null);
   const hasMounted = useRef(false);
-  const [kpiMeta, setKpiMeta] = useState<number>(6);
+  const [kpiMeta, setKpiMeta] = useState<number>(8);
+  const [editingMeta, setEditingMeta] = useState(false);
+  const [editMetaValue, setEditMetaValue] = useState<string>('8');
+  const [savingMeta, setSavingMeta] = useState(false);
   const [trendsData, setTrendsData] = useState<{
     tendencia: Array<{ mes: string; registrados: number; instalaciones: number }>;
     comparativa: Array<{ mes: string; [k: string]: number | string }>;
@@ -239,6 +244,28 @@ export default function HomePage() {
     if (user) loadDashboardData(null, filterYear, filterMonth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCreatedBy, filterYear, filterMonth]);
+
+  async function saveMeta() {
+    const value = parseInt(editMetaValue);
+    if (!filterMonth || !filterYear || isNaN(value) || value < 1) return;
+    setSavingMeta(true);
+    try {
+      const periodo = `${filterYear}-${filterMonth.padStart(2, '0')}`;
+      const res = await fetch('/api/kpi-meta', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ periodo, meta: value }),
+      });
+      if (!res.ok) throw new Error();
+      setEditingMeta(false);
+      toast.success('Meta actualizada');
+      loadDashboardData(null, filterYear, filterMonth);
+    } catch {
+      toast.error('Error al guardar la meta');
+    } finally {
+      setSavingMeta(false);
+    }
+  }
 
   function getStatusInfo(status: string | null, saleStatus: string | null) {
     // Priorizar estado de venta si existe
@@ -641,10 +668,20 @@ export default function HomePage() {
           <div className="lg:col-span-2">
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Target className="h-4 w-4 text-primary" />
-                  KPI de Cumplimiento
-                </CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    KPI de Cumplimiento
+                  </CardTitle>
+                  {user?.role === 'admin' && filterMonth && (
+                    <button
+                      onClick={() => { setEditMetaValue(String(kpiMeta)); setEditingMeta(true); }}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Pencil className="h-3 w-3" /> Editar meta
+                    </button>
+                  )}
+                </div>
                 <CardDescription>
                   Meta: {kpiMeta} ventas instaladas por vendedor · {getPeriodLabel()}
                 </CardDescription>
@@ -872,6 +909,40 @@ export default function HomePage() {
           />
         )}
       </div>
+
+      {/* Dialog: editar meta de KPI */}
+      {editingMeta && (
+        <Dialog open onOpenChange={() => setEditingMeta(false)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Editar meta · {getPeriodLabel()}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Define cuántas instalaciones debe lograr cada vendedor este período.
+              </p>
+              <div>
+                <label className="text-sm font-medium block mb-1">Meta de instalaciones</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editMetaValue}
+                  onChange={e => setEditMetaValue(e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  autoFocus
+                  onKeyDown={e => e.key === 'Enter' && saveMeta()}
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setEditingMeta(false)}>Cancelar</Button>
+              <Button onClick={saveMeta} disabled={savingMeta}>
+                {savingMeta ? 'Guardando...' : 'Guardar'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   );
 }

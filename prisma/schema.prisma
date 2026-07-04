@@ -237,3 +237,11 @@ model Prospecto {
   @@index([estado])
   @@index([cliente])
 }
+
+model KpiMeta {
+  id        String   @id @default(cuid())
+  periodo   String   @unique // "YYYY-MM"
+  meta      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

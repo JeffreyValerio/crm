@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 
-const TARGET_POR_MES = 8;
+const DEFAULT_META_POR_MES = 8;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).end();
@@ -15,17 +15,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const y = year ? parseInt(year as string) : null;
   const m = month ? parseInt(month as string) : null;
 
-  // Meta dinámica según período
-  // - Mes específico → 6
-  // - Año actual sin mes → 6 × meses transcurridos (hasta el mes actual)
-  // - Año pasado sin mes → 6 × 12
-  let meta = TARGET_POR_MES;
-  if (y && !m) {
+  // Calcular meta desde DB (KpiMeta por periodo YYYY-MM) o usar default
+  let meta = DEFAULT_META_POR_MES;
+  if (y && m) {
+    const periodo = `${y}-${String(m).padStart(2, '0')}`;
+    const kpi = await prisma.kpiMeta.findUnique({ where: { periodo } });
+    meta = kpi?.meta ?? DEFAULT_META_POR_MES;
+  } else if (y) {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     const mesesDelPeriodo = y === currentYear ? currentMonth : 12;
-    meta = TARGET_POR_MES * mesesDelPeriodo;
+
+    // Sumar metas configuradas para cada mes del período
+    const periodos = Array.from({ length: mesesDelPeriodo }, (_, i) =>
+      `${y}-${String(i + 1).padStart(2, '0')}`
+    );
+    const kpis = await prisma.kpiMeta.findMany({ where: { periodo: { in: periodos } } });
+    const kpiMap = new Map(kpis.map(k => [k.periodo, k.meta]));
+    meta = periodos.reduce((sum, p) => sum + (kpiMap.get(p) ?? DEFAULT_META_POR_MES), 0);
   }
 
   // Rango de fechas en UTC para evitar problemas de zona horaria
