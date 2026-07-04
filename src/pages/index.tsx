@@ -171,7 +171,7 @@ export default function HomePage() {
 
         setTotalClients(data.totalClients ?? 0);
         setStats(data.statsParEstado ?? []);
-        setKpiMeta(data.meta ?? 6);
+        setKpiMeta(data.meta ?? 8);
         setEffectivenessData({
           totalContacts: data.totalClients ?? 0,
           installed: data.instalaciones ?? 0,
