@@ -125,7 +125,7 @@ model Client {
   coordenadasLat        String?
   coordenadasLng        String?
   // Técnico
-  numeroMedidor         String?
+  numeroMedidor         String?  @unique
   // Plan
   planId                String?
   plan                  Plan?              @relation(fields: [planId], references: [id])
