@@ -27,9 +27,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (session.role === 'admin') {
       const asignadoAFilter = req.query.asignadoA as string | undefined;
-      const whereAdmin: Record<string, unknown> = {
-        createdAt: { gte: monthStart, lt: monthEnd },
-      };
+      const filtrarPorMes = !!(req.query.month as string);
+      const whereAdmin: Record<string, unknown> = {};
+      if (filtrarPorMes) whereAdmin.createdAt = { gte: monthStart, lt: monthEnd };
       if (asignadoAFilter) whereAdmin.asignadoA = asignadoAFilter;
       const prospectos = await prisma.prospecto.findMany({ where: whereAdmin });
 
@@ -81,8 +81,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ stats: Array.from(map.values()) });
     } else {
       // Para usuario: sin select explícito para compatibilidad con Prisma client en dev
+      const filtrarPorMes = !!(req.query.month as string);
       const misProspectos = await prisma.prospecto.findMany({
-        where: { asignadoA: session.userId, createdAt: { gte: monthStart, lt: monthEnd } },
+        where: {
+          asignadoA: session.userId,
+          ...(filtrarPorMes && { createdAt: { gte: monthStart, lt: monthEnd } }),
+        },
       });
 
       let total = 0, conAlerta = 0, contactadosMes = 0, convertidos = 0;
