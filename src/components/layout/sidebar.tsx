@@ -134,6 +134,9 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     if (onMobileClose) onMobileClose();
   };
 
+  // En móvil siempre mostrar expandido
+  const collapsed = mobileOpen ? false : isCollapsed;
+
   return (
     <div className={cn(
       "flex h-screen flex-col border-r bg-card transition-all duration-300",
@@ -145,23 +148,25 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     )}>
       <div className={cn(
         "flex h-16 items-center border-b px-4",
-        isCollapsed ? "justify-center" : "justify-between"
+        collapsed ? "justify-center" : "justify-between"
       )}>
-        {!isCollapsed && (
+        {!collapsed && (
           <h1 className="text-xl font-bold text-primary">CRM</h1>
         )}
-        <button
-          onClick={toggleSidebar}
-          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors"
-          aria-label={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-          title={isCollapsed ? "Expandir" : "Colapsar"}
-        >
-          {isCollapsed ? (
-            <ChevronRight className="h-5 w-5 text-foreground" />
-          ) : (
-            <ChevronLeft className="h-5 w-5 text-foreground" />
-          )}
-        </button>
+        {!mobileOpen && (
+          <button
+            onClick={toggleSidebar}
+            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors"
+            aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+            title={collapsed ? "Expandir" : "Colapsar"}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-5 w-5 text-foreground" />
+            ) : (
+              <ChevronLeft className="h-5 w-5 text-foreground" />
+            )}
+          </button>
+        )}
       </div>
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
         {filteredSections.map((section, sectionIndex) => {
@@ -179,14 +184,14 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
 
           return (
             <div key={sectionIndex} className="space-y-2">
-              {!isCollapsed && (
+              {!collapsed && (
                 <div className="px-3 py-1.5">
                   <h2 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider">
                     {section.title}
                   </h2>
                 </div>
               )}
-              {isCollapsed && sectionIndex > 0 && (
+              {collapsed && sectionIndex > 0 && (
                 <div className="h-px bg-border/50 mx-2" />
               )}
               <div className="space-y-1">
@@ -200,15 +205,15 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               onClick={handleNavClick}
               className={cn(
                 'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isCollapsed ? 'justify-center' : 'gap-3',
+                collapsed ? 'justify-center' : 'gap-3',
                 isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'text-foreground hover:bg-accent hover:text-accent-foreground'
               )}
-              title={isCollapsed ? item.title : undefined}
+              title={collapsed ? item.title : undefined}
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
-              {!isCollapsed && (
+              {!collapsed && (
                 <span className="whitespace-nowrap">{item.title}</span>
               )}
             </Link>
@@ -224,12 +229,12 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           onClick={handleLogout}
           className={cn(
             "flex items-center rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground w-full",
-            isCollapsed ? "justify-center" : "gap-3"
+            collapsed ? "justify-center" : "gap-3"
           )}
-          title={isCollapsed ? "Cerrar sesión" : undefined}
+          title={collapsed ? "Cerrar sesión" : undefined}
         >
           <LogOut className="h-5 w-5 flex-shrink-0" />
-          {!isCollapsed && (
+          {!collapsed && (
             <span className="whitespace-nowrap">Cerrar sesión</span>
           )}
         </button>
