@@ -27,7 +27,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (session.role === 'admin') {
       const asignadoAFilter = req.query.asignadoA as string | undefined;
-      const whereAdmin = asignadoAFilter ? { asignadoA: asignadoAFilter } : {};
+      const whereAdmin: Record<string, unknown> = {
+        createdAt: { gte: monthStart, lt: monthEnd },
+      };
+      if (asignadoAFilter) whereAdmin.asignadoA = asignadoAFilter;
       const prospectos = await prisma.prospecto.findMany({ where: whereAdmin });
 
       // Cargar usuarios asignados por separado
@@ -79,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } else {
       // Para usuario: sin select explícito para compatibilidad con Prisma client en dev
       const misProspectos = await prisma.prospecto.findMany({
-        where: { asignadoA: session.userId },
+        where: { asignadoA: session.userId, createdAt: { gte: monthStart, lt: monthEnd } },
       });
 
       let total = 0, conAlerta = 0, contactadosMes = 0, convertidos = 0;
