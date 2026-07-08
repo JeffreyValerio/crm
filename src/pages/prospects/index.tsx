@@ -376,7 +376,7 @@ export default function ProspectsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Prospectos</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm hidden sm:block">
               {total} prospecto{total !== 1 ? 's' : ''}{' '}
               {session.role !== 'admin' ? 'asignados a ti' : 'en total'}
             </p>
@@ -384,27 +384,30 @@ export default function ProspectsPage() {
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-3">
-          <form onSubmit={handleSearch} className="flex gap-2 flex-1 min-w-[200px]">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+          <form onSubmit={handleSearch} className="col-span-2 sm:flex-1 sm:min-w-[200px] flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar cliente, N° orden, cédula, teléfono..."
+                placeholder="Buscar cliente, cédula, teléfono..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
             </div>
-            <Button type="submit" variant="outline">Buscar</Button>
+            <Button type="submit" variant="outline" className="shrink-0">
+              <Search className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Buscar</span>
+            </Button>
           </form>
 
           {session.role === 'admin' && (
             <Select
               value={filterAsignado}
               onChange={e => { const v = e.target.value; setFilterAsignado(v); fetchProspectos(1, v); }}
-              className="w-48"
+              className="col-span-1"
             >
-              <option value="">Todos</option>
+              <option value="">Agente: todos</option>
               <option value="sin_asignar">Sin asignar</option>
               {usuarios.map(u => (
                 <option key={u.id} value={u.id}>{nombreUsuario(u)}</option>
@@ -415,180 +418,198 @@ export default function ProspectsPage() {
           <Select
             value={filterTipificacion}
             onChange={e => { const v = e.target.value; setFilterTipificacion(v); fetchProspectos(1, undefined, v); }}
-            className="w-56"
+            className="col-span-1"
           >
-            <option value="">Todas las tipificaciones</option>
+            <option value="">Tipificación: todas</option>
             {tipificaciones.map(t => (
               <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
             ))}
           </Select>
         </div>
 
-        {/* Tabla */}
+        {/* Lista */}
         {loading ? (
           <TableSkeleton cols={session.role === 'admin' ? 6 : 4} rows={10} />
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
+          <>
+            {/* Vista cards — móvil */}
+            <div className="sm:hidden space-y-2">
+              {prospectos.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8 text-sm">No hay prospectos que coincidan</p>
+              ) : prospectos.map(p => (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 ${tieneAlerta(p) && p.asignadoA ? 'border-destructive/40 bg-red-50/30 dark:bg-red-950/10' : ''}`}
+                >
                   {session.role === 'admin' && (
-                    <TableHead className="w-10">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 cursor-pointer accent-primary"
-                        checked={prospectos.length > 0 && prospectos.every(p => selectedIds.has(p.id))}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setSelectedIds(new Set(prospectos.map(p => p.id)));
-                          } else {
-                            setSelectedIds(new Set());
-                          }
-                        }}
-                      />
-                    </TableHead>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 cursor-pointer accent-primary flex-shrink-0"
+                      checked={selectedIds.has(p.id)}
+                      onChange={e => {
+                        const next = new Set(selectedIds);
+                        if (e.target.checked) next.add(p.id);
+                        else next.delete(p.id);
+                        setSelectedIds(next);
+                      }}
+                    />
                   )}
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Tel. Celular</TableHead>
-                  <TableHead>Provincia</TableHead>
-                  <TableHead>Contactos</TableHead>
-                  {session.role === 'admin' && <TableHead>Asignado a</TableHead>}
-                  {session.role === 'admin' && <TableHead>Fecha asignado</TableHead>}
-                  {session.role !== 'admin' && <TableHead>Fecha asignado</TableHead>}
-                  <TableHead className="w-28">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {prospectos.length === 0 ? (
-                  <TableEmptyState
-                    colSpan={session.role === 'admin' ? 8 : 6}
-                    message="No hay prospectos que coincidan"
-                  />
-                ) : (
-                  prospectos.map(p => (
-                    <TableRow
-                      key={p.id}
-                      className={
-                        tieneAlerta(p) && p.asignadoA
-                          ? 'bg-red-50/50 dark:bg-red-950/10'
-                          : ''
-                      }
-                    >
-                      {/* Checkbox (admin only) */}
-                      {session.role === 'admin' && (
-                        <TableCell className="w-10">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 cursor-pointer accent-primary"
-                            checked={selectedIds.has(p.id)}
-                            onChange={e => {
-                              const next = new Set(selectedIds);
-                              if (e.target.checked) next.add(p.id);
-                              else next.delete(p.id);
-                              setSelectedIds(next);
-                            }}
-                          />
-                        </TableCell>
+                  {/* Avatar inicial */}
+                  <div className="flex-shrink-0 h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary">
+                      {(p.cliente || '?').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.cliente || '—'}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {formatTel(p.telCelular) || '—'} · {p.provincia || '—'}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <Phone className={`h-3 w-3 ${p.metodoContacto ? 'text-muted-foreground' : 'text-muted-foreground/40'}`} />
+                      <span className="text-xs tabular-nums">{p.totalContactos}</span>
+                      {tieneAlerta(p) && p.asignadoA && (
+                        <AlertTriangle className="h-3 w-3 text-destructive" />
                       )}
-                      {/* Cliente */}
-                      <TableCell className="font-medium">
-                        <div>{p.cliente || '—'}</div>
-                        <div className="text-xs text-muted-foreground">{formatCedula(p.idCliente) || ''}</div>
-                      </TableCell>
-
-                      {/* Tel. Celular */}
-                      <TableCell className="text-sm font-mono">
-                        {formatTel(p.telCelular) || '—'}
-                      </TableCell>
-
-                      {/* Provincia */}
-                      <TableCell className="text-sm">{p.provincia || '—'}</TableCell>
-
-                      {/* Contactos */}
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          {p.metodoContacto ? (
-                            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                          ) : (
-                            <Phone className="h-3.5 w-3.5 text-muted-foreground/40" />
-                          )}
-                          <span className="text-sm tabular-nums">{p.totalContactos}</span>
-                          {tieneAlerta(p) && p.asignadoA && (
-                            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                          )}
-                        </div>
-                      </TableCell>
-
-                      {/* Asignado a (admin only) */}
-                      {session.role === 'admin' && (
-                        <TableCell className="text-sm">
-                          {p.asignado ? (
-                            <span className="text-foreground">{nombreUsuario(p.asignado)}</span>
-                          ) : (
-                            <span className="text-muted-foreground italic">Sin asignar</span>
-                          )}
-                        </TableCell>
+                      {session.role === 'admin' && p.asignado && (
+                        <span className="text-xs text-muted-foreground truncate">· {nombreUsuario(p.asignado)}</span>
                       )}
+                    </div>
+                  </div>
+                  {/* Acciones */}
+                  <div className="flex gap-0.5 flex-shrink-0">
+                    <Button variant="ghost" size="sm" onClick={() => openDetalle(p)} title="Ver detalle" className="h-8 w-8 p-0">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {session.role === 'admin' && (
+                      <Button variant="ghost" size="sm" onClick={() => openAssign(p)} title="Asignar" className="h-8 w-8 p-0">
+                        <UserCheck className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
 
-                      {/* Fecha de asignación (admin only) */}
-                      {session.role === 'admin' && (
+            {/* Vista tabla — desktop */}
+            <div className="hidden sm:block rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {session.role === 'admin' && (
+                      <TableHead className="w-10">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 cursor-pointer accent-primary"
+                          checked={prospectos.length > 0 && prospectos.every(p => selectedIds.has(p.id))}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedIds(new Set(prospectos.map(p => p.id)));
+                            } else {
+                              setSelectedIds(new Set());
+                            }
+                          }}
+                        />
+                      </TableHead>
+                    )}
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Tel. Celular</TableHead>
+                    <TableHead>Provincia</TableHead>
+                    <TableHead>Contactos</TableHead>
+                    {session.role === 'admin' && <TableHead>Asignado a</TableHead>}
+                    <TableHead>Fecha asignado</TableHead>
+                    <TableHead className="w-28">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {prospectos.length === 0 ? (
+                    <TableEmptyState
+                      colSpan={session.role === 'admin' ? 8 : 6}
+                      message="No hay prospectos que coincidan"
+                    />
+                  ) : (
+                    prospectos.map(p => (
+                      <TableRow
+                        key={p.id}
+                        className={tieneAlerta(p) && p.asignadoA ? 'bg-red-50/50 dark:bg-red-950/10' : ''}
+                      >
+                        {session.role === 'admin' && (
+                          <TableCell className="w-10">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 cursor-pointer accent-primary"
+                              checked={selectedIds.has(p.id)}
+                              onChange={e => {
+                                const next = new Set(selectedIds);
+                                if (e.target.checked) next.add(p.id);
+                                else next.delete(p.id);
+                                setSelectedIds(next);
+                              }}
+                            />
+                          </TableCell>
+                        )}
+                        <TableCell className="font-medium">
+                          <div>{p.cliente || '—'}</div>
+                          <div className="text-xs text-muted-foreground">{formatCedula(p.idCliente) || ''}</div>
+                        </TableCell>
+                        <TableCell className="text-sm font-mono">{formatTel(p.telCelular) || '—'}</TableCell>
+                        <TableCell className="text-sm">{p.provincia || '—'}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            {p.metodoContacto ? (
+                              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                            ) : (
+                              <Phone className="h-3.5 w-3.5 text-muted-foreground/40" />
+                            )}
+                            <span className="text-sm tabular-nums">{p.totalContactos}</span>
+                            {tieneAlerta(p) && p.asignadoA && (
+                              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                            )}
+                          </div>
+                        </TableCell>
+                        {session.role === 'admin' && (
+                          <TableCell className="text-sm">
+                            {p.asignado ? (
+                              <span className="text-foreground">{nombreUsuario(p.asignado)}</span>
+                            ) : (
+                              <span className="text-muted-foreground italic">Sin asignar</span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           {p.asignadoAt
                             ? new Date(p.asignadoAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
                             : '—'}
                         </TableCell>
-                      )}
-
-                      {/* Fecha de asignación (user only) */}
-                      {session.role !== 'admin' && (
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {p.asignadoAt
-                            ? new Date(p.asignadoAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
-                            : '—'}
-                        </TableCell>
-                      )}
-
-                      {/* Acciones */}
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openDetalle(p)}
-                            title="Ver detalle"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-
-
-                          {/* Assign button — admin only */}
-                          {session.role === 'admin' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openAssign(p)}
-                              title="Asignar"
-                            >
-                              <UserCheck className="h-4 w-4" />
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openDetalle(p)} title="Ver detalle">
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                            {session.role === 'admin' && (
+                              <Button variant="ghost" size="sm" onClick={() => openAssign(p)} title="Asignar">
+                                <UserCheck className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
 
         {/* Paginación */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground hidden sm:block">
               Página {currentPage} de {totalPages}
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 w-full sm:w-auto justify-between sm:justify-end">
               <Button
                 variant="outline"
                 size="sm"
@@ -596,13 +617,18 @@ export default function ProspectsPage() {
                 onClick={() => fetchProspectos(currentPage - 1)}
               >
                 <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1">Anterior</span>
               </Button>
+              <span className="sm:hidden text-xs text-muted-foreground self-center">
+                {currentPage} / {totalPages}
+              </span>
               <Button
                 variant="outline"
                 size="sm"
                 disabled={currentPage === totalPages}
                 onClick={() => fetchProspectos(currentPage + 1)}
               >
+                <span className="hidden sm:inline mr-1">Siguiente</span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
