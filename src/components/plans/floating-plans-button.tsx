@@ -54,10 +54,12 @@ export function FloatingPlansButton() {
     <>
       <Button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 h-14 w-14 rounded-full shadow-lg z-40"
+        variant="ghost"
         size="icon"
+        className="h-8 w-8"
+        title="Ver planes disponibles"
       >
-        <FileText className="h-6 w-6" />
+        <FileText className="h-4 w-4" />
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
