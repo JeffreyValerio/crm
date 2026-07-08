@@ -9,9 +9,22 @@ interface HeaderProps {
   onMenuClick: () => void;
 }
 
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Panel de Control',
+  '/clients': 'Clientes',
+  '/prospects': 'Prospectos',
+  '/plans': 'Planes',
+  '/configuracion': 'Configuración',
+  '/profile': 'Mi Perfil',
+  '/payroll': 'Nómina',
+  '/advances': 'Adelantos',
+};
+
 export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter();
   const [user, setUser] = useState<{ email?: string; role?: string; nombre?: string; apellidos?: string } | null>(null);
+
+  const pageTitle = PAGE_TITLES[router.pathname] ?? 'Panel de Control';
 
   useEffect(() => {
     async function fetchUser() {
@@ -38,7 +51,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <h2 className="text-base sm:text-lg font-semibold">Panel de Control</h2>
+        <h2 className="text-base sm:text-lg font-semibold">{pageTitle}</h2>
       </div>
       <div className="flex items-center gap-3 sm:gap-4">
         <FloatingPlansButton />
