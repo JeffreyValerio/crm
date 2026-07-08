@@ -12,7 +12,6 @@ import {
   Target,
   Settings
 } from 'lucide-react';
-import { FloatingPlansButton } from '@/components/plans/floating-plans-button';
 
 interface NavItem {
   title: string;
@@ -137,21 +136,18 @@ export function Sidebar() {
         {!isCollapsed && (
           <h1 className="text-xl font-bold text-primary">CRM</h1>
         )}
-        <div className="flex items-center gap-1">
-          {!isCollapsed && <FloatingPlansButton />}
-          <button
-            onClick={toggleSidebar}
-            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors"
-            aria-label={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-            title={isCollapsed ? "Expandir" : "Colapsar"}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-5 w-5 text-foreground" />
-            ) : (
-              <ChevronLeft className="h-5 w-5 text-foreground" />
-            )}
-          </button>
-        </div>
+        <button
+          onClick={toggleSidebar}
+          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors"
+          aria-label={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+          title={isCollapsed ? "Expandir" : "Colapsar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-5 w-5 text-foreground" />
+          ) : (
+            <ChevronLeft className="h-5 w-5 text-foreground" />
+          )}
+        </button>
       </div>
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
         {filteredSections.map((section, sectionIndex) => {
