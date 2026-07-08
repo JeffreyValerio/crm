@@ -78,7 +78,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (cedula && cedulasConCliente.has(cedula)) entry.convertidos++;
       }
 
-      return res.status(200).json({ stats: Array.from(map.values()) });
+      const sorted = Array.from(map.values()).sort((a, b) => {
+        const na = `${a.nombre ?? ''} ${a.apellidos ?? ''}`.trim().toLowerCase();
+        const nb = `${b.nombre ?? ''} ${b.apellidos ?? ''}`.trim().toLowerCase();
+        return na.localeCompare(nb, 'es');
+      });
+      return res.status(200).json({ stats: sorted });
     } else {
       // Para usuario: sin select explícito para compatibilidad con Prisma client en dev
       const filtrarPorMes = !!(req.query.month as string);
