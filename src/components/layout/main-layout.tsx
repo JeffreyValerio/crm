@@ -1,7 +1,6 @@
 import { useState, ReactNode } from 'react';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
-import { FloatingPlansButton } from '@/components/plans/floating-plans-button';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -19,7 +18,6 @@ export function MainLayout({ children }: MainLayoutProps) {
           {children}
         </main>
       </div>
-      <FloatingPlansButton />
     </div>
   );
 }
