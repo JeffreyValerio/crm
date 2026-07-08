@@ -864,8 +864,8 @@ Comentario: En espera de Instalacion`;
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Clientes</h1>
+            <p className="text-muted-foreground text-sm hidden sm:block">
               Gestiona los clientes del sistema
             </p>
           </div>
@@ -877,16 +877,10 @@ Comentario: En espera de Instalacion`;
 
         {/* Buscar y filtros juntos */}
         <Card>
-          <CardHeader>
-            <CardTitle>Buscar y filtrar</CardTitle>
-            <CardDescription>
-              Busca por nombre, apellido, cédula, teléfono, email o formulario
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="relative min-w-[200px] flex-1 max-w-md">
-                <label className="text-sm font-medium mb-2 block">Buscar</label>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end sm:gap-4">
+              {/* Búsqueda — ancho completo en móvil */}
+              <div className="col-span-2 sm:min-w-[200px] sm:flex-1 sm:max-w-md">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -900,35 +894,32 @@ Comentario: En espera de Instalacion`;
               </div>
               {currentUser?.role === 'admin' && (
                 <>
-                  <div className="min-w-[180px]">
-                    <label className="text-sm font-medium mb-2 block">Estado de Validación</label>
+                  <div className="col-span-1 sm:min-w-[180px]">
                     <Select
                       value={filterValidationStatus}
                       onChange={(e) => setFilterValidationStatus(e.target.value)}
                     >
-                      <option value="">Todos</option>
+                      <option value="">Validación: todos</option>
                       <option value="EN_PROCESO_VALIDACION">En validación</option>
                       <option value="APROBADA">Aprobada</option>
-                      <option value="REQUIERE_DEPOSITO">Requiere Depósito</option>
-                      <option value="NO_APLICA">No Aplica</option>
+                      <option value="REQUIERE_DEPOSITO">Req. depósito</option>
+                      <option value="NO_APLICA">No aplica</option>
                       <option value="INCOBRABLE">Incobrable</option>
-                      <option value="DEUDA_MENOR_ANIO">Deuda Menor a un Año</option>
+                      <option value="DEUDA_MENOR_ANIO">Deuda &lt;1 año</option>
                     </Select>
                   </div>
-                  <div className="min-w-[180px]">
-                    <label className="text-sm font-medium mb-2 block">Estado de Venta</label>
+                  <div className="col-span-1 sm:min-w-[180px]">
                     <Select
                       value={filterSaleStatus}
                       onChange={(e) => setFilterSaleStatus(e.target.value)}
                     >
-                      <option value="">Todos</option>
-                      <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
+                      <option value="">Venta: todos</option>
+                      <option value="PENDIENTE_INSTALACION">Pendiente</option>
                       <option value="INSTALADA">Instalada</option>
                       <option value="CANCELADA">Cancelada</option>
                     </Select>
                   </div>
-                  <div className="min-w-[180px]">
-                    <label className="text-sm font-medium mb-2 block">Creado Por</label>
+                  <div className="col-span-2 sm:min-w-[180px]">
                     <Select
                       value={filterCreatedBy}
                       onChange={(e) => setFilterCreatedBy(e.target.value)}
@@ -946,11 +937,9 @@ Comentario: En espera de Instalacion`;
                   </div>
                 </>
               )}
-              {/* Filtro de período — disponible para todos */}
-              <div className="min-w-[130px]">
-                <label className="text-sm font-medium mb-2 block">Mes</label>
+              <div className="col-span-1 sm:min-w-[130px]">
                 <Select value={filterMonth} onChange={(e) => { setFilterMonth(e.target.value); setCurrentPage(1); }}>
-                  <option value="">Todos</option>
+                  <option value="">Mes: todos</option>
                   <option value="1">Enero</option>
                   <option value="2">Febrero</option>
                   <option value="3">Marzo</option>
@@ -965,10 +954,9 @@ Comentario: En espera de Instalacion`;
                   <option value="12">Diciembre</option>
                 </Select>
               </div>
-              <div className="min-w-[100px]">
-                <label className="text-sm font-medium mb-2 block">Año</label>
+              <div className="col-span-1 sm:min-w-[100px]">
                 <Select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setCurrentPage(1); }}>
-                  <option value="">Todos</option>
+                  <option value="">Año: todos</option>
                   {[0, 1, 2].map((i) => {
                     const y = new Date().getFullYear() - i;
                     return <option key={y} value={String(y)}>{y}</option>;
@@ -980,108 +968,174 @@ Comentario: En espera de Instalacion`;
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Lista de Clientes</CardTitle>
-            <CardDescription>
-              {totalClients} cliente(s) encontrado(s) {totalPages > 1 && `(Página ${currentPage} de ${totalPages})`}
-            </CardDescription>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Lista de Clientes</CardTitle>
+                <CardDescription>
+                  {totalClients} cliente(s) {totalPages > 1 && `· Página ${currentPage} de ${totalPages}`}
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Formulario</TableHead>
-                  <TableHead>Identificación</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Plan</TableHead>
-                  {currentUser?.role === 'admin' && (
-                    <>
-                      <TableHead>Estado Validación</TableHead>
-                      <TableHead>Estado Venta</TableHead>
-                      <TableHead>Creado Por</TableHead>
-                    </>
-                  )}
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clients.length === 0 ? (
-                  <TableEmptyState
-                    colSpan={currentUser?.role === 'admin' ? 10 : 7}
-                    message={searchTerm.trim() ? 'No se encontraron clientes que coincidan con la búsqueda' : 'No hay clientes registrados'}
-                  />
-                ) : (
-                  clients.map((client) => (
-                    <TableRow key={client.id}>
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {client.assignedAt && currentUser?.role !== 'admin' ? (
-                          <div>
-                            <span className="text-xs text-primary font-medium block">Asignado</span>
-                            {new Date(client.assignedAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </div>
-                        ) : (
-                          new Date(client.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
+            {/* Vista cards — móvil */}
+            <div className="sm:hidden space-y-2">
+              {clients.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8 text-sm">
+                  {searchTerm.trim() ? 'No se encontraron clientes' : 'No hay clientes registrados'}
+                </p>
+              ) : clients.map((client) => (
+                <div
+                  key={client.id}
+                  className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5"
+                >
+                  {/* Avatar inicial */}
+                  <div className="flex-shrink-0 h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-primary">
+                      {client.nombres.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  {/* Info principal */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{client.nombres} {client.apellidos}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {client.plan?.nombre || 'Sin plan'} · {client.telefono || 'Sin tel.'}
+                    </p>
+                    {currentUser?.role === 'admin' && (
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        <Badge variant={validationBadgeVariant(client.validationStatus)} className="text-[10px] px-1.5 py-0">
+                          {getValidationStatusLabel(client.validationStatus)}
+                        </Badge>
+                        {client.saleStatus && (
+                          <Badge variant={saleBadgeVariant(client.saleStatus)} className="text-[10px] px-1.5 py-0">
+                            {getSaleStatusLabel(client.saleStatus)}
+                          </Badge>
                         )}
-                      </TableCell>
-                      <TableCell>{client.nombres} {client.apellidos}</TableCell>
-                      <TableCell>{client.formulario || 'N/A'}</TableCell>
-                      <TableCell>{client.numeroIdentificacion}</TableCell>
-                      <TableCell>{client.telefono || 'N/A'}</TableCell>
-                      <TableCell>{client.plan?.nombre || 'N/A'}</TableCell>
-                      {currentUser?.role === 'admin' && (
-                        <>
-                          <TableCell>
-                            <Badge variant={validationBadgeVariant(client.validationStatus)}>
-                              {getValidationStatusLabel(client.validationStatus)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {client.saleStatus && (
-                              <Badge variant={saleBadgeVariant(client.saleStatus)}>
-                                {getSaleStatusLabel(client.saleStatus)}
+                      </div>
+                    )}
+                  </div>
+                  {/* Acciones */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const button = e.currentTarget;
+                      const rect = button.getBoundingClientRect();
+                      const spaceBelow = window.innerHeight - rect.bottom;
+                      setMenuPosition(spaceBelow < 220
+                        ? { bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right }
+                        : { top: rect.bottom + 4, right: window.innerWidth - rect.right }
+                      );
+                      setOpenMenuId(openMenuId === client.id ? null : client.id);
+                    }}
+                    className="h-8 w-8 p-0 flex-shrink-0"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            {/* Vista tabla — desktop */}
+            <div className="hidden sm:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Formulario</TableHead>
+                    <TableHead>Identificación</TableHead>
+                    <TableHead>Teléfono</TableHead>
+                    <TableHead>Plan</TableHead>
+                    {currentUser?.role === 'admin' && (
+                      <>
+                        <TableHead>Estado Validación</TableHead>
+                        <TableHead>Estado Venta</TableHead>
+                        <TableHead>Creado Por</TableHead>
+                      </>
+                    )}
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {clients.length === 0 ? (
+                    <TableEmptyState
+                      colSpan={currentUser?.role === 'admin' ? 10 : 7}
+                      message={searchTerm.trim() ? 'No se encontraron clientes que coincidan con la búsqueda' : 'No hay clientes registrados'}
+                    />
+                  ) : (
+                    clients.map((client) => (
+                      <TableRow key={client.id}>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {client.assignedAt && currentUser?.role !== 'admin' ? (
+                            <div>
+                              <span className="text-xs text-primary font-medium block">Asignado</span>
+                              {new Date(client.assignedAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </div>
+                          ) : (
+                            new Date(client.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
+                          )}
+                        </TableCell>
+                        <TableCell>{client.nombres} {client.apellidos}</TableCell>
+                        <TableCell>{client.formulario || 'N/A'}</TableCell>
+                        <TableCell>{client.numeroIdentificacion}</TableCell>
+                        <TableCell>{client.telefono || 'N/A'}</TableCell>
+                        <TableCell>{client.plan?.nombre || 'N/A'}</TableCell>
+                        {currentUser?.role === 'admin' && (
+                          <>
+                            <TableCell>
+                              <Badge variant={validationBadgeVariant(client.validationStatus)}>
+                                {getValidationStatusLabel(client.validationStatus)}
                               </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>{getUserDisplayName(client.creator)}</TableCell>
-                        </>
-                      )}
-                      <TableCell>
-                        <div className="relative">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const button = e.currentTarget;
-                              const rect = button.getBoundingClientRect();
-                              const spaceBelow = window.innerHeight - rect.bottom;
-                              setMenuPosition(spaceBelow < 220
-                                ? { bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right }
-                                : { top: rect.bottom + 4, right: window.innerWidth - rect.right }
-                              );
-                              setOpenMenuId(openMenuId === client.id ? null : client.id);
-                            }}
-                            className="h-8 w-8 p-0"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            
+                            </TableCell>
+                            <TableCell>
+                              {client.saleStatus && (
+                                <Badge variant={saleBadgeVariant(client.saleStatus)}>
+                                  {getSaleStatusLabel(client.saleStatus)}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{getUserDisplayName(client.creator)}</TableCell>
+                          </>
+                        )}
+                        <TableCell>
+                          <div className="relative">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const button = e.currentTarget;
+                                const rect = button.getBoundingClientRect();
+                                const spaceBelow = window.innerHeight - rect.bottom;
+                                setMenuPosition(spaceBelow < 220
+                                  ? { bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right }
+                                  : { top: rect.bottom + 4, right: window.innerWidth - rect.right }
+                                );
+                                setOpenMenuId(openMenuId === client.id ? null : client.id);
+                              }}
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
             {/* Paginación */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                <div className="text-sm text-muted-foreground">
-                  Mostrando página {currentPage} de {totalPages} ({totalClients} cliente(s) en total)
+              <div className="flex items-center justify-between mt-4 pt-4 border-t gap-2">
+                <div className="text-xs text-muted-foreground hidden sm:block">
+                  Página {currentPage} de {totalPages} ({totalClients} total)
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 w-full sm:w-auto justify-between sm:justify-end">
                   <Button
                     variant="outline"
                     size="sm"
@@ -1089,7 +1143,7 @@ Comentario: En espera de Instalacion`;
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Anterior
+                    <span className="hidden sm:inline">Anterior</span>
                   </Button>
                   <div className="flex items-center gap-1">
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -1103,14 +1157,13 @@ Comentario: En espera de Instalacion`;
                       } else {
                         pageNum = currentPage - 2 + i;
                       }
-                      
                       return (
                         <Button
                           key={pageNum}
                           variant={currentPage === pageNum ? "default" : "outline"}
                           size="sm"
                           onClick={() => setCurrentPage(pageNum)}
-                          className="w-10"
+                          className="w-9"
                         >
                           {pageNum}
                         </Button>
@@ -1123,7 +1176,7 @@ Comentario: En espera de Instalacion`;
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage === totalPages}
                   >
-                    Siguiente
+                    <span className="hidden sm:inline">Siguiente</span>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
