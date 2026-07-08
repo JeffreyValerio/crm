@@ -44,7 +44,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <FloatingPlansButton />
         <NotificationsBell />
         <ThemeToggle />
-        <div className="text-right">
+        <div className="text-right hidden sm:block">
           <button
             onClick={() => router.push('/profile')}
             className="text-sm font-medium hover:text-primary transition-colors cursor-pointer"

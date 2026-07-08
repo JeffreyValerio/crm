@@ -73,7 +73,12 @@ const navSections: NavSection[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const router = useRouter();
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -124,10 +129,19 @@ export function Sidebar() {
     return filteredItems.length > 0;
   });
 
+  // En móvil, cerrar al navegar
+  const handleNavClick = () => {
+    if (onMobileClose) onMobileClose();
+  };
+
   return (
     <div className={cn(
       "flex h-screen flex-col border-r bg-card transition-all duration-300",
-      isCollapsed ? "w-20" : "w-64"
+      // Desktop: siempre visible, colapsable
+      "hidden lg:flex",
+      isCollapsed ? "lg:w-20" : "lg:w-64",
+      // Móvil: drawer fijo encima del contenido
+      mobileOpen && "fixed inset-y-0 left-0 z-50 flex w-72"
     )}>
       <div className={cn(
         "flex h-16 items-center border-b px-4",
@@ -183,6 +197,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={handleNavClick}
               className={cn(
                 'flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isCollapsed ? 'justify-center' : 'gap-3',
