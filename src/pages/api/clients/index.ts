@@ -91,10 +91,7 @@ export default async function handler(
             },
           },
         },
-        orderBy: [
-          { assignedAt: { sort: 'desc', nulls: 'last' } },
-          { createdAt: 'desc' },
-        ],
+        orderBy: { updatedAt: 'desc' },
         skip,
         take: limitNumber,
       });
