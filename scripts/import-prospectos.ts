@@ -48,12 +48,13 @@ async function main() {
 
   console.log(`Importando ${registros.length} prospectos...`);
 
-  let importados = 0;
-  let omitidos = 0;
+  let nuevos = 0;
+  let yaExistian = 0;
+  let sinCoords = 0;
 
   for (const r of registros) {
     if (!r.nro_orden || r._error || !r.latitud || !r.longitud) {
-      omitidos++;
+      sinCoords++;
       continue;
     }
 
@@ -96,29 +97,24 @@ async function main() {
       longitud:         r.longitud         || null,
     };
 
-    if (r.id_cliente) {
-      // Si ya existe por cédula, no tocar nada
-      await prisma.prospecto.upsert({
-        where: { idCliente: r.id_cliente },
-        update: {},
-        create: { nroOrden: r.nro_orden, ...datos },
-      });
+    const llave = r.id_cliente
+      ? { idCliente: r.id_cliente }
+      : { nroOrden: r.nro_orden };
+
+    const existe = await prisma.prospecto.findFirst({ where: llave });
+    if (existe) {
+      yaExistian++;
     } else {
-      // Sin cédula, cae en nroOrden
-      await prisma.prospecto.upsert({
-        where: { nroOrden: r.nro_orden },
-        update: {},
-        create: { nroOrden: r.nro_orden, ...datos },
-      });
+      await prisma.prospecto.create({ data: { nroOrden: r.nro_orden, ...datos } });
+      nuevos++;
     }
-    importados++;
   }
 
-  console.log(`✓ Importados: ${importados} | Omitidos: ${omitidos}`);
+  console.log(`✓ Nuevos: ${nuevos} | Ya existían: ${yaExistian} | Sin coords: ${sinCoords}`);
 
   fs.writeFileSync(
     path.join(process.cwd(), '.sync-import-stats.json'),
-    JSON.stringify({ totalEncontrados: registros.length, importados, omitidos, fecha: new Date().toISOString() }),
+    JSON.stringify({ totalEncontrados: registros.length, nuevos, yaExistian, sinCoords, fecha: new Date().toISOString() }),
   );
 }
 

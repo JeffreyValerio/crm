@@ -14,7 +14,7 @@ const NOTIFY_TO = 'jeffreyvalerio@hotmail.com, cvalerioa24@gmail.com';
 async function main() {
   // Leer stats del import
   const importStatsFile = join(process.cwd(), '.sync-import-stats.json');
-  let importStats = { totalEncontrados: 0, importados: 0, omitidos: 0 };
+  let importStats = { totalEncontrados: 0, nuevos: 0, yaExistian: 0, sinCoords: 0 };
   if (existsSync(importStatsFile)) {
     importStats = JSON.parse(readFileSync(importStatsFile, 'utf-8'));
   }
@@ -53,12 +53,16 @@ async function main() {
             <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.totalEncontrados.toLocaleString('es-CR')}</td>
           </tr>
           <tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 12px 16px; color: #2563eb;">➕ Nuevos insertados en DB</td>
-            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.importados.toLocaleString('es-CR')}</td>
+            <td style="padding: 12px 16px; color: #2563eb;">➕ Nuevos en DB</td>
+            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.nuevos.toLocaleString('es-CR')}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 12px 16px; color: #64748b;">⏭️ Ya existían (sin cambios)</td>
+            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.yaExistian.toLocaleString('es-CR')}</td>
           </tr>
           <tr>
-            <td style="padding: 12px 16px; color: #64748b;">⏭️ Omitidos (ya existían)</td>
-            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.omitidos.toLocaleString('es-CR')}</td>
+            <td style="padding: 12px 16px; color: #d97706;">📍 Sin coordenadas (omitidos)</td>
+            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.sinCoords.toLocaleString('es-CR')}</td>
           </tr>
         </table>
 
