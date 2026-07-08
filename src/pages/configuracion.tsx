@@ -105,7 +105,49 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
         </Button>
       </div>
 
-      <Card>
+      {/* Cards — móvil */}
+      <div className="sm:hidden space-y-2">
+        {users.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8 text-sm">No hay usuarios registrados</p>
+        ) : users.map(u => (
+          <div key={u.id} className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5">
+            <div className="flex-shrink-0 h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-semibold text-primary">
+                {(u.nombre || u.email).charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{displayName(u)}</p>
+              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+              <div className="flex gap-1 mt-1 flex-wrap">
+                {u.password ? (
+                  <Badge variant="success" className="text-[10px] px-1.5 py-0">Activo</Badge>
+                ) : u.inviteToken ? (
+                  <Badge variant="warning" className="text-[10px] px-1.5 py-0">Pendiente</Badge>
+                ) : (
+                  <Badge variant="default" className="text-[10px] px-1.5 py-0">Inactivo</Badge>
+                )}
+                <Badge variant={u.role === 'admin' ? 'info' : 'default'} className="text-[10px] px-1.5 py-0 capitalize">
+                  {u.role}
+                </Badge>
+              </div>
+            </div>
+            <div className="flex gap-0.5 flex-shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar contraseña"
+                onClick={() => { setEditUser(u); setNewPass(''); setConfirmPass(''); setEditOpen(true); }}>
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Eliminar"
+                onClick={() => setDeleteConfirm(u)}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabla — desktop */}
+      <Card className="hidden sm:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -304,7 +346,7 @@ function TabMetasKPI({ vendors }: { vendors: User[] }) {
         <button onClick={() => setYear(y => y + 1)} className="p-1.5 rounded-md hover:bg-accent transition-colors">
           <ChevronRight className="h-4 w-4" />
         </button>
-        <span className="text-xs text-muted-foreground ml-2">
+        <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
           Haz clic en cualquier celda para editar. La columna <strong>Global</strong> aplica a todos los que no tengan meta individual.
         </span>
       </div>
@@ -514,7 +556,68 @@ function TabTipificaciones() {
         </Button>
       </div>
 
-      <Card>
+      {/* Cards — móvil */}
+      <div className="sm:hidden space-y-2">
+        {tips.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8 text-sm">No hay tipificaciones</p>
+        ) : tips.map((t, idx) => (
+          <div key={t.id} className={`rounded-lg border bg-card px-3 py-2.5 ${!t.activa ? 'opacity-50' : ''}`}>
+            <div className="flex items-start gap-2">
+              {/* Flechas orden */}
+              <div className="flex flex-col gap-0.5 pt-0.5 flex-shrink-0">
+                <button disabled={idx === 0 || savingId === t.id} onClick={() => moveOrden(t, -1)}
+                  className="p-0.5 rounded hover:bg-accent disabled:opacity-30">
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </button>
+                <button disabled={idx === tips.length - 1 || savingId === t.id} onClick={() => moveOrden(t, 1)}
+                  className="p-0.5 rounded hover:bg-accent disabled:opacity-30">
+                  <ArrowDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {/* Contenido */}
+              <div className="flex-1 min-w-0">
+                {editingId === t.id ? (
+                  <div className="flex items-center gap-2 mb-1">
+                    <Input value={editEtiqueta} onChange={e => setEditEtiqueta(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveEtiqueta(t.id); if (e.key === 'Escape') setEditingId(null); }}
+                      className="h-7 text-sm" autoFocus />
+                    <button onClick={() => saveEtiqueta(t.id)} className="text-green-600"><Check className="h-4 w-4" /></button>
+                    <button onClick={() => setEditingId(null)} className="text-muted-foreground"><X className="h-4 w-4" /></button>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium cursor-pointer hover:underline mb-1"
+                    onClick={() => { setEditingId(t.id); setEditEtiqueta(t.etiqueta); }}>
+                    {t.etiqueta}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-1">
+                  <button onClick={() => patch(t.id, { creaCliente: !t.creaCliente })} disabled={savingId === t.id}>
+                    <Badge variant={t.creaCliente ? 'success' : 'default'} className="text-[10px] px-1.5 py-0">
+                      {t.creaCliente ? 'Crea cliente' : 'No crea cliente'}
+                    </Badge>
+                  </button>
+                  <button onClick={() => patch(t.id, { eliminaProspecto: !t.eliminaProspecto })} disabled={savingId === t.id}>
+                    <Badge variant={t.eliminaProspecto ? 'destructive' : 'default'} className="text-[10px] px-1.5 py-0">
+                      {t.eliminaProspecto ? 'Elimina prospecto' : 'No elimina'}
+                    </Badge>
+                  </button>
+                  <button onClick={() => patch(t.id, { activa: !t.activa })} disabled={savingId === t.id}>
+                    <Badge variant={t.activa ? 'success' : 'warning'} className="text-[10px] px-1.5 py-0">
+                      {t.activa ? 'Activa' : 'Inactiva'}
+                    </Badge>
+                  </button>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => setDeleteConfirm(t)}>
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabla — desktop */}
+      <Card className="hidden sm:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -532,108 +635,52 @@ function TabTipificaciones() {
                 <TableEmptyState colSpan={6} message="No hay tipificaciones" />
               ) : tips.map((t, idx) => (
                 <TableRow key={t.id} className={!t.activa ? 'opacity-50' : ''}>
-                  {/* Orden */}
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-0.5">
-                      <button
-                        disabled={idx === 0 || savingId === t.id}
-                        onClick={() => moveOrden(t, -1)}
-                        className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
-                        title="Subir"
-                      >
+                      <button disabled={idx === 0 || savingId === t.id} onClick={() => moveOrden(t, -1)}
+                        className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors" title="Subir">
                         <ArrowUp className="h-3.5 w-3.5" />
                       </button>
                       <span className="text-xs text-muted-foreground w-5 text-center">{t.orden + 1}</span>
-                      <button
-                        disabled={idx === tips.length - 1 || savingId === t.id}
-                        onClick={() => moveOrden(t, 1)}
-                        className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors"
-                        title="Bajar"
-                      >
+                      <button disabled={idx === tips.length - 1 || savingId === t.id} onClick={() => moveOrden(t, 1)}
+                        className="p-1 rounded hover:bg-accent disabled:opacity-30 transition-colors" title="Bajar">
                         <ArrowDown className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </TableCell>
-
-                  {/* Etiqueta */}
                   <TableCell>
                     {editingId === t.id ? (
                       <div className="flex items-center gap-2">
-                        <Input
-                          value={editEtiqueta}
-                          onChange={e => setEditEtiqueta(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') saveEtiqueta(t.id);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          className="h-7 text-sm"
-                          autoFocus
-                        />
-                        <button onClick={() => saveEtiqueta(t.id)} className="text-green-600 hover:text-green-700">
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:text-foreground">
-                          <X className="h-4 w-4" />
-                        </button>
+                        <Input value={editEtiqueta} onChange={e => setEditEtiqueta(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveEtiqueta(t.id); if (e.key === 'Escape') setEditingId(null); }}
+                          className="h-7 text-sm" autoFocus />
+                        <button onClick={() => saveEtiqueta(t.id)} className="text-green-600 hover:text-green-700"><Check className="h-4 w-4" /></button>
+                        <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
                       </div>
                     ) : (
-                      <span
-                        className="cursor-pointer hover:underline"
-                        onClick={() => { setEditingId(t.id); setEditEtiqueta(t.etiqueta); }}
-                        title="Clic para editar"
-                      >
+                      <span className="cursor-pointer hover:underline"
+                        onClick={() => { setEditingId(t.id); setEditEtiqueta(t.etiqueta); }} title="Clic para editar">
                         {t.etiqueta}
                       </span>
                     )}
                   </TableCell>
-
-                  {/* Crea cliente */}
                   <TableCell className="text-center">
-                    <button
-                      onClick={() => patch(t.id, { creaCliente: !t.creaCliente })}
-                      disabled={savingId === t.id}
-                      title={t.creaCliente ? 'Desactivar' : 'Activar'}
-                    >
-                      {t.creaCliente
-                        ? <Badge variant="success">Sí</Badge>
-                        : <Badge variant="default">No</Badge>}
+                    <button onClick={() => patch(t.id, { creaCliente: !t.creaCliente })} disabled={savingId === t.id}>
+                      {t.creaCliente ? <Badge variant="success">Sí</Badge> : <Badge variant="default">No</Badge>}
                     </button>
                   </TableCell>
-
-                  {/* Elimina prospecto */}
                   <TableCell className="text-center">
-                    <button
-                      onClick={() => patch(t.id, { eliminaProspecto: !t.eliminaProspecto })}
-                      disabled={savingId === t.id}
-                      title={t.eliminaProspecto ? 'Desactivar' : 'Activar'}
-                    >
-                      {t.eliminaProspecto
-                        ? <Badge variant="destructive">Sí</Badge>
-                        : <Badge variant="default">No</Badge>}
+                    <button onClick={() => patch(t.id, { eliminaProspecto: !t.eliminaProspecto })} disabled={savingId === t.id}>
+                      {t.eliminaProspecto ? <Badge variant="destructive">Sí</Badge> : <Badge variant="default">No</Badge>}
                     </button>
                   </TableCell>
-
-                  {/* Activa */}
                   <TableCell className="text-center">
-                    <button
-                      onClick={() => patch(t.id, { activa: !t.activa })}
-                      disabled={savingId === t.id}
-                      title={t.activa ? 'Desactivar' : 'Activar'}
-                    >
-                      {t.activa
-                        ? <Badge variant="success">Activa</Badge>
-                        : <Badge variant="warning">Inactiva</Badge>}
+                    <button onClick={() => patch(t.id, { activa: !t.activa })} disabled={savingId === t.id}>
+                      {t.activa ? <Badge variant="success">Activa</Badge> : <Badge variant="warning">Inactiva</Badge>}
                     </button>
                   </TableCell>
-
-                  {/* Acciones */}
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Eliminar"
-                      onClick={() => setDeleteConfirm(t)}
-                    >
+                    <Button variant="ghost" size="icon" title="Eliminar" onClick={() => setDeleteConfirm(t)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
@@ -760,13 +807,13 @@ export default function ConfiguracionPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
-          <p className="text-muted-foreground">Administración del sistema</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Configuración</h1>
+          <p className="text-muted-foreground text-sm hidden sm:block">Administración del sistema</p>
         </div>
 
         {/* Tabs */}
-        <div className="border-b">
-          <nav className="-mb-px flex gap-6">
+        <div className="border-b overflow-x-auto">
+          <nav className="-mb-px flex gap-4 sm:gap-6 min-w-max">
             {TABS.map(t => {
               const Icon = t.icon;
               return (
@@ -774,7 +821,7 @@ export default function ConfiguracionPage() {
                   key={t.key}
                   onClick={() => setTab(t.key)}
                   className={cn(
-                    'flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors',
+                    'flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors whitespace-nowrap',
                     tab === t.key
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted-foreground hover:text-foreground'
