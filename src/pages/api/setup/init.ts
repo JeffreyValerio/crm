@@ -35,7 +35,7 @@ export default async function handler(
 
     const admin = await prisma.user.create({
       data: {
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password: hashedPassword,
         role: 'admin',
       },

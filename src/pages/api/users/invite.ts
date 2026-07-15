@@ -22,7 +22,7 @@ export default async function handler(
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const { email } = req.body;
+  const email = req.body.email?.trim().toLowerCase();
 
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Email válido es requerido' });
