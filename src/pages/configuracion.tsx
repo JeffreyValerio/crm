@@ -11,7 +11,7 @@ import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Select } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Mail, Users, Target, ChevronLeft, ChevronRight, List, ArrowUp, ArrowDown, Check, X, ShieldCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Users, Target, ChevronLeft, ChevronRight, List, ArrowUp, ArrowDown, Check, X, ShieldCheck, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -45,12 +45,16 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
   const [inviteError, setInviteError]   = useState('');
   const [inviteSuccess, setInviteSuccess] = useState(false);
 
-  const [editOpen, setEditOpen]         = useState(false);
-  const [editUser, setEditUser]         = useState<User | null>(null);
+  const [extOpen, setExtOpen]           = useState(false);
+  const [extUser, setExtUser]           = useState<User | null>(null);
+  const [editExtension, setEditExtension] = useState('');
+  const [extLoading, setExtLoading]     = useState(false);
+
+  const [passOpen, setPassOpen]         = useState(false);
+  const [passUser, setPassUser]         = useState<User | null>(null);
   const [newPass, setNewPass]           = useState('');
   const [confirmPass, setConfirmPass]   = useState('');
-  const [editExtension, setEditExtension] = useState('');
-  const [editLoading, setEditLoading]   = useState(false);
+  const [passLoading, setPassLoading]   = useState(false);
 
   const [deleteConfirm, setDeleteConfirm] = useState<User | null>(null);
 
@@ -73,28 +77,41 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
     finally { setInviteLoading(false); }
   }
 
-  async function handleUpdateUser(e: React.FormEvent) {
+  async function handleSaveExtension(e: React.FormEvent) {
     e.preventDefault();
-    if (!editUser) return;
-    if (newPass && newPass.length < 6) { toast.error('Mínimo 6 caracteres'); return; }
-    if (newPass && newPass !== confirmPass) { toast.error('Las contraseñas no coinciden'); return; }
-    setEditLoading(true);
+    if (!extUser) return;
+    setExtLoading(true);
     try {
-      const body: Record<string, string> = {};
-      if (newPass) body.password = newPass;
-      if (editExtension !== (editUser.extension ?? '')) body.extension = editExtension;
-      if (Object.keys(body).length === 0) { toast.info('Sin cambios'); setEditOpen(false); return; }
-      const res = await fetch(`/api/users/${editUser.id}`, {
+      const res = await fetch(`/api/users/${extUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ extension: editExtension }),
       });
       if (!res.ok) { const d = await res.json(); toast.error(d.error || 'Error'); return; }
-      toast.success('Usuario actualizado');
-      setEditOpen(false); setEditUser(null); setNewPass(''); setConfirmPass(''); setEditExtension('');
+      toast.success('Extensión actualizada');
+      setExtOpen(false); setExtUser(null); setEditExtension('');
       onRefresh();
     } catch { toast.error('Error al procesar'); }
-    finally { setEditLoading(false); }
+    finally { setExtLoading(false); }
+  }
+
+  async function handleUpdatePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!passUser) return;
+    if (!newPass || newPass.length < 6) { toast.error('Mínimo 6 caracteres'); return; }
+    if (newPass !== confirmPass) { toast.error('Las contraseñas no coinciden'); return; }
+    setPassLoading(true);
+    try {
+      const res = await fetch(`/api/users/${passUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPass }),
+      });
+      if (!res.ok) { const d = await res.json(); toast.error(d.error || 'Error'); return; }
+      toast.success('Contraseña actualizada');
+      setPassOpen(false); setPassUser(null); setNewPass(''); setConfirmPass('');
+    } catch { toast.error('Error al procesar'); }
+    finally { setPassLoading(false); }
   }
 
   async function handleDelete(user: User) {
@@ -141,9 +158,13 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
               </div>
             </div>
             <div className="flex gap-0.5 flex-shrink-0">
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar contraseña"
-                onClick={() => { setEditUser(u); setNewPass(''); setConfirmPass(''); setEditExtension(u.extension ?? ''); setEditOpen(true); }}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Extensión"
+                onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setExtOpen(true); }}>
                 <Edit className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Cambiar contraseña"
+                onClick={() => { setPassUser(u); setNewPass(''); setConfirmPass(''); setPassOpen(true); }}>
+                <KeyRound className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8" title="Eliminar"
                 onClick={() => setDeleteConfirm(u)}>
@@ -198,9 +219,13 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title="Editar contraseña"
-                        onClick={() => { setEditUser(u); setNewPass(''); setConfirmPass(''); setEditOpen(true); }}>
+                      <Button variant="ghost" size="icon" title="Extensión"
+                        onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setExtOpen(true); }}>
                         <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Cambiar contraseña"
+                        onClick={() => { setPassUser(u); setNewPass(''); setConfirmPass(''); setPassOpen(true); }}>
+                        <KeyRound className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Eliminar"
                         onClick={() => setDeleteConfirm(u)}>
@@ -240,38 +265,55 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
         </DialogContent>
       </Dialog>
 
-      {/* Editar usuario */}
-      {editOpen && editUser && (
-        <Dialog open onOpenChange={() => setEditOpen(false)}>
-          <DialogContent>
+      {/* Extensión */}
+      {extOpen && extUser && (
+        <Dialog open onOpenChange={() => setExtOpen(false)}>
+          <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Editar usuario</DialogTitle>
-              <DialogDescription>{displayName(editUser)}</DialogDescription>
+              <DialogTitle>Extensión Interphone</DialogTitle>
+              <DialogDescription>{displayName(extUser)}</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleUpdateUser} className="space-y-4">
+            <form onSubmit={handleSaveExtension} className="space-y-4">
               <div>
-                <label className="text-sm font-medium block mb-1">Extensión Interphone</label>
+                <label className="text-sm font-medium block mb-1">Extensión</label>
                 <Input
                   type="text"
                   placeholder="Ej: 101"
                   value={editExtension}
                   onChange={e => setEditExtension(e.target.value)}
                   className="font-mono"
+                  autoFocus
                 />
               </div>
-              <hr className="border-border" />
-              <p className="text-xs text-muted-foreground">Dejar en blanco para no cambiar la contraseña.</p>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setExtOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={extLoading}>{extLoading ? 'Guardando...' : 'Guardar'}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Cambiar contraseña */}
+      {passOpen && passUser && (
+        <Dialog open onOpenChange={() => setPassOpen(false)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Cambiar contraseña</DialogTitle>
+              <DialogDescription>{displayName(passUser)}</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
               <div>
                 <label className="text-sm font-medium block mb-1">Nueva contraseña</label>
-                <Input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} />
+                <Input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} required autoComplete="new-password" />
               </div>
               <div>
                 <label className="text-sm font-medium block mb-1">Confirmar contraseña</label>
-                <Input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} />
+                <Input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} required autoComplete="new-password" />
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-                <Button type="submit" disabled={editLoading}>{editLoading ? 'Guardando...' : 'Guardar'}</Button>
+                <Button type="button" variant="outline" onClick={() => setPassOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={passLoading}>{passLoading ? 'Guardando...' : 'Guardar'}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
