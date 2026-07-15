@@ -146,6 +146,7 @@ export default function ProspectsPage() {
   const [tipificaciones, setTipificaciones] = useState<Tipificacion[]>([]);
   const [contactLoading, setContactLoading] = useState<string | null>(null);
   const [contactMetodo, setContactMetodo] = useState<ResultadoContacto | ''>('');
+  const [contactProveedor, setContactProveedor] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [sinCoberturaConfirm, setSinCoberturaConfirm] = useState(false);
 
@@ -257,13 +258,13 @@ export default function ProspectsPage() {
     }
   }
 
-  async function handleContactar(prospecto: Prospecto, resultado: ResultadoContacto) {
+  async function handleContactar(prospecto: Prospecto, resultado: ResultadoContacto, proveedor?: string) {
     setContactLoading(prospecto.id);
     try {
       const res = await fetch(`/api/prospects/${prospecto.id}/contactar`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resultado }),
+        body: JSON.stringify({ resultado, ...(proveedor ? { proveedorCompetidor: proveedor } : {}) }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -343,6 +344,7 @@ export default function ProspectsPage() {
     setClienteConvertido(null);
     setEditingObs(false);
     setContactMetodo('');
+    setContactProveedor('');
     setCoberturaStatus('idle');
     if (p.idCliente) {
       try {
@@ -815,32 +817,53 @@ export default function ProspectsPage() {
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                       Registrar contacto
                     </p>
-                    <div className="flex gap-2 items-center">
-                      <Select
-                        value={contactMetodo}
-                        onChange={e => setContactMetodo(e.target.value as ResultadoContacto)}
-                        className="flex-1"
-                      >
-                        <option value="" disabled>— Seleccione —</option>
-                        {tipificaciones.map(t => (
-                          <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
-                        ))}
-                      </Select>
-                      <Button
-                        onClick={() => {
-                          const tip = getSelectedTip();
-                          if (tip?.eliminaProspecto) {
-                            setSinCoberturaConfirm(true);
-                          } else {
-                            handleContactar(viewingProspecto, contactMetodo as ResultadoContacto);
-                          }
-                        }}
-                        disabled={!contactMetodo || contactLoading === viewingProspecto.id}
-                        className="flex-shrink-0"
-                      >
-                        {contactLoading === viewingProspecto.id ? 'Guardando...' : 'Registrar'}
-                      </Button>
-                    </div>
+                    {(() => {
+                      const tipSeleccionada = getSelectedTip();
+                      const esOtroProveedor = !!tipSeleccionada && tipSeleccionada.etiqueta.toLowerCase().includes('otro proveedor');
+                      const puedeRegistrar = !!contactMetodo && (!esOtroProveedor || !!contactProveedor);
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex gap-2 items-center">
+                            <Select
+                              value={contactMetodo}
+                              onChange={e => { setContactMetodo(e.target.value as ResultadoContacto); setContactProveedor(''); }}
+                              className="flex-1"
+                            >
+                              <option value="" disabled>— Seleccione —</option>
+                              {tipificaciones.map(t => (
+                                <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
+                              ))}
+                            </Select>
+                            <Button
+                              onClick={() => {
+                                const tip = getSelectedTip();
+                                if (tip?.eliminaProspecto) {
+                                  setSinCoberturaConfirm(true);
+                                } else {
+                                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto, esOtroProveedor ? contactProveedor : undefined);
+                                }
+                              }}
+                              disabled={!puedeRegistrar || contactLoading === viewingProspecto.id}
+                              className="flex-shrink-0"
+                            >
+                              {contactLoading === viewingProspecto.id ? 'Guardando...' : 'Registrar'}
+                            </Button>
+                          </div>
+                          {esOtroProveedor && (
+                            <Select
+                              value={contactProveedor}
+                              onChange={e => setContactProveedor(e.target.value)}
+                              className="w-full"
+                            >
+                              <option value="" disabled>— Seleccione proveedor *</option>
+                              {['TIGO', 'LIBERTY', 'METROCOM', 'TELECABLE', 'KOLBI', 'STARLINK', 'OTRO'].map(p => (
+                                <option key={p} value={p}>{p}</option>
+                              ))}
+                            </Select>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {viewingProspecto.totalContactos > 0 && (
                       <p className="text-xs text-muted-foreground mt-2">
                         {viewingProspecto.totalContactos} contacto{viewingProspecto.totalContactos !== 1 ? 's' : ''} registrado{viewingProspecto.totalContactos !== 1 ? 's' : ''} · Último:{' '}
@@ -992,7 +1015,7 @@ export default function ProspectsPage() {
                 disabled={contactLoading === viewingProspecto.id}
                 onClick={() => {
                   setSinCoberturaConfirm(false);
-                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto);
+                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto, contactProveedor || undefined);
                 }}
               >
                 Sí, eliminar

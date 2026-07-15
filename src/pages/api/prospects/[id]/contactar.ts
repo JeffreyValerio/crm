@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method !== 'PATCH') return res.status(405).json({ error: 'Método no permitido' });
 
-  const { resultado } = req.body as { resultado: string };
+  const { resultado, proveedorCompetidor } = req.body as { resultado: string; proveedorCompetidor?: string };
   if (!resultado) return res.status(400).json({ error: 'resultado es requerido' });
 
   // Validar contra tipificaciones activas en DB
@@ -35,6 +35,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ eliminado: true });
   }
 
+  // Si viene proveedor competidor, agregarlo a observacionesInternas
+  let obsUpdate: Record<string, unknown> | undefined;
+  if (proveedorCompetidor) {
+    const nota = `[Proveedor competidor: ${proveedorCompetidor}]`;
+    const obsActual = prospecto.observacionesInternas || '';
+    obsUpdate = { observacionesInternas: obsActual ? `${obsActual}\n${nota}` : nota };
+  }
+
   // Actualizar el prospecto
   const updated = await prisma.prospecto.update({
     where: { id },
@@ -42,6 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       metodoContacto: resultado,
       totalContactos: { increment: 1 },
       ultimoContacto: new Date(),
+      ...(obsUpdate ?? {}),
     },
     include: {
       asignado: { select: { id: true, nombre: true, apellidos: true, email: true } },
