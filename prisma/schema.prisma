@@ -31,6 +31,7 @@ model User {
   userKpiMetas      UserKpiMeta[]
   teamLeadOf        Equipo[]        @relation("TeamLeadEquipos")
   equipoMiembros    EquipoMiembro[]
+  extension         String?
 }
 
 model Notification {
@@ -283,6 +284,28 @@ model KpiMeta {
   meta      Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ExtensionStats {
+  id                 String   @id @default(cuid())
+  extension          String
+  fecha              DateTime @db.Date
+  respondido         Int      @default(0)
+  perdidas           Int      @default(0)
+  correoVoz          Int      @default(0)
+  sinRespuesta       Int      @default(0)
+  ocupado            Int      @default(0)
+  alocSegundos       Float?
+  llamadasEntrantes  Int      @default(0)
+  duracionInboundSeg Int      @default(0)
+  llamadasSalientes  Int      @default(0)
+  duracionSalidaSeg  Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([extension, fecha])
+  @@index([extension])
+  @@index([fecha])
 }
 
 model UserKpiMeta {

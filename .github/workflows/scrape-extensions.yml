@@ -1,0 +1,38 @@
+name: Scrape Extension Stats
+
+on:
+  schedule:
+    - cron: '0 5 * * *'  # 11:00pm CST (UTC-6) daily
+  workflow_dispatch:       # Manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
+      DATABASE_SSL_REJECT_UNAUTHORIZED: 'false'
+      INTERPHONE_URL: ${{ secrets.INTERPHONE_URL }}
+      INTERPHONE_USERNAME: ${{ secrets.INTERPHONE_USERNAME }}
+      INTERPHONE_PASSWORD: ${{ secrets.INTERPHONE_PASSWORD }}
+      CI: 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Scrape extension stats
+        run: npx tsx scripts/scrape-extension-stats.ts
