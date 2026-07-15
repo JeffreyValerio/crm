@@ -29,6 +29,8 @@ model User {
   prospectos        Prospecto[]
   notifications     Notification[]
   userKpiMetas      UserKpiMeta[]
+  teamLeadOf        Equipo[]        @relation("TeamLeadEquipos")
+  equipoMiembros    EquipoMiembro[]
 }
 
 model Notification {
@@ -250,6 +252,29 @@ model Tipificacion {
   creaCliente      Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model Equipo {
+  id          String          @id @default(cuid())
+  nombre      String          @unique
+  teamLeadId  String?
+  teamLead    User?           @relation("TeamLeadEquipos", fields: [teamLeadId], references: [id])
+  miembros    EquipoMiembro[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model EquipoMiembro {
+  id        String   @id @default(cuid())
+  equipoId  String
+  equipo    Equipo   @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([equipoId, userId])
+  @@index([equipoId])
+  @@index([userId])
 }
 
 model KpiMeta {

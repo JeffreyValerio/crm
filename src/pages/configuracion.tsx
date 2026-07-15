@@ -10,7 +10,8 @@ import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Plus, Edit, Trash2, Mail, Users, Target, ChevronLeft, ChevronRight, List, ArrowUp, ArrowDown, Check, X } from 'lucide-react';
+import { Select } from '@/components/ui/select';
+import { Plus, Edit, Trash2, Mail, Users, Target, ChevronLeft, ChevronRight, List, ArrowUp, ArrowDown, Check, X, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -760,12 +761,316 @@ function TabTipificaciones() {
   );
 }
 
+// ── Tab Equipos ───────────────────────────────────────────────────────────────
+
+interface EquipoUser { id: string; nombre: string | null; apellidos: string | null; email: string; }
+interface EquipoMiembro { id: string; userId: string; user: EquipoUser; }
+interface Equipo {
+  id: string;
+  nombre: string;
+  teamLeadId: string | null;
+  teamLead: EquipoUser | null;
+  miembros: EquipoMiembro[];
+}
+
+function TabEquipos({ users }: { users: User[] }) {
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialog, setDialog] = useState<{ open: boolean; equipo: Equipo | null }>({ open: false, equipo: null });
+  const [nombre, setNombre] = useState('');
+  const [teamLeadId, setTeamLeadId] = useState('');
+  const [miembrosIds, setMiembrosIds] = useState<string[]>([]);
+  const [addMiembroId, setAddMiembroId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const nombreUsuario = (u: EquipoUser) =>
+    u.nombre && u.apellidos ? `${u.nombre} ${u.apellidos}` : u.email;
+
+  const fetchEquipos = useCallback(async () => {
+    const res = await fetch('/api/equipos');
+    if (res.ok) {
+      const data = await res.json();
+      setEquipos(data.equipos ?? []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchEquipos(); }, [fetchEquipos]);
+
+  function openCreate() {
+    setNombre('');
+    setTeamLeadId('');
+    setMiembrosIds([]);
+    setAddMiembroId('');
+    setDialog({ open: true, equipo: null });
+  }
+
+  function openEdit(e: Equipo) {
+    setNombre(e.nombre);
+    setTeamLeadId(e.teamLeadId ?? '');
+    setMiembrosIds(e.miembros.map(m => m.userId));
+    setAddMiembroId('');
+    setDialog({ open: true, equipo: e });
+  }
+
+  function closeDialog() { setDialog({ open: false, equipo: null }); }
+
+  function addMiembro() {
+    if (!addMiembroId || miembrosIds.includes(addMiembroId)) return;
+    setMiembrosIds(prev => [...prev, addMiembroId]);
+    setAddMiembroId('');
+  }
+
+  function removeMiembro(userId: string) {
+    setMiembrosIds(prev => prev.filter(id => id !== userId));
+    if (teamLeadId === userId) setTeamLeadId('');
+  }
+
+  async function handleSave() {
+    if (!nombre.trim()) { toast.error('El nombre del equipo es requerido'); return; }
+    setSaving(true);
+    try {
+      const body = { nombre, teamLeadId: teamLeadId || null, miembrosIds };
+      const isEdit = !!dialog.equipo;
+      const res = await fetch(
+        isEdit ? `/api/equipos/${dialog.equipo!.id}` : '/api/equipos',
+        { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Error al guardar');
+      }
+      toast.success(isEdit ? 'Equipo actualizado' : 'Equipo creado');
+      closeDialog();
+      fetchEquipos();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('¿Eliminar este equipo?')) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/equipos/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al eliminar');
+      toast.success('Equipo eliminado');
+      fetchEquipos();
+    } catch {
+      toast.error('Error al eliminar');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  // Usuarios disponibles para agregar (no están aún en el equipo)
+  const disponibles = users.filter(u => !miembrosIds.includes(u.id));
+  // Usuarios del equipo actual (para mostrar nombres)
+  const miembrosDetalle = miembrosIds
+    .map(id => users.find(u => u.id === id))
+    .filter((u): u is User => !!u);
+
+  if (loading) return <p className="text-sm text-muted-foreground py-6 text-center">Cargando...</p>;
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-sm text-muted-foreground">{equipos.length} equipo{equipos.length !== 1 ? 's' : ''}</p>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="h-4 w-4 mr-1" /> Nuevo equipo
+        </Button>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="sm:hidden space-y-3">
+        {equipos.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No hay equipos creados</p>
+        ) : equipos.map(e => (
+          <div key={e.id} className="border rounded-lg p-4 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold">{e.nombre}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {e.teamLead ? (
+                    <span className="flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3 text-primary" />
+                      {nombreUsuario(e.teamLead)}
+                    </span>
+                  ) : 'Sin team lead'}
+                </p>
+              </div>
+              <Badge variant="info">{e.miembros.length} miembro{e.miembros.length !== 1 ? 's' : ''}</Badge>
+            </div>
+            {e.miembros.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {e.miembros.map(m => (
+                  <span key={m.id} className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                    {nombreUsuario(m.user)}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(e)}>
+                <Edit className="h-3.5 w-3.5 mr-1" /> Editar
+              </Button>
+              <Button variant="destructive" size="sm" className="flex-1" onClick={() => handleDelete(e.id)} disabled={deletingId === e.id}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Eliminar
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Equipo</TableHead>
+              <TableHead>Team Lead</TableHead>
+              <TableHead>Miembros</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {equipos.length === 0 ? (
+              <TableEmptyState colSpan={4} message="No hay equipos creados" />
+            ) : equipos.map(e => (
+              <TableRow key={e.id}>
+                <TableCell className="font-semibold">{e.nombre}</TableCell>
+                <TableCell>
+                  {e.teamLead ? (
+                    <span className="flex items-center gap-1.5 text-sm">
+                      <ShieldCheck className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                      {nombreUsuario(e.teamLead)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {e.miembros.length === 0 ? (
+                      <span className="text-muted-foreground text-sm">Sin miembros</span>
+                    ) : e.miembros.map(m => (
+                      <span key={m.id} className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                        {nombreUsuario(m.user)}
+                      </span>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(e)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(e.id)} disabled={deletingId === e.id}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Dialog crear/editar */}
+      {dialog.open && (
+        <Dialog open onOpenChange={closeDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{dialog.equipo ? 'Editar equipo' : 'Nuevo equipo'}</DialogTitle>
+              <DialogDescription>
+                {dialog.equipo ? 'Modifica el nombre, team lead o miembros.' : 'Define el nombre, team lead y miembros del equipo.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Nombre */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Nombre del equipo *</label>
+                <Input
+                  value={nombre}
+                  onChange={e => setNombre(e.target.value)}
+                  placeholder="Ej: Costa Rica, Nicaragua..."
+                />
+              </div>
+
+              {/* Team Lead */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Team Lead</label>
+                <Select value={teamLeadId} onChange={e => setTeamLeadId(e.target.value)} className="w-full">
+                  <option value="">— Sin team lead —</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{displayName(u)}</option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Miembros */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Miembros</label>
+                {/* Lista actual */}
+                {miembrosDetalle.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {miembrosDetalle.map(u => (
+                      <span key={u.id} className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded-full">
+                        {displayName(u)}
+                        <button
+                          type="button"
+                          onClick={() => removeMiembro(u.id)}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {/* Agregar miembro */}
+                {disponibles.length > 0 ? (
+                  <div className="flex gap-2">
+                    <Select value={addMiembroId} onChange={e => setAddMiembroId(e.target.value)} className="flex-1">
+                      <option value="">— Agregar miembro —</option>
+                      {disponibles.map(u => (
+                        <option key={u.id} value={u.id}>{displayName(u)}</option>
+                      ))}
+                    </Select>
+                    <Button type="button" variant="outline" size="sm" onClick={addMiembro} disabled={!addMiembroId}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Todos los usuarios ya están en el equipo.</p>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={closeDialog}>Cancelar</Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? 'Guardando...' : dialog.equipo ? 'Actualizar' : 'Crear equipo'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: 'usuarios',        label: 'Usuarios',        icon: Users  },
-  { key: 'metas',           label: 'Metas KPI',       icon: Target },
-  { key: 'tipificaciones',  label: 'Tipificaciones',  icon: List   },
+  { key: 'usuarios',        label: 'Usuarios',        icon: Users       },
+  { key: 'equipos',         label: 'Equipos',         icon: ShieldCheck },
+  { key: 'metas',           label: 'Metas KPI',       icon: Target      },
+  { key: 'tipificaciones',  label: 'Tipificaciones',  icon: List        },
 ] as const;
 
 type Tab = typeof TABS[number]['key'];
@@ -838,6 +1143,22 @@ export default function ConfiguracionPage() {
         {/* Contenido del tab */}
         {tab === 'usuarios' && (
           <TabUsuarios users={users} onRefresh={fetchUsers} />
+        )}
+        {tab === 'equipos' && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                Equipos de trabajo
+              </CardTitle>
+              <CardDescription>
+                Organiza los vendedores en equipos con un Team Lead responsable.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TabEquipos users={users} />
+            </CardContent>
+          </Card>
         )}
         {tab === 'metas' && (
           <Card>
