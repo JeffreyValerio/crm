@@ -61,10 +61,8 @@ const navSections: NavSection[] = [
         title: 'Interphone',
         href: '/interphone',
         icon: Phone,
-        adminOnly: true,
       },
     ],
-    adminOnly: true,
   },
   {
     title: 'Configuración',
