@@ -28,6 +28,7 @@ export default async function handler(
           password: true,
           inviteToken: true,
           invitedAt: true,
+          extension: true,
           createdAt: true,
         },
         orderBy: {

@@ -25,6 +25,7 @@ interface User {
   role: string;
   password: string | null;
   inviteToken: string | null;
+  extension: string | null;
   createdAt: string;
 }
 
@@ -48,6 +49,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
   const [editUser, setEditUser]         = useState<User | null>(null);
   const [newPass, setNewPass]           = useState('');
   const [confirmPass, setConfirmPass]   = useState('');
+  const [editExtension, setEditExtension] = useState('');
   const [editLoading, setEditLoading]   = useState(false);
 
   const [deleteConfirm, setDeleteConfirm] = useState<User | null>(null);
@@ -71,21 +73,26 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
     finally { setInviteLoading(false); }
   }
 
-  async function handleUpdatePassword(e: React.FormEvent) {
+  async function handleUpdateUser(e: React.FormEvent) {
     e.preventDefault();
     if (!editUser) return;
-    if (!newPass || newPass.length < 6) { toast.error('Mínimo 6 caracteres'); return; }
-    if (newPass !== confirmPass) { toast.error('Las contraseñas no coinciden'); return; }
+    if (newPass && newPass.length < 6) { toast.error('Mínimo 6 caracteres'); return; }
+    if (newPass && newPass !== confirmPass) { toast.error('Las contraseñas no coinciden'); return; }
     setEditLoading(true);
     try {
+      const body: Record<string, string> = {};
+      if (newPass) body.password = newPass;
+      if (editExtension !== (editUser.extension ?? '')) body.extension = editExtension;
+      if (Object.keys(body).length === 0) { toast.info('Sin cambios'); setEditOpen(false); return; }
       const res = await fetch(`/api/users/${editUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPass }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { const d = await res.json(); toast.error(d.error || 'Error'); return; }
-      toast.success('Contraseña actualizada');
-      setEditOpen(false); setEditUser(null); setNewPass(''); setConfirmPass('');
+      toast.success('Usuario actualizado');
+      setEditOpen(false); setEditUser(null); setNewPass(''); setConfirmPass(''); setEditExtension('');
+      onRefresh();
     } catch { toast.error('Error al procesar'); }
     finally { setEditLoading(false); }
   }
@@ -135,7 +142,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
             </div>
             <div className="flex gap-0.5 flex-shrink-0">
               <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar contraseña"
-                onClick={() => { setEditUser(u); setNewPass(''); setConfirmPass(''); setEditOpen(true); }}>
+                onClick={() => { setEditUser(u); setNewPass(''); setConfirmPass(''); setEditExtension(u.extension ?? ''); setEditOpen(true); }}>
                 <Edit className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8" title="Eliminar"
@@ -155,6 +162,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
               <TableRow>
                 <TableHead>Usuario</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Extensión</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Registro</TableHead>
@@ -163,11 +171,14 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
-                <TableEmptyState colSpan={6} message="No hay usuarios registrados" />
+                <TableEmptyState colSpan={7} message="No hay usuarios registrados" />
               ) : users.map(u => (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{displayName(u)}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm font-mono">
+                    {u.extension ?? <span className="text-muted-foreground/50">—</span>}
+                  </TableCell>
                   <TableCell>
                     {u.password ? (
                       <Badge variant="success">Activo</Badge>
@@ -229,22 +240,34 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
         </DialogContent>
       </Dialog>
 
-      {/* Editar contraseña */}
+      {/* Editar usuario */}
       {editOpen && editUser && (
         <Dialog open onOpenChange={() => setEditOpen(false)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Cambiar contraseña</DialogTitle>
+              <DialogTitle>Editar usuario</DialogTitle>
               <DialogDescription>{displayName(editUser)}</DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <form onSubmit={handleUpdateUser} className="space-y-4">
+              <div>
+                <label className="text-sm font-medium block mb-1">Extensión Interphone</label>
+                <Input
+                  type="text"
+                  placeholder="Ej: 101"
+                  value={editExtension}
+                  onChange={e => setEditExtension(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+              <hr className="border-border" />
+              <p className="text-xs text-muted-foreground">Dejar en blanco para no cambiar la contraseña.</p>
               <div>
                 <label className="text-sm font-medium block mb-1">Nueva contraseña</label>
-                <Input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} required />
+                <Input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} />
               </div>
               <div>
                 <label className="text-sm font-medium block mb-1">Confirmar contraseña</label>
-                <Input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} required />
+                <Input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} />
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>

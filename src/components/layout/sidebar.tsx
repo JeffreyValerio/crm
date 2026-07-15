@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Target,
-  Settings
+  Settings,
+  Phone,
 } from 'lucide-react';
 
 interface NavItem {
@@ -52,6 +53,18 @@ const navSections: NavSection[] = [
         icon: Target,
       },
     ],
+  },
+  {
+    title: 'Herramientas',
+    items: [
+      {
+        title: 'Interphone',
+        href: '/interphone',
+        icon: Phone,
+        adminOnly: true,
+      },
+    ],
+    adminOnly: true,
   },
   {
     title: 'Configuración',

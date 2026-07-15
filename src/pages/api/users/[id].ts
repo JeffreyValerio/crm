@@ -21,28 +21,29 @@ export default async function handler(
 
   if (req.method === 'PUT') {
     try {
-      const { password } = req.body;
+      const { password, extension } = req.body;
+      const data: Record<string, unknown> = {};
 
-      if (!password) {
-        return res.status(400).json({ error: 'Password is required' });
+      if (password !== undefined) {
+        if (!password || password.length < 6) {
+          return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+        }
+        data.password = await bcrypt.hash(password, 10);
       }
 
-      // Validar nueva contraseña
-      if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+      if (extension !== undefined) {
+        data.extension = extension || null;
       }
 
-      // Hashear la nueva contraseña
-      const hashedPassword = await bcrypt.hash(password, 10);
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: 'Nothing to update' });
+      }
 
-      await prisma.user.update({
-        where: { id: id as string },
-        data: { password: hashedPassword },
-      });
+      await prisma.user.update({ where: { id: id as string }, data });
 
       return res.status(200).json({ success: true });
     } catch (error) {
-      console.error('Error updating user password:', error);
+      console.error('Error updating user:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
