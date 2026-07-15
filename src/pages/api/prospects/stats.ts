@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { resolveEquipoUserIds } from '@/lib/equipo-filter';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
@@ -27,10 +28,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (session.role === 'admin') {
       const asignadoAFilter = req.query.asignadoA as string | undefined;
+      const equipoId = req.query.equipoId as string | undefined;
       const filtrarPorMes = !!(req.query.month as string);
       const whereAdmin: Record<string, unknown> = {};
       if (filtrarPorMes) whereAdmin.createdAt = { gte: monthStart, lt: monthEnd };
-      if (asignadoAFilter) whereAdmin.asignadoA = asignadoAFilter;
+      if (asignadoAFilter) {
+        whereAdmin.asignadoA = asignadoAFilter;
+      } else if (equipoId) {
+        const ids = await resolveEquipoUserIds(equipoId);
+        whereAdmin.asignadoA = ids ? { in: ids } : '__NO_MATCH__';
+      }
       const prospectos = await prisma.prospecto.findMany({ where: whereAdmin });
 
       // Cargar usuarios asignados por separado

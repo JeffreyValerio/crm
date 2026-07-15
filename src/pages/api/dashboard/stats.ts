@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { resolveEquipoUserIds } from '@/lib/equipo-filter';
 
 const DEFAULT_META_POR_MES = 8;
 
@@ -10,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'Not authenticated' });
 
-  const { year, month, createdBy } = req.query;
+  const { year, month, createdBy, equipoId } = req.query;
 
   const y = year ? parseInt(year as string) : null;
   const m = month ? parseInt(month as string) : null;
@@ -45,12 +46,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Filtro de creador según rol
-  const creatorCondition =
-    session.role !== 'admin'
-      ? { createdBy: session.userId }
-      : createdBy && typeof createdBy === 'string'
-      ? { createdBy }
-      : null;
+  let creatorCondition: object | null = null;
+  if (session.role !== 'admin') {
+    creatorCondition = { createdBy: session.userId };
+  } else if (createdBy && typeof createdBy === 'string') {
+    creatorCondition = { createdBy };
+  } else if (equipoId && typeof equipoId === 'string') {
+    const ids = await resolveEquipoUserIds(equipoId);
+    creatorCondition = ids ? { createdBy: { in: ids } } : { id: '__NO_MATCH__' };
+  }
 
   // Un cliente pertenece al período si:
   // - está INSTALADA y su instaladaAt está en el rango, O

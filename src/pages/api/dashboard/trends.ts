@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { resolveEquipoUserIds } from '@/lib/equipo-filter';
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -10,15 +11,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'Not authenticated' });
 
-  const { year, createdBy } = req.query;
+  const { year, createdBy, equipoId } = req.query;
   const y = year ? parseInt(year as string) : new Date().getFullYear();
 
-  const creatorFilter =
-    session.role !== 'admin'
-      ? { createdBy: session.userId }
-      : createdBy && typeof createdBy === 'string'
-      ? { createdBy }
-      : {};
+  let creatorFilter: object = {};
+  if (session.role !== 'admin') {
+    creatorFilter = { createdBy: session.userId };
+  } else if (createdBy && typeof createdBy === 'string') {
+    creatorFilter = { createdBy };
+  } else if (equipoId && typeof equipoId === 'string') {
+    const ids = await resolveEquipoUserIds(equipoId);
+    creatorFilter = ids ? { createdBy: { in: ids } } : { id: '__NO_MATCH__' };
+  }
 
   try {
     // ── 1. Tendencia mensual: registros + instalaciones ──────────────────────

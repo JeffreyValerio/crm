@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle, Pencil } from 'lucide-react';
+import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle, Pencil, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TrendsCharts = dynamic(
@@ -45,6 +45,13 @@ interface ComplianceStats {
   percentage: number;
 }
 
+interface EquipoOption {
+  id: string;
+  nombre: string;
+  teamLeadId: string | null;
+  teamLead: { id: string; nombre: string | null; apellidos: string | null; email: string } | null;
+}
+
 interface ProspectStat {
   userId: string;
   nombre: string | null;
@@ -75,6 +82,10 @@ export default function HomePage() {
     effectiveness: number;
   } | null>(null);
   const hasMounted = useRef(false);
+  const [dashView, setDashView] = useState<'general' | 'equipos'>('general');
+  const [equipos, setEquipos] = useState<EquipoOption[]>([]);
+  const [filterEquipo, setFilterEquipo] = useState('');
+  const [filterTeamLead, setFilterTeamLead] = useState('');
   const [kpiMeta, setKpiMeta] = useState<number>(8);
   const [editingMeta, setEditingMeta] = useState(false);
   const [editMetaValue, setEditMetaValue] = useState<string>('8');
@@ -115,7 +126,7 @@ export default function HomePage() {
           if (router.query.createdBy) {
             setFilterCreatedBy(router.query.createdBy as string);
           }
-          await loadUsers();
+          await Promise.all([loadUsers(), loadEquipos()]);
         }
 
         await loadDashboardData(data.user);
@@ -142,6 +153,18 @@ export default function HomePage() {
     }
   }
 
+  async function loadEquipos() {
+    try {
+      const res = await fetch('/api/equipos');
+      if (res.ok) {
+        const data = await res.json();
+        setEquipos(data.equipos ?? []);
+      }
+    } catch (error) {
+      console.error('Error loading equipos:', error);
+    }
+  }
+
   async function loadDashboardData(
     userOverride?: { role?: string; email?: string; nombre?: string; apellidos?: string } | null,
     yearOverride?: string,
@@ -157,17 +180,44 @@ export default function HomePage() {
       const params = new URLSearchParams();
       if (year) params.append('year', year);
       if (month) params.append('month', month);
-      if (activeUser.role === 'admin' && filterCreatedBy) params.append('createdBy', filterCreatedBy);
 
       const trendsParams = new URLSearchParams();
       if (year) trendsParams.append('year', year);
-      if (activeUser.role === 'admin' && filterCreatedBy) trendsParams.append('createdBy', filterCreatedBy);
+
+      // Filtros de usuario/equipo según el tab activo
+      if (activeUser.role === 'admin') {
+        if (dashView === 'general') {
+          if (filterCreatedBy) {
+            params.append('createdBy', filterCreatedBy);
+            trendsParams.append('createdBy', filterCreatedBy);
+          }
+        } else {
+          // Vista por equipos
+          if (filterTeamLead) {
+            params.append('createdBy', filterTeamLead);
+            trendsParams.append('createdBy', filterTeamLead);
+          } else if (filterEquipo) {
+            params.append('equipoId', filterEquipo);
+            trendsParams.append('equipoId', filterEquipo);
+          }
+        }
+      }
+
+      const prospectoExtra = activeUser.role === 'admin'
+        ? dashView === 'general' && filterCreatedBy
+          ? `&asignadoA=${filterCreatedBy}`
+          : dashView === 'equipos' && filterTeamLead
+          ? `&asignadoA=${filterTeamLead}`
+          : dashView === 'equipos' && filterEquipo
+          ? `&equipoId=${filterEquipo}`
+          : ''
+        : '';
 
       const [statsRes, prospectsRes, trendsRes, activityRes] = await Promise.all([
         fetch(`/api/dashboard/stats?${params.toString()}`),
-        fetch(`/api/prospects/stats?year=${year}&month=${month}${filterCreatedBy ? `&asignadoA=${filterCreatedBy}` : ''}`),
+        fetch(`/api/prospects/stats?year=${year}&month=${month}${prospectoExtra}`),
         fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
-        fetch(`/api/prospects/activity?year=${year}&month=${month}${filterCreatedBy ? `&asignadoA=${filterCreatedBy}` : ''}`),
+        fetch(`/api/prospects/activity?year=${year}&month=${month}${prospectoExtra}`),
       ]);
 
       // ── Stats de clientes ─────────────────────────────────
@@ -235,7 +285,7 @@ export default function HomePage() {
     }
   }
 
-  // Recargar cuando cambien los filtros — pasar valores explícitamente para evitar stale closure
+  // Recargar cuando cambien los filtros
   useEffect(() => {
     if (!hasMounted.current) {
       hasMounted.current = true;
@@ -243,7 +293,7 @@ export default function HomePage() {
     }
     if (user) loadDashboardData(null, filterYear, filterMonth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCreatedBy, filterYear, filterMonth]);
+  }, [filterCreatedBy, filterYear, filterMonth, filterEquipo, filterTeamLead, dashView]);
 
   async function saveMeta() {
     const value = parseInt(editMetaValue);
@@ -409,17 +459,53 @@ export default function HomePage() {
     <MainLayout>
       <div className="space-y-6 sm:space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Bienvenido, {user?.nombre ?? user?.email} · {getPeriodLabel()}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground">
+              Bienvenido, {user?.nombre ?? user?.email} · {getPeriodLabel()}
+            </p>
+          </div>
+          {/* Tabs General / Por Equipos — solo admin */}
+          {user?.role === 'admin' && equipos.length > 0 && (
+            <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit self-start sm:self-auto">
+              <button
+                onClick={() => { setDashView('general'); setFilterEquipo(''); setFilterTeamLead(''); }}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                  dashView === 'general'
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <UserCircle className="h-3.5 w-3.5" /> General
+              </button>
+              <button
+                onClick={() => { setDashView('equipos'); setFilterCreatedBy(''); }}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                  dashView === 'equipos'
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" /> Por Equipos
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filtros — sticky mientras se hace scroll */}
         <div className="sticky -top-4 sm:-top-6 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-2 bg-background/90 backdrop-blur border-b border-border">
-          <div className={cn('grid items-center gap-2', user?.role === 'admin' ? 'grid-cols-3' : 'grid-cols-2')}>
-            {user?.role === 'admin' && (
+          <div className={cn(
+            'grid items-center gap-2',
+            user?.role === 'admin' && dashView === 'equipos'
+              ? 'grid-cols-2 sm:grid-cols-4'
+              : user?.role === 'admin'
+              ? 'grid-cols-3'
+              : 'grid-cols-2'
+          )}>
+            {user?.role === 'admin' && dashView === 'general' && (
               <Select
                 aria-label="Filtrar por vendedor"
                 value={filterCreatedBy}
@@ -428,16 +514,40 @@ export default function HomePage() {
               >
                 <option value="">Todos los vendedores</option>
                 {users.map((u) => {
-                  const displayName = u.nombre && u.apellidos
-                    ? `${u.nombre} ${u.apellidos}`
-                    : u.email;
-                  return (
-                    <option key={u.id} value={u.id}>
-                      {displayName}
-                    </option>
-                  );
+                  const name = u.nombre && u.apellidos ? `${u.nombre} ${u.apellidos}` : u.email;
+                  return <option key={u.id} value={u.id}>{name}</option>;
                 })}
               </Select>
+            )}
+            {user?.role === 'admin' && dashView === 'equipos' && (
+              <>
+                <Select
+                  aria-label="Filtrar por equipo"
+                  value={filterEquipo}
+                  onChange={(e) => { setFilterEquipo(e.target.value); setFilterTeamLead(''); }}
+                  className="h-9 text-sm"
+                >
+                  <option value="">Todos los equipos</option>
+                  {equipos.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                </Select>
+                <Select
+                  aria-label="Filtrar por Team Lead"
+                  value={filterTeamLead}
+                  onChange={(e) => setFilterTeamLead(e.target.value)}
+                  className="h-9 text-sm"
+                >
+                  <option value="">Team Lead: todos</option>
+                  {(filterEquipo
+                    ? equipos.filter(e => e.id === filterEquipo && e.teamLead).map(e => e.teamLead!)
+                    : [...new Map(
+                        equipos.filter(e => e.teamLead).map(e => [e.teamLead!.id, e.teamLead!])
+                      ).values()]
+                  ).map(tl => {
+                    const name = tl.nombre && tl.apellidos ? `${tl.nombre} ${tl.apellidos}` : tl.email;
+                    return <option key={tl.id} value={tl.id}>{name}</option>;
+                  })}
+                </Select>
+              </>
             )}
             <Select
               aria-label="Filtrar por mes"
@@ -638,10 +748,7 @@ export default function HomePage() {
                       <div className="flex items-center gap-3 py-2 px-2 rounded-md hover:bg-accent transition-colors">
                         <div className={cn("h-2.5 w-2.5 rounded-full flex-shrink-0", info.color)} />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm font-medium truncate">{info.label}</span>
-                            <span className="text-sm font-bold ml-3 flex-shrink-0">{stat.count}</span>
-                          </div>
+                          <span className="text-sm font-medium truncate block mb-1.5">{info.label}</span>
                           <div className="w-full bg-muted rounded-full h-1.5">
                             <div
                               className={cn("h-1.5 rounded-full transition-all duration-500", info.color)}
@@ -649,9 +756,10 @@ export default function HomePage() {
                             />
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0 w-12 justify-end">
-                          <span className="text-xs text-muted-foreground">{pct}%</span>
-                          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-sm font-bold tabular-nums">{stat.count}</span>
+                          <span className="text-xs text-muted-foreground w-9 text-right tabular-nums">{pct}%</span>
+                          <ArrowRight className="hidden sm:block h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </div>
                     </button>

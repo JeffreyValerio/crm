@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { resolveEquipoUserIds } from '@/lib/equipo-filter';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).end();
@@ -23,6 +24,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where.asignadoA = session.userId;
     } else if (req.query.asignadoA) {
       where.asignadoA = req.query.asignadoA;
+    } else if (req.query.equipoId && typeof req.query.equipoId === 'string') {
+      const ids = await resolveEquipoUserIds(req.query.equipoId);
+      where.asignadoA = ids ? { in: ids } : '__NO_MATCH__';
     }
 
     const prospectos = await prisma.prospecto.findMany({
