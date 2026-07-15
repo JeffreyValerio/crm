@@ -273,8 +273,8 @@ model EquipoMiembro {
   createdAt DateTime @default(now())
 
   @@unique([equipoId, userId])
+  @@unique([userId])
   @@index([equipoId])
-  @@index([userId])
 }
 
 model KpiMeta {

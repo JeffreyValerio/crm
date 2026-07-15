@@ -866,8 +866,14 @@ function TabEquipos({ users }: { users: User[] }) {
     }
   }
 
-  // Usuarios disponibles para agregar (no están aún en el equipo)
-  const disponibles = users.filter(u => !miembrosIds.includes(u.id));
+  // Usuarios ya asignados a otro equipo distinto al que se está editando
+  const asignadosEnOtros = new Set(
+    equipos
+      .filter(e => !dialog.equipo || e.id !== dialog.equipo.id)
+      .flatMap(e => e.miembros.map(m => m.userId))
+  );
+  // Disponibles: no están en este equipo y no están en otro equipo
+  const disponibles = users.filter(u => !miembrosIds.includes(u.id) && !asignadosEnOtros.has(u.id));
   // Usuarios del equipo actual (para mostrar nombres)
   const miembrosDetalle = miembrosIds
     .map(id => users.find(u => u.id === id))
