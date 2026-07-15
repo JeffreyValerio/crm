@@ -118,17 +118,15 @@ export async function sendStatusNotificationEmail({
   clienteNombre,
   tipo,
   nuevoEstado,
-  clientId,
 }: {
   to: string;
   vendedor: string;
   clienteNombre: string;
   tipo: 'Validación' | 'Venta';
   nuevoEstado: string;
-  clientId: string;
 }) {
   const appUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
-  const clientUrl = `${appUrl}/clients/${clientId}`;
+  const clientUrl = `${appUrl}/clients`;
   const esVenta = tipo === 'Venta';
   const color = esVenta ? '#16a34a' : '#2563eb';
   const icono = esVenta ? '✅' : '🔔';

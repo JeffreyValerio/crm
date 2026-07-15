@@ -227,7 +227,6 @@ export default async function handler(
               clienteNombre: nombreCliente,
               tipo: 'Validación',
               nuevoEstado: validationLabels[validationStatus] ?? validationStatus,
-              clientId: id as string,
             }).catch(e => console.error('[mail] error notificación validación:', e));
           }
         } else if (validationComment !== undefined) {
@@ -275,7 +274,6 @@ export default async function handler(
                 clienteNombre: nombreCliente,
                 tipo: 'Venta',
                 nuevoEstado: saleLabels[saleStatus] ?? saleStatus,
-                clientId: id as string,
               }).catch(e => console.error('[mail] error notificación venta:', e));
             }
           }
