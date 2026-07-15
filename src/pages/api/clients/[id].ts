@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import cloudinary from '@/lib/cloudinary';
+import { sendStatusNotificationEmail } from '@/lib/mail';
 
 export default async function handler(
   req: NextApiRequest,
@@ -99,6 +100,7 @@ export default async function handler(
       // Obtener el cliente actual para comparar estados
       const currentClient = await prisma.client.findUnique({
         where: { id: id as string },
+        include: { creator: { select: { email: true, nombre: true, apellidos: true } } },
       });
 
       if (!currentClient) {
@@ -209,15 +211,24 @@ export default async function handler(
 
           // Notificar al vendedor si no es el mismo admin
           if (currentClient.createdBy !== session.userId) {
+            const mensaje = `Tu cliente ${nombreCliente} fue marcado como: ${validationLabels[validationStatus] ?? validationStatus}`;
             await prisma.notification.create({
               data: {
                 userId: currentClient.createdBy,
                 tipo: 'VALIDACION',
                 titulo: 'Estado de validación actualizado',
-                mensaje: `Tu cliente ${nombreCliente} fue marcado como: ${validationLabels[validationStatus] ?? validationStatus}`,
+                mensaje,
                 clientId: id as string,
               },
             });
+            sendStatusNotificationEmail({
+              to: currentClient.creator.email,
+              vendedor: currentClient.creator.nombre ?? currentClient.creator.email,
+              clienteNombre: nombreCliente,
+              tipo: 'Validación',
+              nuevoEstado: validationLabels[validationStatus] ?? validationStatus,
+              clientId: id as string,
+            }).catch(e => console.error('[mail] error notificación validación:', e));
           }
         } else if (validationComment !== undefined) {
           updateData.validationComment = validationComment.trim();
@@ -248,15 +259,24 @@ export default async function handler(
 
             // Notificar al vendedor si no es el mismo admin
             if (currentClient.createdBy !== session.userId) {
+              const mensajeVenta = `Tu cliente ${nombreCliente} fue marcado como: ${saleLabels[saleStatus] ?? saleStatus}`;
               await prisma.notification.create({
                 data: {
                   userId: currentClient.createdBy,
                   tipo: 'VENTA',
                   titulo: 'Estado de venta actualizado',
-                  mensaje: `Tu cliente ${nombreCliente} fue marcado como: ${saleLabels[saleStatus] ?? saleStatus}`,
+                  mensaje: mensajeVenta,
                   clientId: id as string,
                 },
               });
+              sendStatusNotificationEmail({
+                to: currentClient.creator.email,
+                vendedor: currentClient.creator.nombre ?? currentClient.creator.email,
+                clienteNombre: nombreCliente,
+                tipo: 'Venta',
+                nuevoEstado: saleLabels[saleStatus] ?? saleStatus,
+                clientId: id as string,
+              }).catch(e => console.error('[mail] error notificación venta:', e));
             }
           }
         } else if (saleComment !== undefined) {

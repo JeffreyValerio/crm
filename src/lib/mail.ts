@@ -112,6 +112,66 @@ export async function sendProspectosAsignadosEmail(
   });
 }
 
+export async function sendStatusNotificationEmail({
+  to,
+  vendedor,
+  clienteNombre,
+  tipo,
+  nuevoEstado,
+  clientId,
+}: {
+  to: string;
+  vendedor: string;
+  clienteNombre: string;
+  tipo: 'Validación' | 'Venta';
+  nuevoEstado: string;
+  clientId: string;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
+  const clientUrl = `${appUrl}/clients/${clientId}`;
+  const esVenta = tipo === 'Venta';
+  const color = esVenta ? '#16a34a' : '#2563eb';
+  const icono = esVenta ? '✅' : '🔔';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #f4f4f4; padding: 24px; border-radius: 8px;">
+          <h2 style="color: ${color}; margin-top: 0;">${icono} Estado de ${tipo} actualizado</h2>
+          <p>Hola <strong>${vendedor}</strong>,</p>
+          <p>El administrador actualizó el estado de uno de tus clientes:</p>
+          <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; margin: 16px 0;">
+            <tr>
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; font-weight: 600; width: 40%;">Cliente</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb;">${clienteNombre}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 16px; font-weight: 600;">Nuevo estado</td>
+              <td style="padding: 12px 16px; font-weight: 700; color: ${color};">${nuevoEstado}</td>
+            </tr>
+          </table>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${clientUrl}"
+               style="background-color: ${color}; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 700; font-size: 15px;">
+              Ver cliente
+            </a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          <p style="font-size: 12px; color: #888; margin: 0;">Este correo fue generado automáticamente por el CRM.</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendMail({
+    to,
+    subject: `${icono} ${clienteNombre} — Estado de ${tipo}: ${nuevoEstado}`,
+    html,
+  });
+}
+
 export async function sendInvitationEmail(email: string, inviteToken: string, invitedBy?: string) {
   const appUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
   const inviteUrl = `${appUrl}/invite/${inviteToken}`;
