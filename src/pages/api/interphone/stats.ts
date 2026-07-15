@@ -40,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     periodoStr = `${y}-${String(m).padStart(2, '0')}`;
   } else {
     const targetDate = fecha ? new Date(fecha as string) : new Date();
-    startDate  = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()));
-    endDate    = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1));
+    startDate  = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate()));
+    endDate    = new Date(Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate() + 1));
     periodoStr = startDate.toISOString().slice(0, 10);
   }
 
