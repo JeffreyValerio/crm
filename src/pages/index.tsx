@@ -50,6 +50,7 @@ interface EquipoOption {
   nombre: string;
   teamLeadId: string | null;
   teamLead: { id: string; nombre: string | null; apellidos: string | null; email: string } | null;
+  miembros: { userId: string }[];
 }
 
 interface ProspectStat {
@@ -86,6 +87,7 @@ export default function HomePage() {
   const [equipos, setEquipos] = useState<EquipoOption[]>([]);
   const [filterEquipo, setFilterEquipo] = useState('');
   const [filterTeamLead, setFilterTeamLead] = useState('');
+  const [filterMiembro, setFilterMiembro] = useState('');
   const [kpiMeta, setKpiMeta] = useState<number>(8);
   const [editingMeta, setEditingMeta] = useState(false);
   const [editMetaValue, setEditMetaValue] = useState<string>('8');
@@ -192,10 +194,18 @@ export default function HomePage() {
             trendsParams.append('createdBy', filterCreatedBy);
           }
         } else {
-          // Vista por equipos
-          if (filterTeamLead) {
-            params.append('createdBy', filterTeamLead);
-            trendsParams.append('createdBy', filterTeamLead);
+          // Vista por equipos — jerarquía: miembro > teamLead > equipo
+          if (filterMiembro) {
+            // Drill-down individual dentro del equipo
+            params.append('createdBy', filterMiembro);
+            trendsParams.append('createdBy', filterMiembro);
+          } else if (filterTeamLead) {
+            // Team Lead → resolves al equipo que lidera (incluyendo al TL)
+            const equipoLiderado = equipos.find(e => e.teamLeadId === filterTeamLead);
+            if (equipoLiderado) {
+              params.append('equipoId', equipoLiderado.id);
+              trendsParams.append('equipoId', equipoLiderado.id);
+            }
           } else if (filterEquipo) {
             params.append('equipoId', filterEquipo);
             trendsParams.append('equipoId', filterEquipo);
@@ -203,15 +213,22 @@ export default function HomePage() {
         }
       }
 
-      const prospectoExtra = activeUser.role === 'admin'
-        ? dashView === 'general' && filterCreatedBy
-          ? `&asignadoA=${filterCreatedBy}`
-          : dashView === 'equipos' && filterTeamLead
-          ? `&asignadoA=${filterTeamLead}`
-          : dashView === 'equipos' && filterEquipo
-          ? `&equipoId=${filterEquipo}`
-          : ''
-        : '';
+      // Mismo cálculo para las APIs de prospectos
+      let prospectoExtra = '';
+      if (activeUser.role === 'admin') {
+        if (dashView === 'general' && filterCreatedBy) {
+          prospectoExtra = `&asignadoA=${filterCreatedBy}`;
+        } else if (dashView === 'equipos') {
+          if (filterMiembro) {
+            prospectoExtra = `&asignadoA=${filterMiembro}`;
+          } else if (filterTeamLead) {
+            const equipoLiderado = equipos.find(e => e.teamLeadId === filterTeamLead);
+            if (equipoLiderado) prospectoExtra = `&equipoId=${equipoLiderado.id}`;
+          } else if (filterEquipo) {
+            prospectoExtra = `&equipoId=${filterEquipo}`;
+          }
+        }
+      }
 
       const [statsRes, prospectsRes, trendsRes, activityRes] = await Promise.all([
         fetch(`/api/dashboard/stats?${params.toString()}`),
@@ -293,7 +310,7 @@ export default function HomePage() {
     }
     if (user) loadDashboardData(null, filterYear, filterMonth);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCreatedBy, filterYear, filterMonth, filterEquipo, filterTeamLead, dashView]);
+  }, [filterCreatedBy, filterYear, filterMonth, filterEquipo, filterTeamLead, filterMiembro, dashView]);
 
   async function saveMeta() {
     const value = parseInt(editMetaValue);
@@ -470,7 +487,7 @@ export default function HomePage() {
           {user?.role === 'admin' && equipos.length > 0 && (
             <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit self-start sm:self-auto">
               <button
-                onClick={() => { setDashView('general'); setFilterEquipo(''); setFilterTeamLead(''); }}
+                onClick={() => { setDashView('general'); setFilterEquipo(''); setFilterTeamLead(''); setFilterMiembro(''); }}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
                   dashView === 'general'
@@ -481,7 +498,7 @@ export default function HomePage() {
                 <UserCircle className="h-3.5 w-3.5" /> General
               </button>
               <button
-                onClick={() => { setDashView('equipos'); setFilterCreatedBy(''); }}
+                onClick={() => { setDashView('equipos'); setFilterCreatedBy(''); setFilterMiembro(''); }}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
                   dashView === 'equipos'
@@ -500,7 +517,7 @@ export default function HomePage() {
           <div className={cn(
             'grid items-center gap-2',
             user?.role === 'admin' && dashView === 'equipos'
-              ? 'grid-cols-2 sm:grid-cols-4'
+              ? 'grid-cols-2 sm:grid-cols-5'
               : user?.role === 'admin'
               ? 'grid-cols-3'
               : 'grid-cols-2'
@@ -519,36 +536,61 @@ export default function HomePage() {
                 })}
               </Select>
             )}
-            {user?.role === 'admin' && dashView === 'equipos' && (
-              <>
-                <Select
-                  aria-label="Filtrar por equipo"
-                  value={filterEquipo}
-                  onChange={(e) => { setFilterEquipo(e.target.value); setFilterTeamLead(''); }}
-                  className="h-9 text-sm"
-                >
-                  <option value="">Todos los equipos</option>
-                  {equipos.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-                </Select>
-                <Select
-                  aria-label="Filtrar por Team Lead"
-                  value={filterTeamLead}
-                  onChange={(e) => setFilterTeamLead(e.target.value)}
-                  className="h-9 text-sm"
-                >
-                  <option value="">Team Lead: todos</option>
-                  {(filterEquipo
-                    ? equipos.filter(e => e.id === filterEquipo && e.teamLead).map(e => e.teamLead!)
-                    : [...new Map(
-                        equipos.filter(e => e.teamLead).map(e => [e.teamLead!.id, e.teamLead!])
-                      ).values()]
-                  ).map(tl => {
-                    const name = tl.nombre && tl.apellidos ? `${tl.nombre} ${tl.apellidos}` : tl.email;
-                    return <option key={tl.id} value={tl.id}>{name}</option>;
-                  })}
-                </Select>
-              </>
-            )}
+            {user?.role === 'admin' && dashView === 'equipos' && (() => {
+              // Equipo activo: seleccionado directamente o derivado del team lead
+              const equipoActivoId = filterEquipo || equipos.find(e => e.teamLeadId === filterTeamLead)?.id || '';
+              const equipoActivo = equipos.find(e => e.id === equipoActivoId);
+
+              // Miembros disponibles para el filtro de vendedor
+              const memberIdsSet = new Set<string>(equipoActivo?.miembros.map(m => m.userId) ?? []);
+              if (equipoActivo?.teamLeadId) memberIdsSet.add(equipoActivo.teamLeadId);
+              const vendedoresEquipo = equipoActivo
+                ? users.filter(u => memberIdsSet.has(u.id))
+                : users;
+
+              // Team leads para el filtro (deduplicados)
+              const teamLeadOptions = filterEquipo
+                ? equipos.filter(e => e.id === filterEquipo && e.teamLead).map(e => e.teamLead!)
+                : [...new Map(equipos.filter(e => e.teamLead).map(e => [e.teamLead!.id, e.teamLead!])).values()];
+
+              return (
+                <>
+                  <Select
+                    aria-label="Filtrar por equipo"
+                    value={filterEquipo}
+                    onChange={e => { setFilterEquipo(e.target.value); setFilterTeamLead(''); setFilterMiembro(''); }}
+                    className="h-9 text-sm"
+                  >
+                    <option value="">Todos los equipos</option>
+                    {equipos.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                  </Select>
+                  <Select
+                    aria-label="Filtrar por Team Lead"
+                    value={filterTeamLead}
+                    onChange={e => { setFilterTeamLead(e.target.value); setFilterMiembro(''); }}
+                    className="h-9 text-sm"
+                  >
+                    <option value="">Team Lead: todos</option>
+                    {teamLeadOptions.map(tl => {
+                      const name = tl.nombre && tl.apellidos ? `${tl.nombre} ${tl.apellidos}` : tl.email;
+                      return <option key={tl.id} value={tl.id}>{name}</option>;
+                    })}
+                  </Select>
+                  <Select
+                    aria-label="Filtrar por vendedor"
+                    value={filterMiembro}
+                    onChange={e => setFilterMiembro(e.target.value)}
+                    className="h-9 text-sm"
+                  >
+                    <option value="">Vendedor: todos</option>
+                    {vendedoresEquipo.map(u => {
+                      const name = u.nombre && u.apellidos ? `${u.nombre} ${u.apellidos}` : u.email;
+                      return <option key={u.id} value={u.id}>{name}</option>;
+                    })}
+                  </Select>
+                </>
+              );
+            })()}
             <Select
               aria-label="Filtrar por mes"
               value={filterMonth}
