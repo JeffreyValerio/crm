@@ -51,9 +51,19 @@ export default function InterphonePage() {
 
   // Filters
   const [modo, setModo]           = useState<'dia' | 'mes'>('dia');
-  const [fecha, setFecha]         = useState(() => new Date().toISOString().slice(0, 10));
-  const [year, setYear]           = useState(() => new Date().getFullYear());
-  const [mes, setMes]             = useState(() => new Date().getMonth() + 1);
+  const [fecha, setFecha]         = useState(() => {
+    const now = new Date();
+    const cr = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    return cr.toISOString().slice(0, 10);
+  });
+  const [year, setYear]           = useState(() => {
+    const cr = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    return cr.getUTCFullYear();
+  });
+  const [mes, setMes]             = useState(() => {
+    const cr = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    return cr.getUTCMonth() + 1;
+  });
   const [filterVendor, setFilterVendor] = useState('');
 
   const buildUrl = useCallback(() => {
