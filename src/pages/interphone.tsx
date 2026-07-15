@@ -109,12 +109,13 @@ export default function InterphonePage() {
 
   const totales = rows.reduce(
     (acc, r) => ({
-      respondido: acc.respondido + r.respondido,
-      perdidas:   acc.perdidas   + r.perdidas,
-      salientes:  acc.salientes  + r.llamadasSalientes,
-      entrantes:  acc.entrantes  + r.llamadasEntrantes,
+      respondido:         acc.respondido         + r.respondido,
+      perdidas:           acc.perdidas           + r.perdidas,
+      salientes:          acc.salientes          + r.llamadasSalientes,
+      entrantes:          acc.entrantes          + r.llamadasEntrantes,
+      tipificadasLlamada: acc.tipificadasLlamada + r.tipificadasLlamada,
     }),
-    { respondido: 0, perdidas: 0, salientes: 0, entrantes: 0 },
+    { respondido: 0, perdidas: 0, salientes: 0, entrantes: 0, tipificadasLlamada: 0 },
   );
 
   const yearOptions = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i);
@@ -194,7 +195,7 @@ export default function InterphonePage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         <Card>
           <CardHeader className="pb-1 pt-4 px-4">
             <CardTitle className="text-xs text-muted-foreground font-normal flex items-center gap-1.5">
@@ -233,6 +234,16 @@ export default function InterphonePage() {
           </CardHeader>
           <CardContent className="px-4 pb-4">
             <p className="text-2xl font-bold">{totales.salientes}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1 pt-4 px-4">
+            <CardTitle className="text-xs text-muted-foreground font-normal flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5 text-blue-500" /> CRM llamadas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <p className="text-2xl font-bold">{totales.tipificadasLlamada}</p>
           </CardContent>
         </Card>
       </div>
