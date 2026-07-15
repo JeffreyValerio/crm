@@ -50,7 +50,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ocupado: s?.ocupado ?? 0,
       alocSegundos: s?.alocSegundos ?? null,
       llamadasEntrantes: s?.llamadasEntrantes ?? 0,
+      duracionInboundSeg: s?.duracionInboundSeg ?? 0,
       llamadasSalientes: s?.llamadasSalientes ?? 0,
+      duracionSalidaSeg: s?.duracionSalidaSeg ?? 0,
       sinDatos: !s,
     };
   });

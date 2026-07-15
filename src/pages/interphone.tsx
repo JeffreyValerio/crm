@@ -20,15 +20,20 @@ interface StatRow {
   ocupado: number;
   alocSegundos: number | null;
   llamadasEntrantes: number;
+  duracionInboundSeg: number;
   llamadasSalientes: number;
+  duracionSalidaSeg: number;
   sinDatos: boolean;
 }
 
-function fmtDuracion(seg: number | null): string {
+function fmtDuracion(seg: number | null | undefined): string {
   if (!seg || seg <= 0) return '—';
-  const m = Math.floor(seg / 60);
+  const h = Math.floor(seg / 3600);
+  const m = Math.floor((seg % 3600) / 60);
   const s = Math.round(seg % 60);
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
 export default function InterphonePage() {
@@ -181,15 +186,18 @@ export default function InterphonePage() {
                     <TableHead className="text-center">Perdidas</TableHead>
                     <TableHead className="text-center">Sin resp.</TableHead>
                     <TableHead className="text-center">Entrantes</TableHead>
+                    <TableHead className="text-center">
+                      <span className="flex items-center justify-center gap-1"><Clock className="h-3.5 w-3.5" /> Dur. entrada</span>
+                    </TableHead>
                     <TableHead className="text-center">Salientes</TableHead>
                     <TableHead className="text-center">
-                      <span className="flex items-center justify-center gap-1"><Clock className="h-3.5 w-3.5" /> Prom.</span>
+                      <span className="flex items-center justify-center gap-1"><Clock className="h-3.5 w-3.5" /> Dur. salida</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.length === 0 ? (
-                    <TableEmptyState colSpan={8} message="Sin datos. Asigna extensiones a usuarios en Configuración." />
+                    <TableEmptyState colSpan={9} message="Sin datos. Asigna extensiones a usuarios en Configuración." />
                   ) : rows.map(r => (
                     <TableRow key={r.userId} className={r.sinDatos ? 'opacity-50' : ''}>
                       <TableCell className="font-medium">{r.nombre}</TableCell>
@@ -214,11 +222,14 @@ export default function InterphonePage() {
                       <TableCell className="text-center text-muted-foreground">
                         {r.sinDatos ? '—' : r.llamadasEntrantes}
                       </TableCell>
+                      <TableCell className="text-center text-muted-foreground text-xs font-mono">
+                        {r.sinDatos ? '—' : fmtDuracion(r.duracionInboundSeg)}
+                      </TableCell>
                       <TableCell className="text-center text-muted-foreground">
                         {r.sinDatos ? '—' : r.llamadasSalientes}
                       </TableCell>
                       <TableCell className="text-center text-muted-foreground text-xs font-mono">
-                        {r.sinDatos ? '—' : fmtDuracion(r.alocSegundos)}
+                        {r.sinDatos ? '—' : fmtDuracion(r.duracionSalidaSeg)}
                       </TableCell>
                     </TableRow>
                   ))}
