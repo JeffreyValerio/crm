@@ -11,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method !== 'PATCH') return res.status(405).json({ error: 'Método no permitido' });
 
-  const { resultado, proveedorCompetidor } = req.body as { resultado: string; proveedorCompetidor?: string };
+  const { resultado, proveedorCompetidor, observacionesInternas } = req.body as { resultado: string; proveedorCompetidor?: string; observacionesInternas?: string };
   if (!resultado) return res.status(400).json({ error: 'resultado es requerido' });
 
   // Validar contra tipificaciones activas en DB
@@ -43,6 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       totalContactos: { increment: 1 },
       ultimoContacto: new Date(),
       ...(proveedorCompetidor ? { proveedorCompetidor } : {}),
+      ...(observacionesInternas ? { observacionesInternas } : {}),
     },
     include: {
       asignado: { select: { id: true, nombre: true, apellidos: true, email: true } },

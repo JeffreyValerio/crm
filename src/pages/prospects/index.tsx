@@ -148,6 +148,7 @@ export default function ProspectsPage() {
   const [contactLoading, setContactLoading] = useState<string | null>(null);
   const [contactMetodo, setContactMetodo] = useState<ResultadoContacto | ''>('');
   const [contactProveedor, setContactProveedor] = useState('');
+  const [contactObs, setContactObs] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [sinCoberturaConfirm, setSinCoberturaConfirm] = useState(false);
 
@@ -259,13 +260,17 @@ export default function ProspectsPage() {
     }
   }
 
-  async function handleContactar(prospecto: Prospecto, resultado: ResultadoContacto, proveedor?: string) {
+  async function handleContactar(prospecto: Prospecto, resultado: ResultadoContacto, proveedor?: string, obs?: string) {
     setContactLoading(prospecto.id);
     try {
       const res = await fetch(`/api/prospects/${prospecto.id}/contactar`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resultado, ...(proveedor ? { proveedorCompetidor: proveedor } : {}) }),
+        body: JSON.stringify({
+          resultado,
+          ...(proveedor ? { proveedorCompetidor: proveedor } : {}),
+          ...(obs ? { observacionesInternas: obs } : {}),
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -346,6 +351,7 @@ export default function ProspectsPage() {
     setEditingObs(false);
     setContactMetodo('');
     setContactProveedor('');
+    setContactObs('');
     setCoberturaStatus('idle');
     if (p.idCliente) {
       try {
@@ -387,8 +393,9 @@ export default function ProspectsPage() {
         </div>
 
         {/* Filtros */}
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-          <form onSubmit={handleSearch} className="col-span-2 sm:flex-1 sm:min-w-[200px] flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_auto_auto] sm:gap-3">
+          {/* Búsqueda — ocupa todo en móvil, flex-1 en desktop */}
+          <form onSubmit={handleSearch} className="col-span-2 sm:col-span-1 flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -408,7 +415,7 @@ export default function ProspectsPage() {
             <Select
               value={filterAsignado}
               onChange={e => { const v = e.target.value; setFilterAsignado(v); fetchProspectos(1, v); }}
-              className="col-span-1"
+              className="col-span-1 sm:w-48"
             >
               <option value="">Agente: todos</option>
               <option value="sin_asignar">Sin asignar</option>
@@ -421,7 +428,7 @@ export default function ProspectsPage() {
           <Select
             value={filterTipificacion}
             onChange={e => { const v = e.target.value; setFilterTipificacion(v); fetchProspectos(1, undefined, v); }}
-            className="col-span-1"
+            className="col-span-1 sm:w-56"
           >
             <option value="">Tipificación: todas</option>
             {tipificaciones.map(t => (
@@ -821,13 +828,13 @@ export default function ProspectsPage() {
                     {(() => {
                       const tipSeleccionada = getSelectedTip();
                       const esOtroProveedor = !!tipSeleccionada && tipSeleccionada.etiqueta.toLowerCase().includes('otro proveedor');
-                      const puedeRegistrar = !!contactMetodo && (!esOtroProveedor || !!contactProveedor);
+                      const puedeRegistrar = !!contactMetodo && (!esOtroProveedor || (!!contactProveedor && !!contactObs.trim()));
                       return (
                         <div className="space-y-2">
                           <div className="flex gap-2 items-center">
                             <Select
                               value={contactMetodo}
-                              onChange={e => { setContactMetodo(e.target.value as ResultadoContacto); setContactProveedor(''); }}
+                              onChange={e => { setContactMetodo(e.target.value as ResultadoContacto); setContactProveedor(''); setContactObs(''); }}
                               className="flex-1"
                             >
                               <option value="" disabled>— Seleccione —</option>
@@ -841,7 +848,7 @@ export default function ProspectsPage() {
                                 if (tip?.eliminaProspecto) {
                                   setSinCoberturaConfirm(true);
                                 } else {
-                                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto, esOtroProveedor ? contactProveedor : undefined);
+                                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto, esOtroProveedor ? contactProveedor : undefined, esOtroProveedor ? contactObs : undefined);
                                 }
                               }}
                               disabled={!puedeRegistrar || contactLoading === viewingProspecto.id}
@@ -851,16 +858,25 @@ export default function ProspectsPage() {
                             </Button>
                           </div>
                           {esOtroProveedor && (
-                            <Select
-                              value={contactProveedor}
-                              onChange={e => setContactProveedor(e.target.value)}
-                              className="w-full"
-                            >
-                              <option value="" disabled>— Seleccione proveedor *</option>
-                              {['TIGO', 'LIBERTY', 'METROCOM', 'TELECABLE', 'KOLBI', 'STARLINK', 'OTRO'].map(p => (
-                                <option key={p} value={p}>{p}</option>
-                              ))}
-                            </Select>
+                            <>
+                              <Select
+                                value={contactProveedor}
+                                onChange={e => setContactProveedor(e.target.value)}
+                                className="w-full"
+                              >
+                                <option value="" disabled>— Seleccione proveedor *</option>
+                                {['TIGO', 'LIBERTY', 'METROCOM', 'TELECABLE', 'KOLBI', 'STARLINK', 'OTRO'].map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </Select>
+                              <textarea
+                                className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                                rows={2}
+                                value={contactObs}
+                                onChange={e => setContactObs(e.target.value)}
+                                placeholder="Observaciones requeridas *"
+                              />
+                            </>
                           )}
                         </div>
                       );
@@ -1022,7 +1038,7 @@ export default function ProspectsPage() {
                 disabled={contactLoading === viewingProspecto.id}
                 onClick={() => {
                   setSinCoberturaConfirm(false);
-                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto, contactProveedor || undefined);
+                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto, contactProveedor || undefined, contactObs || undefined);
                 }}
               >
                 Sí, eliminar
