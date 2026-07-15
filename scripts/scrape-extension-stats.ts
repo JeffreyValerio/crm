@@ -135,9 +135,12 @@ export async function scrapeExtensionStats(): Promise<{ scraped: number; fecha: 
   console.log(`[scrape] CSV recibido — ${rows.length} extensiones`);
 
   // ── 3. Upsert en DB ───────────────────────────────────────────────────────────
-  // Usar medianoche UTC del día actual como clave de fecha
+  // Usar la fecha en hora Costa Rica (UTC-6, sin DST) porque Interphone
+  // sirve datos de "Hoy" en hora local CR. Si el script corre a las 11pm CR
+  // (= 5am UTC del día siguiente), la fecha UTC sería incorrecta.
   const now = new Date();
-  const fecha = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const crNow = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+  const fecha = new Date(Date.UTC(crNow.getUTCFullYear(), crNow.getUTCMonth(), crNow.getUTCDate()));
 
   let upserted = 0;
   for (const row of rows) {
