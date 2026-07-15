@@ -223,9 +223,10 @@ model Prospecto {
   latitud           String?
   longitud          String?
   // Contactación
-  metodoContacto       String?   // "LLAMADA" | "WHATSAPP"
-  totalContactos       Int       @default(0)
-  ultimoContacto       DateTime?
+  metodoContacto        String?
+  totalContactos        Int       @default(0)
+  ultimoContacto        DateTime?
+  proveedorCompetidor   String?
   // Gestión interna
   observacionesInternas String?
   asignadoA         String?

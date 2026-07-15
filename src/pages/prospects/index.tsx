@@ -85,6 +85,7 @@ interface Prospecto {
   metodoContacto: string | null;
   totalContactos: number;
   ultimoContacto: string | null;
+  proveedorCompetidor: string | null;
 }
 
 // ── tipificaciones dinámicas desde DB ───────────────────────────────────────
@@ -892,6 +893,12 @@ export default function ProspectsPage() {
                     label="Total contactos"
                     value={String(viewingProspecto.totalContactos)}
                   />
+                  {viewingProspecto.proveedorCompetidor && (
+                    <DetailField
+                      label="Proveedor competidor"
+                      value={viewingProspecto.proveedorCompetidor}
+                    />
+                  )}
                   <div>
                     <span className="text-xs text-muted-foreground">Último contacto</span>
                     <p className="mt-0.5">
