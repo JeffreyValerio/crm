@@ -57,3 +57,41 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Swagger UI — contener en el wrapper, evitar que rompa el layout global */
+.swagger-wrapper .swagger-ui {
+  font-family: inherit;
+}
+.swagger-wrapper .swagger-ui .topbar {
+  display: none;
+}
+.swagger-wrapper .swagger-ui .info {
+  display: none;
+}
+.swagger-wrapper .swagger-ui .scheme-container {
+  background: transparent;
+  box-shadow: none;
+  padding: 0 0 8px;
+}
+.swagger-wrapper .swagger-ui .btn.authorize {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+.swagger-wrapper .swagger-ui .opblock-tag {
+  border-color: hsl(var(--border));
+}
+.dark .swagger-wrapper .swagger-ui,
+.dark .swagger-wrapper .swagger-ui .opblock .opblock-summary-description,
+.dark .swagger-wrapper .swagger-ui .opblock-description-wrapper p,
+.dark .swagger-wrapper .swagger-ui table thead tr th,
+.dark .swagger-wrapper .swagger-ui .response-col_status {
+  color: hsl(var(--foreground));
+}
+.dark .swagger-wrapper .swagger-ui .opblock {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+.dark .swagger-wrapper .swagger-ui section.models,
+.dark .swagger-wrapper .swagger-ui .scheme-container {
+  background: hsl(var(--card));
+}

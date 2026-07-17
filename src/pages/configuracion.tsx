@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,8 +12,11 @@ import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Select } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Mail, Users, Target, ChevronLeft, ChevronRight, List, ArrowUp, ArrowDown, Check, X, ShieldCheck, KeyRound } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, Users, Target, ChevronLeft, ChevronRight, List, ArrowUp, ArrowDown, Check, X, ShieldCheck, KeyRound, Key, Copy, Eye, EyeOff, RefreshCw, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import 'swagger-ui-react/swagger-ui.css';
+
+const SwaggerUI = dynamic(() => import('swagger-ui-react'), { ssr: false });
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DEFAULT_META = 8;
@@ -1137,11 +1141,228 @@ function TabEquipos({ users }: { users: User[] }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 
+// ── Tab API ───────────────────────────────────────────────────────────────────
+
+interface ApiKeyRecord { id: string; label: string; createdAt: string; }
+
+function TabApi() {
+  const [keys, setKeys]           = useState<ApiKeyRecord[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [creating, setCreating]   = useState(false);
+  const [newLabel, setNewLabel]   = useState('Power BI');
+  const [plainKey, setPlainKey]   = useState<string | null>(null);
+  const [showKey, setShowKey]     = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchKeys = useCallback(async () => {
+    const res = await fetch('/api/api-keys');
+    if (res.ok) {
+      const data = await res.json();
+      setKeys(data.keys ?? []);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchKeys(); }, [fetchKeys]);
+
+  async function handleCreate() {
+    setCreating(true);
+    const res = await fetch('/api/api-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: newLabel }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setPlainKey(data.plain);
+      setShowKey(true);
+      await fetchKeys();
+      toast.success('API key generada');
+    } else {
+      toast.error('Error al generar key');
+    }
+    setCreating(false);
+  }
+
+  async function handleDelete(id: string) {
+    const res = await fetch(`/api/api-keys/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setKeys(prev => prev.filter(k => k.id !== id));
+      toast.success('API key eliminada');
+    }
+    setDeletingId(null);
+  }
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+  return (
+    <div className="space-y-6">
+      {/* Gestión de keys */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Key className="h-4 w-4 text-primary" />
+            API Keys
+          </CardTitle>
+          <CardDescription>
+            Genera claves de acceso para consumir la API desde Power BI u otros sistemas.
+            Cada key se muestra una sola vez al crearla.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Crear key */}
+          <div className="flex gap-2 items-end">
+            <div className="flex-1 max-w-xs space-y-1">
+              <label className="text-xs text-muted-foreground font-medium">Etiqueta</label>
+              <Input
+                value={newLabel}
+                onChange={e => setNewLabel(e.target.value)}
+                placeholder="Power BI"
+                className="h-8 text-sm"
+              />
+            </div>
+            <Button size="sm" onClick={handleCreate} disabled={creating}>
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              {creating ? 'Generando...' : 'Generar key'}
+            </Button>
+          </div>
+
+          {/* Lista de keys */}
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Cargando...</p>
+          ) : keys.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No hay API keys. Genera una para empezar.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Etiqueta</TableHead>
+                  <TableHead>Creada</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {keys.map(k => (
+                  <TableRow key={k.id}>
+                    <TableCell className="font-medium">{k.label}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(k.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {deletingId === k.id ? (
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(k.id)}>Confirmar</Button>
+                          <Button size="sm" variant="outline" onClick={() => setDeletingId(null)}>Cancelar</Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="ghost" onClick={() => setDeletingId(k.id)}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Endpoints de referencia rápida para Power BI */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <ExternalLink className="h-4 w-4 text-primary" />
+            Endpoints disponibles
+          </CardTitle>
+          <CardDescription>
+            Úsalos en Power BI vía <strong>Obtener datos → Web</strong> con el header <code className="text-xs bg-muted px-1 rounded">X-API-Key: tu-clave</code>
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {[
+              { path: '/api/v1/clients', desc: 'Clientes — estados, vendedor, fechas' },
+              { path: '/api/v1/prospects', desc: 'Prospectos — tipificación, asignado, provincia' },
+              { path: '/api/v1/users', desc: 'Usuarios — nombre, rol, extensión' },
+              { path: '/api/v1/extension-stats', desc: 'Llamadas por extensión (diario)' },
+            ].map(e => (
+              <div key={e.path} className="flex items-center gap-3 p-2 rounded border bg-muted/30 text-sm">
+                <code className="text-primary font-mono text-xs flex-shrink-0">{baseUrl}{e.path}</code>
+                <span className="text-muted-foreground text-xs hidden sm:block">—</span>
+                <span className="text-muted-foreground text-xs hidden sm:block">{e.desc}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto h-6 w-6 p-0"
+                  onClick={() => { navigator.clipboard.writeText(`${baseUrl}${e.path}`); toast.success('URL copiada'); }}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground pt-1">
+              Filtros opcionales: <code className="bg-muted px-1 rounded">?desde=2026-07-01&hasta=2026-07-31</code>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Swagger UI */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-primary" />
+            Documentación interactiva
+          </CardTitle>
+          <CardDescription>Prueba los endpoints directamente desde aquí.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 overflow-hidden rounded-b-lg">
+          <div className="swagger-wrapper">
+            <SwaggerUI url="/api/v1/openapi.json" docExpansion="list" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modal: mostrar key una sola vez */}
+      {plainKey && (
+        <Dialog open onOpenChange={() => { setPlainKey(null); setShowKey(false); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>API Key generada</DialogTitle>
+              <DialogDescription>
+                Copia esta clave ahora. No se volverá a mostrar.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center gap-2 p-3 rounded border bg-muted font-mono text-sm break-all">
+              <span className="flex-1">{showKey ? plainKey : '•'.repeat(64)}</span>
+              <Button size="sm" variant="ghost" onClick={() => setShowKey(v => !v)}>
+                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { navigator.clipboard.writeText(plainKey); toast.success('Copiada'); }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => { setPlainKey(null); setShowKey(false); }}>Listo, la guardé</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
 const TABS = [
   { key: 'usuarios',        label: 'Usuarios',        icon: Users       },
   { key: 'equipos',         label: 'Equipos',         icon: ShieldCheck },
   { key: 'metas',           label: 'Metas KPI',       icon: Target      },
   { key: 'tipificaciones',  label: 'Tipificaciones',  icon: List        },
+  { key: 'api',             label: 'API',             icon: Key         },
 ] as const;
 
 type Tab = typeof TABS[number]['key'];
@@ -1267,6 +1488,7 @@ export default function ConfiguracionPage() {
             </CardContent>
           </Card>
         )}
+        {tab === 'api' && <TabApi />}
       </div>
     </MainLayout>
   );

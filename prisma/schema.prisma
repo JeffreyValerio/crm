@@ -320,3 +320,11 @@ model UserKpiMeta {
   @@unique([userId, periodo])
   @@index([userId])
 }
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  keyHash   String   @unique
+  label     String   @default("Power BI")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
