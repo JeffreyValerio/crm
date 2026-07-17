@@ -122,13 +122,27 @@ export async function scrapeExtensionStats(): Promise<{ scraped: number; fecha: 
   const cookie = `PHPSESSID=${phpSessId}`;
   console.log(`[scrape] Login OK — sesión: ${phpSessId.slice(0, 8)}...`);
 
-  // ── 2. Fetch CSV de Hoy (quick_select=3) ─────────────────────────────────────
+  // Seguir el redirect post-login para activar la sesión en el servidor
+  const location = loginRes.headers.get('location');
+  const warmupUrl = location
+    ? (location.startsWith('http') ? location : `${BASE_URL}${location}`)
+    : loginUrl;
+  await fetchInsecure(warmupUrl, { headers: { cookie } });
+  console.log(`[scrape] Sesión activada (warmup: ${warmupUrl})`);
+
+  // ── 2. Fetch CSV de Hoy (quick_select=3) con reintento ───────────────────────
   const csvUrl = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php?type=csv&quick_select=3`;
-  const csvRes = await fetchInsecure(csvUrl, { headers: { cookie } });
-  const csvText = await csvRes.text();
+  let csvText = '';
+  for (let intento = 1; intento <= 3; intento++) {
+    const csvRes = await fetchInsecure(csvUrl, { headers: { cookie } });
+    csvText = await csvRes.text();
+    if (csvText.includes('extension')) break;
+    console.warn(`[scrape] Intento ${intento}/3 — respuesta inválida (${csvText.slice(0, 80).replace(/\n/g, ' ')})`);
+    if (intento < 3) await new Promise(r => setTimeout(r, 3000));
+  }
 
   if (!csvText.includes('extension')) {
-    throw new Error('CSV inválido o sesión expirada');
+    throw new Error('CSV inválido o sesión expirada tras 3 intentos');
   }
 
   const rows = parseCsv(csvText);

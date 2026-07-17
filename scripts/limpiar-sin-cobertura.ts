@@ -58,12 +58,21 @@ async function tieneCoberturaFibra(lat: number, lng: number): Promise<boolean> {
     WIDTH: '10', HEIGHT: '10',
   });
 
-  const res = await fetch(`https://mapas-claro5.addax.cc/be/wms?${params}`, {
-    headers: { Referer: 'https://www.claro.cr/mapacobertura/' },
-    signal: AbortSignal.timeout(10_000),
-  });
+  let res: Response | null = null;
+  for (let i = 1; i <= 3; i++) {
+    try {
+      res = await fetch(`https://mapas-claro5.addax.cc/be/wms?${params}`, {
+        headers: { Referer: 'https://www.claro.cr/mapacobertura/' },
+        signal: AbortSignal.timeout(20_000),
+      });
+      break;
+    } catch (e) {
+      if (i === 3) throw e;
+      await new Promise(r => setTimeout(r, 2000 * i));
+    }
+  }
 
-  if (!res.ok) throw new Error(`WMS ${res.status}`);
+  if (!res || !res.ok) throw new Error(`WMS ${res?.status ?? 'sin respuesta'}`);
 
   const buf = Buffer.from(await res.arrayBuffer());
   const idatPos = buf.indexOf(Buffer.from([0x49, 0x44, 0x41, 0x54]));
