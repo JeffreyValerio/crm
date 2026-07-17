@@ -95,3 +95,12 @@
 .dark .swagger-wrapper .swagger-ui .scheme-container {
   background: hsl(var(--card));
 }
+
+/* Fix: inputs del modal de autorización siempre visibles */
+.swagger-ui .auth-container input,
+.swagger-ui .dialog-ux .modal-ux input,
+.swagger-ui input[type="text"],
+.swagger-ui input[type="password"] {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
