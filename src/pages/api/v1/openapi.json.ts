@@ -148,7 +148,6 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
                             id: { type: 'string' },
                             nombre: { type: 'string', nullable: true },
                             apellidos: { type: 'string', nullable: true },
-                            email: { type: 'string' },
                             rol: { type: 'string' },
                             extension: { type: 'string', nullable: true },
                             createdAt: { type: 'string', format: 'date-time' },
