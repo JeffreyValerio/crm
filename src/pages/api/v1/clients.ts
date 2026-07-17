@@ -25,14 +25,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       canton: true,
       distrito: true,
       telefono: true,
-      email: true,
       validationStatus: true,
       saleStatus: true,
       instaladaAt: true,
       assignedAt: true,
       createdAt: true,
       updatedAt: true,
-      creator: { select: { id: true, nombre: true, apellidos: true, email: true } },
+      creator: { select: { id: true, nombre: true, apellidos: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -47,7 +46,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     canton: c.canton,
     distrito: c.distrito,
     telefono: c.telefono,
-    email: c.email,
     estadoValidacion: c.validationStatus,
     estadoVenta: c.saleStatus,
     instaladaAt: c.instaladaAt,
@@ -55,8 +53,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
     vendedorId: c.creator.id,
-    vendedorNombre: `${c.creator.nombre ?? ''} ${c.creator.apellidos ?? ''}`.trim() || c.creator.email,
-    vendedorEmail: c.creator.email,
+    vendedorNombre: `${c.creator.nombre ?? ''} ${c.creator.apellidos ?? ''}`.trim() || c.creator.id,
   }));
 
   res.setHeader('Cache-Control', 'no-store');

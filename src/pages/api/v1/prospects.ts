@@ -31,7 +31,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       asignadoAt: true,
       createdAt: true,
       updatedAt: true,
-      asignado: { select: { id: true, nombre: true, apellidos: true, email: true } },
+      asignado: { select: { id: true, nombre: true, apellidos: true } },
     },
     orderBy: { asignadoAt: 'desc' },
   });
@@ -54,9 +54,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     updatedAt: p.updatedAt,
     vendedorId: p.asignado?.id ?? null,
     vendedorNombre: p.asignado
-      ? `${p.asignado.nombre ?? ''} ${p.asignado.apellidos ?? ''}`.trim() || p.asignado.email
+      ? `${p.asignado.nombre ?? ''} ${p.asignado.apellidos ?? ''}`.trim() || p.asignado.id
       : null,
-    vendedorEmail: p.asignado?.email ?? null,
   }));
 
   res.setHeader('Cache-Control', 'no-store');
