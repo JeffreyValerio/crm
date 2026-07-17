@@ -23,6 +23,8 @@ export default async function handler(
   }
 
   const email = req.body.email?.trim().toLowerCase();
+  const rawRole = req.body.role;
+  const role = rawRole === 'developer' ? 'developer' : 'user';
 
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Email válido es requerido' });
@@ -48,13 +50,14 @@ export default async function handler(
         inviteToken,
         invitedAt: new Date(),
         invitedBy: session.email || undefined,
+        role,
       },
       create: {
         email,
         inviteToken,
         invitedAt: new Date(),
         invitedBy: session.email || undefined,
-        role: 'user',
+        role,
       },
     });
 

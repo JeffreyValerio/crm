@@ -20,12 +20,14 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
   userOnly?: boolean;
+  roles?: string[]; // si se define, solo esos roles ven el item
 }
 
 interface NavSection {
   title: string;
   items: NavItem[];
   adminOnly?: boolean;
+  roles?: string[]; // si se define, solo esos roles ven la sección
 }
 
 const navSections: NavSection[] = [
@@ -77,10 +79,10 @@ const navSections: NavSection[] = [
         title: 'Configuración',
         href: '/configuracion',
         icon: Settings,
-        adminOnly: true,
+        roles: ['admin', 'developer'],
       },
     ],
-    adminOnly: true,
+    roles: ['admin', 'developer'],
   },
 ];
 
@@ -122,19 +124,14 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   };
 
   const filteredSections = navSections.filter((section) => {
-    // Si la sección es solo para admin y el usuario no es admin, ocultarla
-    if (section.adminOnly && userRole !== 'admin') {
-      return false;
-    }
+    if (section.roles && userRole && !section.roles.includes(userRole)) return false;
+    if (section.adminOnly && userRole !== 'admin') return false;
     // Filtrar items dentro de cada sección
     const filteredItems = section.items.filter((item) => {
-    if (item.adminOnly && userRole !== 'admin') {
-      return false;
-    }
-    if (item.userOnly && userRole === 'admin') {
-      return false;
-    }
-    return true;
+      if (item.roles && userRole && !item.roles.includes(userRole)) return false;
+      if (item.adminOnly && userRole !== 'admin') return false;
+      if (item.userOnly && userRole === 'admin') return false;
+      return true;
     });
     // Solo mostrar la sección si tiene items visibles
     return filteredItems.length > 0;

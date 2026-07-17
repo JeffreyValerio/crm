@@ -45,6 +45,7 @@ function displayName(u: User) {
 function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => void }) {
   const [inviteOpen, setInviteOpen]     = useState(false);
   const [inviteEmail, setInviteEmail]   = useState('');
+  const [inviteRole, setInviteRole]     = useState<'user' | 'developer'>('user');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError]   = useState('');
   const [inviteSuccess, setInviteSuccess] = useState(false);
@@ -69,12 +70,13 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
       const res = await fetch('/api/users/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail }),
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
       const data = await res.json();
       if (!res.ok) { setInviteError(data.error || 'Error'); return; }
       setInviteSuccess(true);
       setInviteEmail('');
+      setInviteRole('user');
       onRefresh();
       setTimeout(() => { setInviteOpen(false); setInviteSuccess(false); }, 2000);
     } catch { setInviteError('Error al procesar'); }
@@ -156,7 +158,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                 ) : (
                   <Badge variant="default" className="text-[10px] px-1.5 py-0">Inactivo</Badge>
                 )}
-                <Badge variant={u.role === 'admin' ? 'info' : 'default'} className="text-[10px] px-1.5 py-0 capitalize">
+                <Badge variant={u.role === 'admin' ? 'info' : u.role === 'developer' ? 'warning' : 'default'} className="text-[10px] px-1.5 py-0 capitalize">
                   {u.role}
                 </Badge>
               </div>
@@ -214,7 +216,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={u.role === 'admin' ? 'info' : 'default'} className="capitalize">
+                    <Badge variant={u.role === 'admin' ? 'info' : u.role === 'developer' ? 'warning' : 'default'} className="capitalize">
                       {u.role}
                     </Badge>
                   </TableCell>
@@ -258,6 +260,18 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
               <label className="text-sm font-medium block mb-1">Email</label>
               <Input type="email" placeholder="usuario@ejemplo.com" value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)} required disabled={inviteLoading || inviteSuccess} />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">Rol</label>
+              <select
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value as 'user' | 'developer')}
+                disabled={inviteLoading || inviteSuccess}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="user">Vendedor</option>
+                <option value="developer">Desarrollador (solo API)</option>
+              </select>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setInviteOpen(false)} disabled={inviteLoading}>Cancelar</Button>
@@ -1372,6 +1386,7 @@ export default function ConfiguracionPage() {
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState<Tab>('usuarios');
   const [users, setUsers]       = useState<User[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     const res = await fetch('/api/users');
@@ -1386,8 +1401,13 @@ export default function ConfiguracionPage() {
       const res = await fetch('/api/auth/me');
       if (!res.ok) { router.push('/login'); return; }
       const { user } = await res.json();
-      if (user?.role !== 'admin') { router.push('/'); return; }
-      await fetchUsers();
+      if (user?.role !== 'admin' && user?.role !== 'developer') { router.push('/'); return; }
+      setUserRole(user.role);
+      if (user.role === 'developer') {
+        setTab('api');
+      } else {
+        await fetchUsers();
+      }
       setLoading(false);
     }
     init();
@@ -1398,6 +1418,8 @@ export default function ConfiguracionPage() {
   }
 
   const vendors = users;
+  const isDeveloper = userRole === 'developer';
+  const visibleTabs = isDeveloper ? TABS.filter(t => t.key === 'api') : TABS;
 
   return (
     <MainLayout>
@@ -1411,7 +1433,7 @@ export default function ConfiguracionPage() {
         {/* Tabs */}
         <div className="border-b overflow-x-auto">
           <nav className="-mb-px flex gap-4 sm:gap-6 min-w-max">
-            {TABS.map(t => {
+            {visibleTabs.map(t => {
               const Icon = t.icon;
               return (
                 <button

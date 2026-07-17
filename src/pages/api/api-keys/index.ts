@@ -6,8 +6,8 @@ import { generateApiKey, hashApiKey } from '@/lib/api-key-auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<SessionData>(req, res, sessionOptions);
-  if (!session.userId || session.role !== 'admin') {
-    return res.status(403).json({ error: 'Solo administradores' });
+  if (!session.userId || (session.role !== 'admin' && session.role !== 'developer')) {
+    return res.status(403).json({ error: 'Acceso denegado' });
   }
 
   if (req.method === 'GET') {
