@@ -207,6 +207,6 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
   };
 
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json(spec);
 }
