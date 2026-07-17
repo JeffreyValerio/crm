@@ -61,17 +61,21 @@ export default async function handler(
       },
     });
 
-    // Enviar correo de invitación
-    try {
-      await sendInvitationEmail(email, inviteToken, session.email || undefined);
-    } catch (emailError) {
-      console.error('Error enviando email:', emailError);
-      // No fallar la solicitud si el email falla, pero registrar el error
+    const appUrl = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
+    const inviteUrl = `${appUrl}/invite/${inviteToken}`;
+
+    if (role !== 'developer') {
+      try {
+        await sendInvitationEmail(email, inviteToken, session.email || undefined);
+      } catch (emailError) {
+        console.error('Error enviando email:', emailError);
+      }
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Invitación enviada correctamente',
+      message: role === 'developer' ? 'Usuario creado. Comparte el enlace manualmente.' : 'Invitación enviada correctamente',
+      inviteUrl: role === 'developer' ? inviteUrl : undefined,
       user: {
         id: user.id,
         email: user.email,

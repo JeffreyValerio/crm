@@ -49,6 +49,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError]   = useState('');
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [inviteLink, setInviteLink]     = useState<string | null>(null);
 
   const [extOpen, setExtOpen]           = useState(false);
   const [extUser, setExtUser]           = useState<User | null>(null);
@@ -76,9 +77,12 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
       if (!res.ok) { setInviteError(data.error || 'Error'); return; }
       setInviteSuccess(true);
       setInviteEmail('');
+      if (data.inviteUrl) setInviteLink(data.inviteUrl);
       setInviteRole('user');
       onRefresh();
-      setTimeout(() => { setInviteOpen(false); setInviteSuccess(false); }, 2000);
+      if (!data.inviteUrl) {
+        setTimeout(() => { setInviteOpen(false); setInviteSuccess(false); }, 2000);
+      }
     } catch { setInviteError('Error al procesar'); }
     finally { setInviteLoading(false); }
   }
@@ -247,37 +251,66 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
       </Card>
 
       {/* Invitar */}
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+      <Dialog open={inviteOpen} onOpenChange={() => { setInviteOpen(false); setInviteSuccess(false); setInviteLink(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Invitar usuario</DialogTitle>
-            <DialogDescription>Se enviará un correo con el enlace de activación.</DialogDescription>
+            <DialogDescription>
+              {inviteRole === 'developer'
+                ? 'No se enviará correo. Se generará un enlace para compartir manualmente.'
+                : 'Se enviará un correo con el enlace de activación.'}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleInvite} className="space-y-4">
             {inviteError && <p className="text-sm text-destructive bg-destructive/10 rounded-md p-3">{inviteError}</p>}
-            {inviteSuccess && <p className="text-sm text-green-600 bg-green-500/10 rounded-md p-3">¡Invitación enviada!</p>}
-            <div>
-              <label className="text-sm font-medium block mb-1">Email</label>
-              <Input type="email" placeholder="usuario@ejemplo.com" value={inviteEmail}
-                onChange={e => setInviteEmail(e.target.value)} required disabled={inviteLoading || inviteSuccess} />
-            </div>
-            <div>
-              <label className="text-sm font-medium block mb-1">Rol</label>
-              <select
-                value={inviteRole}
-                onChange={e => setInviteRole(e.target.value as 'user' | 'developer')}
-                disabled={inviteLoading || inviteSuccess}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="user">Vendedor</option>
-                <option value="developer">Desarrollador (solo API)</option>
-              </select>
-            </div>
+            {inviteSuccess && !inviteLink && <p className="text-sm text-green-600 bg-green-500/10 rounded-md p-3">¡Invitación enviada!</p>}
+            {inviteLink && (
+              <div className="space-y-1">
+                <p className="text-sm text-green-600 font-medium">Usuario creado. Comparte este enlace:</p>
+                <div className="flex items-center gap-2 p-2 rounded border bg-muted text-xs font-mono break-all">
+                  <span className="flex-1">{inviteLink}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="flex-shrink-0 h-6 w-6 p-0"
+                    onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success('Enlace copiado'); }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            {!inviteSuccess && (
+              <>
+                <div>
+                  <label className="text-sm font-medium block mb-1">Email</label>
+                  <Input type="email" placeholder="usuario@ejemplo.com" value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)} required disabled={inviteLoading} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1">Rol</label>
+                  <select
+                    value={inviteRole}
+                    onChange={e => setInviteRole(e.target.value as 'user' | 'developer')}
+                    disabled={inviteLoading}
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="user">Vendedor</option>
+                    <option value="developer">Desarrollador (solo API)</option>
+                  </select>
+                </div>
+              </>
+            )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setInviteOpen(false)} disabled={inviteLoading}>Cancelar</Button>
-              <Button type="submit" disabled={inviteLoading || inviteSuccess}>
-                {inviteLoading ? 'Enviando...' : inviteSuccess ? 'Enviado ✓' : 'Enviar invitación'}
+              <Button type="button" variant="outline" onClick={() => { setInviteOpen(false); setInviteSuccess(false); setInviteLink(null); }}>
+                {inviteSuccess ? 'Cerrar' : 'Cancelar'}
               </Button>
+              {!inviteSuccess && (
+                <Button type="submit" disabled={inviteLoading}>
+                  {inviteLoading ? 'Creando...' : inviteRole === 'developer' ? 'Crear usuario' : 'Enviar invitación'}
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </DialogContent>
