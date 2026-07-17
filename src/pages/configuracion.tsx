@@ -1366,7 +1366,7 @@ function TabApi() {
         </CardHeader>
         <CardContent className="p-0 overflow-hidden rounded-b-lg">
           <div className="swagger-wrapper">
-            <SwaggerUI url="/api/v1/openapi.json" docExpansion="list" />
+            <SwaggerUI url={`/api/v1/openapi.json?t=${Date.now()}`} docExpansion="list" />
           </div>
         </CardContent>
       </Card>
