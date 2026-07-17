@@ -96,6 +96,25 @@
   background: hsl(var(--card));
 }
 
+/* Íconos (candado, flechas) visibles en dark mode */
+.dark .swagger-wrapper .swagger-ui .arrow,
+.dark .swagger-wrapper .swagger-ui svg.arrow {
+  fill: #e2e8f0 !important;
+}
+.dark .swagger-wrapper .swagger-ui .authorization__btn svg,
+.dark .swagger-wrapper .swagger-ui .unlocked svg,
+.dark .swagger-wrapper .swagger-ui .locked svg {
+  fill: #e2e8f0 !important;
+}
+.dark .swagger-wrapper .swagger-ui .opblock-summary-control svg,
+.dark .swagger-wrapper .swagger-ui button svg {
+  fill: #e2e8f0 !important;
+}
+.dark .swagger-wrapper .swagger-ui .expand-methods svg,
+.dark .swagger-wrapper .swagger-ui .expand-operation svg {
+  fill: #e2e8f0 !important;
+}
+
 /* Fix: inputs del modal de autorización siempre visibles */
 .swagger-ui .auth-container input,
 .swagger-ui .dialog-ux .modal-ux input,
