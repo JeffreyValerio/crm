@@ -78,21 +78,27 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
       },
       '/api/v1/prospects': {
         get: {
-          summary: 'Listar prospectos',
+          summary: 'Listar prospectos (paginado)',
           tags: ['Prospectos'],
           parameters: [
+            { name: 'page',  in: 'query', schema: { type: 'integer', default: 1 },    description: 'Página (desde 1)' },
+            { name: 'limit', in: 'query', schema: { type: 'integer', default: 500, maximum: 1000 }, description: 'Registros por página (máx 1000)' },
             { name: 'desde', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Fecha de asignación desde (YYYY-MM-DD)' },
             { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Fecha de asignación hasta (YYYY-MM-DD)' },
           ],
           responses: {
             '200': {
-              description: 'Lista de prospectos',
+              description: 'Lista paginada de prospectos',
               content: {
                 'application/json': {
                   schema: {
                     type: 'object',
                     properties: {
-                      count: { type: 'integer' },
+                      total:      { type: 'integer', description: 'Total de registros' },
+                      page:       { type: 'integer' },
+                      limit:      { type: 'integer' },
+                      totalPages: { type: 'integer' },
+                      count:      { type: 'integer', description: 'Registros en esta página' },
                       data: {
                         type: 'array',
                         items: {
