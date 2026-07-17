@@ -74,6 +74,53 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
           },
         },
       },
+      '/api/v1/equipos': {
+        get: {
+          summary: 'Listar equipos con team lead y miembros',
+          tags: ['Equipos'],
+          responses: {
+            '200': {
+              description: 'Lista de equipos',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      count: { type: 'integer' },
+                      data: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id:             { type: 'string' },
+                            nombre:         { type: 'string' },
+                            createdAt:      { type: 'string', format: 'date-time' },
+                            teamLeadId:     { type: 'string', nullable: true },
+                            teamLeadNombre: { type: 'string', nullable: true },
+                            totalMiembros:  { type: 'integer' },
+                            miembros: {
+                              type: 'array',
+                              items: {
+                                type: 'object',
+                                properties: {
+                                  id:        { type: 'string' },
+                                  nombre:    { type: 'string' },
+                                  extension: { type: 'string', nullable: true },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '401': { description: 'API key inválida o ausente' },
+          },
+        },
+      },
       '/api/v1/users': {
         get: {
           summary: 'Listar usuarios (vendedores)',
