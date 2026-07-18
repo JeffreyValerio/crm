@@ -1190,7 +1190,7 @@ function TabEquipos({ users }: { users: User[] }) {
 
 // ── Tab API ───────────────────────────────────────────────────────────────────
 
-interface ApiKeyRecord { id: string; label: string; createdAt: string; }
+interface ApiKeyRecord { id: string; label: string; createdAt: string; lastUsedAt: string | null; totalRequests: number; }
 
 function TabApi() {
   const [keys, setKeys]           = useState<ApiKeyRecord[]>([]);
@@ -1285,6 +1285,8 @@ function TabApi() {
                 <TableRow>
                   <TableHead>Etiqueta</TableHead>
                   <TableHead>Creada</TableHead>
+                  <TableHead>Último uso</TableHead>
+                  <TableHead className="text-right">Requests</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1294,6 +1296,14 @@ function TabApi() {
                     <TableCell className="font-medium">{k.label}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(k.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {k.lastUsedAt
+                        ? new Date(k.lastUsedAt).toLocaleString('es-CR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                        : <span className="text-muted-foreground/50">Nunca</span>}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums">
+                      {k.totalRequests.toLocaleString('es-CR')}
                     </TableCell>
                     <TableCell className="text-right">
                       {deletingId === k.id ? (

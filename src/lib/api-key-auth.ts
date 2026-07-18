@@ -79,6 +79,12 @@ export function withApiKeyAuth(
       return res.status(429).json({ error: 'Límite de peticiones alcanzado. Intenta de nuevo en 60 segundos.' });
     }
 
+    // Actualizar uso en background (no bloquea la respuesta)
+    prisma.apiKey.update({
+      where: { keyHash },
+      data: { lastUsedAt: new Date(), totalRequests: { increment: 1 } },
+    }).catch(() => { /* silencioso — no afecta la respuesta */ });
+
     return handler(req, res);
   };
 }

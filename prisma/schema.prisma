@@ -322,9 +322,11 @@ model UserKpiMeta {
 }
 
 model ApiKey {
-  id        String   @id @default(cuid())
-  keyHash   String   @unique
-  label     String   @default("Power BI")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  keyHash       String    @unique
+  label         String    @default("Power BI")
+  totalRequests Int       @default(0)
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }

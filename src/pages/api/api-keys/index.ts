@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     const keys = await prisma.apiKey.findMany({
-      select: { id: true, label: true, createdAt: true },
+      select: { id: true, label: true, createdAt: true, lastUsedAt: true, totalRequests: true },
       orderBy: { createdAt: 'desc' },
     });
     return res.status(200).json({ keys });
@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const keyHash = hashApiKey(plain);
     const created = await prisma.apiKey.create({
       data: { keyHash, label: label || 'Power BI' },
-      select: { id: true, label: true, createdAt: true },
+      select: { id: true, label: true, createdAt: true, lastUsedAt: true, totalRequests: true },
     });
     // plain se devuelve una sola vez
     return res.status(201).json({ ...created, plain });
