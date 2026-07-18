@@ -1,15 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
-import { withApiKeyAuth } from '@/lib/api-key-auth';
+import { withApiKeyAuth, parseDateParam } from '@/lib/api-key-auth';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { desde, hasta } = req.query;
 
+  const desdeDate = parseDateParam(desde, res, 'desde');
+  if (desdeDate === 'error') return;
+  const hastaDate = parseDateParam(hasta, res, 'hasta');
+  if (hastaDate === 'error') return;
+
   const where: Record<string, unknown> = {};
-  if (desde || hasta) {
+  if (desdeDate || hastaDate) {
     where.fecha = {
-      ...(desde ? { gte: new Date(desde as string) } : {}),
-      ...(hasta ? { lte: new Date(hasta as string) } : {}),
+      ...(desdeDate ? { gte: desdeDate } : {}),
+      ...(hastaDate ? { lte: hastaDate } : {}),
     };
   }
 

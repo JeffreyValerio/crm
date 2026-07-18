@@ -124,10 +124,13 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   };
 
   const filteredSections = navSections.filter((section) => {
+    // Developer solo ve secciones explícitamente marcadas para él
+    if (userRole === 'developer' && (!section.roles || !section.roles.includes('developer'))) return false;
     if (section.roles && userRole && !section.roles.includes(userRole)) return false;
     if (section.adminOnly && userRole !== 'admin') return false;
     // Filtrar items dentro de cada sección
     const filteredItems = section.items.filter((item) => {
+      if (userRole === 'developer' && item.roles && !item.roles.includes('developer')) return false;
       if (item.roles && userRole && !item.roles.includes(userRole)) return false;
       if (item.adminOnly && userRole !== 'admin') return false;
       if (item.userOnly && userRole === 'admin') return false;

@@ -124,6 +124,11 @@ export default function HomePage() {
         setUser(data.user);
         setCurrentUserId(data.user?.userId || null);
 
+        if (data.user?.role === 'developer') {
+          router.replace('/configuracion');
+          return;
+        }
+
         if (data.user?.role === 'admin') {
           if (router.query.createdBy) {
             setFilterCreatedBy(router.query.createdBy as string);
@@ -845,7 +850,14 @@ export default function HomePage() {
                         <p className="text-sm">No hay ventas instaladas registradas</p>
                       </div>
                     ) : (
-                      complianceStats.map((stat) => {
+                      [...complianceStats]
+                      .sort((a, b) => {
+                        const scoreB = (b.installed + b.pending) / b.target;
+                        const scoreA = (a.installed + a.pending) / a.target;
+                        if (scoreB !== scoreA) return scoreB - scoreA;
+                        return b.installed - a.installed;
+                      })
+                      .map((stat) => {
                         const barColor = stat.percentage >= 100
                           ? "bg-green-500"
                           : stat.percentage >= 50

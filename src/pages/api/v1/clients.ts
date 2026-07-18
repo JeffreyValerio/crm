@@ -1,15 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
-import { withApiKeyAuth } from '@/lib/api-key-auth';
+import { withApiKeyAuth, parseDateParam } from '@/lib/api-key-auth';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { desde, hasta } = req.query;
 
+  const desdeDate = parseDateParam(desde, res, 'desde');
+  if (desdeDate === 'error') return;
+  const hastaDate = parseDateParam(hasta, res, 'hasta');
+  if (hastaDate === 'error') return;
+
   const where: Record<string, unknown> = {};
-  if (desde || hasta) {
+  if (desdeDate || hastaDate) {
     where.createdAt = {
-      ...(desde ? { gte: new Date(desde as string) } : {}),
-      ...(hasta ? { lte: new Date(hasta as string) } : {}),
+      ...(desdeDate ? { gte: desdeDate } : {}),
+      ...(hastaDate ? { lte: hastaDate } : {}),
     };
   }
 
@@ -20,11 +25,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       nombres: true,
       apellidos: true,
       tipoIdentificacion: true,
-      numeroIdentificacion: true,
       provincia: true,
       canton: true,
       distrito: true,
-      telefono: true,
       validationStatus: true,
       saleStatus: true,
       instaladaAt: true,
@@ -41,11 +44,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     nombres: c.nombres,
     apellidos: c.apellidos,
     tipoIdentificacion: c.tipoIdentificacion,
-    numeroIdentificacion: c.numeroIdentificacion,
     provincia: c.provincia,
     canton: c.canton,
     distrito: c.distrito,
-    telefono: c.telefono,
     estadoValidacion: c.validationStatus,
     estadoVenta: c.saleStatus,
     instaladaAt: c.instaladaAt,
