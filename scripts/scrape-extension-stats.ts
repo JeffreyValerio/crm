@@ -1,6 +1,7 @@
 /**
  * Scraper de estadísticas de extensiones Interphone.
- * Login HTTP → cookie → CSV "Hoy" → upsert en ExtensionStats.
+ * Login HTTP → cookie → CSV de ayer → upsert en ExtensionStats.
+ * Corre a las 7am CR para traer datos del día anterior completo.
  *
  * Uso: npx tsx scripts/scrape-extension-stats.ts
  */
@@ -130,8 +131,18 @@ export async function scrapeExtensionStats(): Promise<{ scraped: number; fecha: 
   await fetchInsecure(warmupUrl, { headers: { cookie } });
   console.log(`[scrape] Sesión activada (warmup: ${warmupUrl})`);
 
-  // ── 2. Fetch CSV de Hoy (quick_select=3) con reintento ───────────────────────
-  const csvUrl = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php?type=csv&quick_select=3`;
+  // ── 2. Fetch CSV de Ayer con reintento ───────────────────────────────────────
+  // Calculamos ayer en CR (UTC-6) para pasarlo explícitamente como parámetro de fecha.
+  const nowCr      = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const ayerCr     = new Date(nowCr.getTime() - 24 * 60 * 60 * 1000);
+  const ayerStr    = ayerCr.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const csvParams  = new URLSearchParams({
+    type: 'csv',
+    search: 'search',
+    date_start: ayerStr,
+    date_end:   ayerStr,
+  });
+  const csvUrl = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php?${csvParams}`;
   let csvText = '';
   for (let intento = 1; intento <= 3; intento++) {
     const csvRes = await fetchInsecure(csvUrl, { headers: { cookie } });
@@ -149,12 +160,8 @@ export async function scrapeExtensionStats(): Promise<{ scraped: number; fecha: 
   console.log(`[scrape] CSV recibido — ${rows.length} extensiones`);
 
   // ── 3. Upsert en DB ───────────────────────────────────────────────────────────
-  // Usar la fecha en hora Costa Rica (UTC-6, sin DST) porque Interphone
-  // sirve datos de "Hoy" en hora local CR. Si el script corre a las 11pm CR
-  // (= 5am UTC del día siguiente), la fecha UTC sería incorrecta.
-  const now = new Date();
-  const crNow = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-  const fecha = new Date(Date.UTC(crNow.getUTCFullYear(), crNow.getUTCMonth(), crNow.getUTCDate()));
+  // La fecha del registro es ayer en CR (los datos que pedimos arriba).
+  const fecha = new Date(Date.UTC(ayerCr.getUTCFullYear(), ayerCr.getUTCMonth(), ayerCr.getUTCDate()));
 
   let upserted = 0;
   for (const row of rows) {

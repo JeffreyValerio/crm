@@ -2,7 +2,7 @@ name: Scrape Extension Stats
 
 on:
   schedule:
-    - cron: '30 4 * * *'  # 10:30pm CST (UTC-6) daily
+    - cron: '0 13 * * *'  # 7:00am CST (UTC-6) daily — trae datos del día anterior
   workflow_dispatch:       # Manual trigger
 
 jobs:
