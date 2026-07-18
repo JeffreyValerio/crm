@@ -132,17 +132,12 @@ export async function scrapeExtensionStats(): Promise<{ scraped: number; fecha: 
   console.log(`[scrape] Sesión activada (warmup: ${warmupUrl})`);
 
   // ── 2. Fetch CSV de Ayer con reintento ───────────────────────────────────────
-  // Calculamos ayer en CR (UTC-6) para pasarlo explícitamente como parámetro de fecha.
-  const nowCr      = new Date(Date.now() - 6 * 60 * 60 * 1000);
-  const ayerCr     = new Date(nowCr.getTime() - 24 * 60 * 60 * 1000);
-  const ayerStr    = ayerCr.toISOString().slice(0, 10); // "YYYY-MM-DD"
-  const csvParams  = new URLSearchParams({
-    type: 'csv',
-    search: 'search',
-    date_start: ayerStr,
-    date_end:   ayerStr,
-  });
-  const csvUrl = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php?${csvParams}`;
+  // quick_select=4 = "Ayer" en FusionPBX (equiv. al dropdown de la UI).
+  // Los parámetros date_start/date_end son ignorados por este endpoint;
+  // solo funcionan los quick_select values.
+  const nowCr  = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const ayerCr = new Date(nowCr.getTime() - 24 * 60 * 60 * 1000);
+  const csvUrl = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php?type=csv&quick_select=4`;
   let csvText = '';
   for (let intento = 1; intento <= 3; intento++) {
     const csvRes = await fetchInsecure(csvUrl, { headers: { cookie } });
