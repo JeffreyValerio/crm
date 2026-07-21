@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle, Pencil, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Clock, CheckCircle2, AlertCircle, XCircle, DollarSign, Ban, Target, TrendingUp, UserCircle, Pencil, ShieldCheck, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TrendsCharts = dynamic(
@@ -99,6 +99,12 @@ export default function HomePage() {
   } | null>(null);
   const [prospectStats, setProspectStats] = useState<ProspectStat[]>([]);
   const [myProspectStat, setMyProspectStat] = useState<ProspectStat | null>(null);
+  const [postpagoStats, setPostpagoStats] = useState<{
+    total: number;
+    pendienteActivacion: number;
+    activada: number;
+    pendienteMensajeria: number;
+  } | null>(null);
   const [prospectActivity, setProspectActivity] = useState<{
     porDia: Array<{ fecha: string; dia: number; contactos: number }>;
     porTipificacion: Array<{ tipificacion: string; count: number }>;
@@ -235,11 +241,12 @@ export default function HomePage() {
         }
       }
 
-      const [statsRes, prospectsRes, trendsRes, activityRes] = await Promise.all([
+      const [statsRes, prospectsRes, trendsRes, activityRes, postpagoRes] = await Promise.all([
         fetch(`/api/dashboard/stats?${params.toString()}`),
         fetch(`/api/prospects/stats?year=${year}&month=${month}${prospectoExtra}`),
         fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
         fetch(`/api/prospects/activity?year=${year}&month=${month}${prospectoExtra}`),
+        activeUser.role === 'admin' ? fetch('/api/clients/postpago-stats') : Promise.resolve(null),
       ]);
 
       // ── Stats de clientes ─────────────────────────────────
@@ -301,6 +308,11 @@ export default function HomePage() {
           porDia: activityData.porDia ?? [],
           porTipificacion: activityData.porTipificacion ?? [],
         });
+      }
+
+      // ── Postpago ─────────────────────────────────────────
+      if (postpagoRes?.ok) {
+        setPostpagoStats(await postpagoRes.json());
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -974,8 +986,8 @@ export default function HomePage() {
             </Card>
           </div>
 
-          {/* Ring chart de Efectividad - 1/3 del ancho */}
-          <div>
+          {/* Columna derecha: Efectividad + Postpago */}
+          <div className="flex flex-col gap-6">
             <Card className="shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -1028,6 +1040,58 @@ export default function HomePage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Card Postpago — solo admin */}
+            {user?.role === 'admin' && postpagoStats !== null && postpagoStats.total > 0 && (
+              <Card className="shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Wifi className="h-4 w-4 text-primary" />
+                    Plan Postpago
+                  </CardTitle>
+                  <CardDescription>Clientes postpago · total acumulado</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between py-2 border-b">
+                      <span className="text-sm text-muted-foreground">Total</span>
+                      <span className="text-2xl font-bold">{postpagoStats.total}</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-yellow-500 inline-block" />
+                          Pendiente Activación
+                        </span>
+                        <span className="font-semibold tabular-nums">{postpagoStats.pendienteActivacion}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-green-500 inline-block" />
+                          Activada
+                        </span>
+                        <span className="font-semibold tabular-nums">{postpagoStats.activada}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
+                          Pendiente Mensajería
+                        </span>
+                        <span className="font-semibold tabular-nums">{postpagoStats.pendienteMensajeria}</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2 gap-1"
+                      onClick={() => router.push('/clientes-postpago')}
+                    >
+                      Ver reporte <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
         {/* Contactación de Prospectos — solo admin */}

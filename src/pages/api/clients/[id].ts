@@ -90,11 +90,14 @@ export default async function handler(
         cedulaFrontalUrl,
         cedulaTraseraUrl,
         selfieUrl,
+        simUrl,
+        simCedulaUrl,
         validationStatus,
         validationComment,
         saleStatus,
         saleComment,
         formulario,
+        postpagoStatus,
       } = req.body;
 
       // Obtener el cliente actual para comparar estados
@@ -171,6 +174,18 @@ export default async function handler(
           await deleteCloudinaryImage(currentClient.selfieUrl);
         }
         updateData.selfieUrl = selfieUrl || null;
+      }
+      if (simUrl !== undefined) {
+        if (currentClient.simUrl && currentClient.simUrl !== simUrl) {
+          await deleteCloudinaryImage(currentClient.simUrl);
+        }
+        updateData.simUrl = simUrl || null;
+      }
+      if (simCedulaUrl !== undefined) {
+        if (currentClient.simCedulaUrl && currentClient.simCedulaUrl !== simCedulaUrl) {
+          await deleteCloudinaryImage(currentClient.simCedulaUrl);
+        }
+        updateData.simCedulaUrl = simCedulaUrl || null;
       }
 
       // Labels para notificaciones
@@ -284,6 +299,11 @@ export default async function handler(
         // Actualizar formulario si se proporciona
         if (formulario !== undefined) {
           updateData.formulario = formulario?.trim() || null;
+        }
+
+        // Estado postpago
+        if (postpagoStatus !== undefined && currentClient.tipo === 'POSTPAGO') {
+          updateData.postpagoStatus = postpagoStatus || null;
         }
       }
       // Si no es admin, ignoramos los cambios de estado y mantenemos los valores actuales

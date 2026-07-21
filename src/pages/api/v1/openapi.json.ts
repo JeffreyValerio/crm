@@ -74,6 +74,55 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
           },
         },
       },
+      '/api/v1/clientes-postpago': {
+        get: {
+          summary: 'Listar clientes postpago',
+          tags: ['Clientes'],
+          parameters: [
+            { name: 'desde', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Fecha de creación desde (YYYY-MM-DD)' },
+            { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date' }, description: 'Fecha de creación hasta (YYYY-MM-DD)' },
+          ],
+          responses: {
+            '200': {
+              description: 'Lista de clientes postpago',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      count: { type: 'integer' },
+                      data: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'string' },
+                            nombres: { type: 'string' },
+                            apellidos: { type: 'string' },
+                            tipoIdentificacion: { type: 'string', enum: ['NACIONAL', 'DIMEX', 'PASAPORTE', 'JURIDICA'] },
+                            email: { type: 'string', nullable: true },
+                            provincia: { type: 'string' },
+                            canton: { type: 'string' },
+                            distrito: { type: 'string' },
+                            estadoPostpago: { type: 'string', enum: ['PENDIENTE_ACTIVACION', 'ACTIVADA', 'PENDIENTE_MENSAJERIA'], nullable: true },
+                            plan: { type: 'string', nullable: true },
+                            tipoPlan: { type: 'string', nullable: true },
+                            createdAt: { type: 'string', format: 'date-time' },
+                            updatedAt: { type: 'string', format: 'date-time' },
+                            vendedorId: { type: 'string' },
+                            vendedorNombre: { type: 'string' },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '401': { description: 'API key inválida o ausente' },
+          },
+        },
+      },
       '/api/v1/equipos': {
         get: {
           summary: 'Listar equipos con team lead y miembros',

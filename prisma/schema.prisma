@@ -104,12 +104,21 @@ enum AdvanceStatus {
   COMPLETADO
 }
 
+enum PostpagoStatus {
+  PENDIENTE_ACTIVACION
+  ACTIVADA
+  PENDIENTE_MENSAJERIA
+}
+
 model Client {
   id                    String             @id @default(cuid())
+  tipo                  String             @default("FIBRA") // "FIBRA" | "POSTPAGO"
   // Fotos
   cedulaFrontalUrl      String?
   cedulaTraseraUrl      String?
   selfieUrl             String?
+  simUrl                String?            // Postpago: foto del SIM
+  simCedulaUrl          String?            // Postpago: foto SIM + cédula
   // Datos personales
   nombres               String
   apellidos             String
@@ -132,12 +141,14 @@ model Client {
   // Plan
   planId                String?
   plan                  Plan?              @relation(fields: [planId], references: [id])
-  // Estados
+  // Estados (Fibra)
   validationStatus      ValidationStatus?  @default(EN_PROCESO_VALIDACION)
   validationComment     String?
   saleStatus            SaleStatus?
   saleComment           String?
   formulario            String?
+  // Estados (Postpago)
+  postpagoStatus        PostpagoStatus?
   // Metadatos
   createdBy             String
   creator               User               @relation(fields: [createdBy], references: [id])

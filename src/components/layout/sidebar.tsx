@@ -12,6 +12,7 @@ import {
   Target,
   Settings,
   Phone,
+  Wifi,
 } from 'lucide-react';
 
 interface NavItem {
@@ -53,6 +54,12 @@ const navSections: NavSection[] = [
         title: 'Prospectos',
         href: '/prospects',
         icon: Target,
+      },
+      {
+        title: 'Postpago',
+        href: '/clientes-postpago',
+        icon: Wifi,
+        roles: ['admin'],
       },
     ],
   },

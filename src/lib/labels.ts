@@ -57,6 +57,15 @@ export function getSaleStatusLabel(status: string | null): string {
   return labels[status || ''] || status || 'N/A';
 }
 
+export function getPostpagoStatusLabel(status: string | null): string {
+  const labels: Record<string, string> = {
+    PENDIENTE_ACTIVACION: 'Pendiente Activación',
+    ACTIVADA:             'Activada',
+    PENDIENTE_MENSAJERIA: 'Pendiente Mensajería',
+  };
+  return labels[status || ''] || status || 'N/A';
+}
+
 // ── Estados de adelanto ──────────────────────────────────────────────────────
 
 export function getAdvanceStatusLabel(estado: string): string {

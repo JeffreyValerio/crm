@@ -114,6 +114,7 @@ export default async function handler(
   if (req.method === 'POST') {
     try {
       const {
+        tipo,
         nombres,
         apellidos,
         tipoIdentificacion,
@@ -133,6 +134,9 @@ export default async function handler(
         cedulaFrontalUrl,
         cedulaTraseraUrl,
         selfieUrl,
+        simUrl,
+        simCedulaUrl,
+        postpagoStatus,
       } = req.body;
 
       // Validaciones básicas
@@ -144,14 +148,16 @@ export default async function handler(
         return res.status(400).json({ error: 'La dirección completa es requerida' });
       }
 
+      const isPostpago = tipo === 'POSTPAGO';
       const client = await prisma.client.create({
         data: {
+          tipo: isPostpago ? 'POSTPAGO' : 'FIBRA',
           nombres: nombres.trim(),
           apellidos: apellidos.trim(),
           tipoIdentificacion,
           numeroIdentificacion: numeroIdentificacion.trim(),
           fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
-          stb: stb !== undefined && stb !== null && stb !== '' ? (typeof stb === 'string' ? parseInt(stb) : stb) : null,
+          stb: !isPostpago && stb !== undefined && stb !== null && stb !== '' ? (typeof stb === 'string' ? parseInt(stb) : stb) : null,
           email: email?.trim() || null,
           telefono: telefono?.trim() || null,
           provincia: provincia.trim(),
@@ -160,13 +166,16 @@ export default async function handler(
           senasExactas: senasExactas.trim(),
           coordenadasLat: coordenadasLat?.trim().replace(/,\s*$/, '') || null,
           coordenadasLng: coordenadasLng?.trim().replace(/,\s*$/, '') || null,
-          numeroMedidor: numeroMedidor?.trim() || null,
+          numeroMedidor: !isPostpago ? (numeroMedidor?.trim() || null) : null,
           planId: planId || null,
           cedulaFrontalUrl: cedulaFrontalUrl || null,
           cedulaTraseraUrl: cedulaTraseraUrl || null,
           selfieUrl: selfieUrl || null,
+          simUrl: isPostpago ? (simUrl || null) : null,
+          simCedulaUrl: isPostpago ? (simCedulaUrl || null) : null,
           createdBy: session.userId,
-          validationStatus: 'EN_PROCESO_VALIDACION',
+          validationStatus: !isPostpago ? 'EN_PROCESO_VALIDACION' : null,
+          postpagoStatus: isPostpago ? (postpagoStatus || 'PENDIENTE_ACTIVACION') : null,
         },
         include: {
           plan: {

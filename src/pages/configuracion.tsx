@@ -1340,6 +1340,7 @@ function TabApi() {
           <div className="space-y-2">
             {[
               { path: '/api/v1/clients', desc: 'Clientes — estados, vendedor, fechas' },
+              { path: '/api/v1/clientes-postpago', desc: 'Clientes postpago — estado, fotos, vendedor' },
               { path: '/api/v1/equipos', desc: 'Equipos — team lead y miembros' },
               { path: '/api/v1/users', desc: 'Usuarios — nombre, rol, extensión' },
               { path: '/api/v1/extension-stats', desc: 'Llamadas por extensión (diario)' },

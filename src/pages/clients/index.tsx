@@ -14,7 +14,7 @@ import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { CldImage } from 'next-cloudinary';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
-import { getUserDisplayName, getValidationStatusLabel, getSaleStatusLabel } from '@/lib/labels';
+import { getUserDisplayName, getValidationStatusLabel, getSaleStatusLabel, getPostpagoStatusLabel } from '@/lib/labels';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -49,6 +49,7 @@ interface StatusComment {
 
 interface Client {
   id: string;
+  tipo: string;
   nombres: string;
   apellidos: string;
   tipoIdentificacion: string;
@@ -67,11 +68,14 @@ interface Client {
   cedulaFrontalUrl: string | null;
   cedulaTraseraUrl: string | null;
   selfieUrl: string | null;
+  simUrl: string | null;
+  simCedulaUrl: string | null;
   validationStatus: string | null;
   validationComment: string | null;
   saleStatus: string | null;
   saleComment: string | null;
   formulario: string | null;
+  postpagoStatus: string | null;
   planId: string | null;
   plan: Plan | null;
   creator?: {
@@ -107,11 +111,14 @@ interface ClientFormData {
   cedulaFrontalUrl: string;
   cedulaTraseraUrl: string;
   selfieUrl: string;
+  simUrl: string;
+  simCedulaUrl: string;
   validationStatus: string;
   validationComment: string;
   saleStatus: string;
   saleComment: string;
   formulario: string;
+  postpagoStatus: string;
 }
 
 export default function ClientsPage() {
@@ -154,6 +161,8 @@ export default function ClientsPage() {
   const [editTab, setEditTab] = useState<'datos' | 'ubicacion' | 'tecnico' | 'fotos' | 'estado'>('datos');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [newClientType, setNewClientType] = useState<'FIBRA' | 'POSTPAGO'>('FIBRA');
+  const POSTPAGO_PRODUCT_TYPE_ID = 'cmr9f71ve000004leqqf4yjze';
 
   const {
     register,
@@ -184,11 +193,14 @@ export default function ClientsPage() {
       cedulaFrontalUrl: '',
       cedulaTraseraUrl: '',
       selfieUrl: '',
+      simUrl: '',
+      simCedulaUrl: '',
       validationStatus: 'EN_PROCESO_VALIDACION',
       validationComment: '',
       saleStatus: '',
       saleComment: '',
       formulario: '',
+      postpagoStatus: 'PENDIENTE_ACTIVACION',
     },
   });
 
@@ -196,6 +208,7 @@ export default function ClientsPage() {
   const selectedProductType = watch('productTypeId');
   const selectedProvince = watch('provincia');
   const selectedCanton = watch('canton');
+  const isPostpago = editingClient ? editingClient.tipo === 'POSTPAGO' : newClientType === 'POSTPAGO';
   const filteredPlans = selectedProductType
     ? plans.filter((p) => p.productTypeId === selectedProductType && p.activo)
     : [];
@@ -438,7 +451,8 @@ export default function ClientsPage() {
     }
   }
 
-  async function handleOpenDialog(client?: Client) {
+  async function handleOpenDialog(client?: Client, tipo: 'FIBRA' | 'POSTPAGO' = 'FIBRA') {
+    setNewClientType(client ? (client.tipo === 'POSTPAGO' ? 'POSTPAGO' : 'FIBRA') : tipo);
     setEditTab('datos');
     if (client) {
       setEditingClient(client);
@@ -477,11 +491,14 @@ export default function ClientsPage() {
         cedulaFrontalUrl: client.cedulaFrontalUrl || '',
         cedulaTraseraUrl: client.cedulaTraseraUrl || '',
         selfieUrl: client.selfieUrl || '',
+        simUrl: client.simUrl || '',
+        simCedulaUrl: client.simCedulaUrl || '',
         validationStatus: client.validationStatus || 'EN_PROCESO_VALIDACION',
         validationComment: client.validationComment || '',
         saleStatus: client.saleStatus || '',
         saleComment: client.saleComment || '',
         formulario: client.formulario || '',
+        postpagoStatus: client.postpagoStatus || 'PENDIENTE_ACTIVACION',
       }, { keepDefaultValues: false });
       
       // Desactivar flag de inicialización después de un pequeño delay
@@ -509,22 +526,25 @@ export default function ClientsPage() {
         coordenadasLat: '',
         coordenadasLng: '',
         numeroMedidor: '',
-        productTypeId: '',
+        productTypeId: tipo === 'POSTPAGO' ? POSTPAGO_PRODUCT_TYPE_ID : '',
         planId: '',
         cedulaFrontalUrl: '',
         cedulaTraseraUrl: '',
         selfieUrl: '',
+        simUrl: '',
+        simCedulaUrl: '',
         validationStatus: 'EN_PROCESO_VALIDACION',
         validationComment: '',
         saleStatus: '',
         saleComment: '',
         formulario: '',
+        postpagoStatus: 'PENDIENTE_ACTIVACION',
       });
     }
     setDialogOpen(true);
   }
 
-  async function handleUploadImage(field: 'cedulaFrontalUrl' | 'cedulaTraseraUrl' | 'selfieUrl') {
+  async function handleUploadImage(field: 'cedulaFrontalUrl' | 'cedulaTraseraUrl' | 'selfieUrl' | 'simUrl' | 'simCedulaUrl') {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -599,10 +619,15 @@ export default function ClientsPage() {
       // Preparar datos para enviar
       const submitData = {
         ...data,
-        stb: data.stb ? parseInt(data.stb) : null,
+        tipo: isPostpago ? 'POSTPAGO' : 'FIBRA',
+        stb: !isPostpago && data.stb ? parseInt(data.stb) : null,
         fechaNacimiento: data.fechaNacimiento || null,
         coordenadasLat: data.coordenadasLat?.trim() || null,
         coordenadasLng: data.coordenadasLng?.trim() || null,
+        numeroMedidor: isPostpago ? null : (data.numeroMedidor || null),
+        simUrl: isPostpago ? (data.simUrl || null) : null,
+        simCedulaUrl: isPostpago ? (data.simCedulaUrl || null) : null,
+        postpagoStatus: isPostpago ? (data.postpagoStatus || 'PENDIENTE_ACTIVACION') : undefined,
       };
 
       const response = await fetch(url, {
@@ -869,10 +894,16 @@ Comentario: En espera de Instalacion`;
               Gestiona los clientes del sistema
             </p>
           </div>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Cliente
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => handleOpenDialog(undefined, 'POSTPAGO')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Plan Postpago
+            </Button>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Cliente
+            </Button>
+          </div>
         </div>
 
         {/* Buscar y filtros juntos */}
@@ -1293,7 +1324,9 @@ Comentario: En espera de Instalacion`;
           <DialogContent className="max-h-[90vh] overflow-y-auto max-w-5xl">
             <DialogHeader>
               <DialogTitle>
-                {editingClient ? 'Editar Cliente' : 'Nuevo Cliente'}
+                {editingClient
+                  ? (editingClient.tipo === 'POSTPAGO' ? 'Editar Plan Postpago' : 'Editar Cliente')
+                  : (newClientType === 'POSTPAGO' ? 'Plan Postpago' : 'Nuevo Cliente')}
               </DialogTitle>
               <DialogDescription>
                 {editingClient ? 'Modifica la información del cliente' : 'Completa los datos del nuevo cliente'}
@@ -1450,7 +1483,7 @@ Comentario: En espera de Instalacion`;
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">
-                      Selfie <span className="text-destructive">*</span>
+                      {isPostpago ? 'Selfie con SIM y Cédula' : 'Selfie'} <span className="text-destructive">*</span>
                     </label>
                     {watch('selfieUrl') ? (
                       <div className="relative">
@@ -1505,6 +1538,100 @@ Comentario: En espera de Instalacion`;
                     )}
                   </div>
                 </div>
+                {isPostpago && (
+                  <div className="grid gap-4 md:grid-cols-3 mt-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">SIM y Cédula</label>
+                      {watch('simCedulaUrl') ? (
+                        <div className="relative">
+                          {watch('simCedulaUrl').includes('cloudinary.com') ? (
+                            <CldImage
+                              src={getCloudinaryPublicId(watch('simCedulaUrl')) || watch('simCedulaUrl')}
+                              alt="SIM y Cédula"
+                              width={200}
+                              height={150}
+                              className="rounded-md border"
+                              crop={{ type: 'auto', source: true }}
+                            />
+                          ) : (
+                            <img
+                              src={watch('simCedulaUrl')}
+                              alt="SIM y Cédula"
+                              className="rounded-md border w-[200px] h-[150px] object-cover"
+                            />
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 w-full"
+                            onClick={() => handleUploadImage('simCedulaUrl')}
+                            disabled={uploadingImage === 'simCedulaUrl'}
+                          >
+                            {uploadingImage === 'simCedulaUrl' ? 'Subiendo...' : 'Cambiar'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleUploadImage('simCedulaUrl')}
+                          disabled={uploadingImage === 'simCedulaUrl'}
+                          className="w-full"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {uploadingImage === 'simCedulaUrl' ? 'Subiendo...' : 'Subir'}
+                        </Button>
+                      )}
+                      <input type="hidden" {...register('simCedulaUrl')} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Foto del SIM</label>
+                      {watch('simUrl') ? (
+                        <div className="relative">
+                          {watch('simUrl').includes('cloudinary.com') ? (
+                            <CldImage
+                              src={getCloudinaryPublicId(watch('simUrl')) || watch('simUrl')}
+                              alt="Foto del SIM"
+                              width={200}
+                              height={150}
+                              className="rounded-md border"
+                              crop={{ type: 'auto', source: true }}
+                            />
+                          ) : (
+                            <img
+                              src={watch('simUrl')}
+                              alt="Foto del SIM"
+                              className="rounded-md border w-[200px] h-[150px] object-cover"
+                            />
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 w-full"
+                            onClick={() => handleUploadImage('simUrl')}
+                            disabled={uploadingImage === 'simUrl'}
+                          >
+                            {uploadingImage === 'simUrl' ? 'Subiendo...' : 'Cambiar'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleUploadImage('simUrl')}
+                          disabled={uploadingImage === 'simUrl'}
+                          className="w-full"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {uploadingImage === 'simUrl' ? 'Subiendo...' : 'Subir'}
+                        </Button>
+                      )}
+                      <input type="hidden" {...register('simUrl')} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               </div>{/* end fotos tab */}
@@ -1969,73 +2096,77 @@ Comentario: En espera de Instalacion`;
                   <span className="text-primary">⚙️</span>
                   Información Técnica
                 </h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Número de Medidor <span className="text-destructive">*</span>
-                    </label>
-                    <div className="relative">
-                      <Input
-                        {...register('numeroMedidor', { required: 'El número de medidor es obligatorio' })}
-                        placeholder="Ingrese el número de medidor"
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() => handleCopyToClipboard(watch('numeroMedidor'), 'numeroMedidor')}
-                        title="Copiar"
-                      >
-                        {copiedField === 'numeroMedidor' ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
+                {!isPostpago && (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Número de Medidor <span className="text-destructive">*</span>
+                      </label>
+                      <div className="relative">
+                        <Input
+                          {...register('numeroMedidor', { required: !isPostpago ? 'El número de medidor es obligatorio' : false })}
+                          placeholder="Ingrese el número de medidor"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(watch('numeroMedidor'), 'numeroMedidor')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'numeroMedidor' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {errors.numeroMedidor && (
+                        <p className="text-sm text-destructive mt-1">{errors.numeroMedidor.message}</p>
+                      )}
                     </div>
-                    {errors.numeroMedidor && (
-                      <p className="text-sm text-destructive mt-1">{errors.numeroMedidor.message}</p>
-                    )}
                   </div>
-                </div>
+                )}
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Tipo de Producto <span className="text-destructive">*</span>
-                    </label>
-                    <Select
-                      {...register('productTypeId', { 
-                        required: 'El tipo de producto es obligatorio',
-                        onChange: () => {
-                          setValue('planId', '');
-                        }
-                      })}
-                    >
-                      <option value="">Seleccione un tipo de producto</option>
-                      {productTypes
-                        .filter((type) => type.activo)
-                        .map((type) => (
-                          <option key={type.id} value={type.id}>
-                            {type.nombre}
-                          </option>
-                        ))}
-                    </Select>
-                    {errors.productTypeId && (
-                      <p className="text-sm text-destructive mt-1">{errors.productTypeId.message}</p>
-                    )}
-                  </div>
+                  {!isPostpago && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Tipo de Producto <span className="text-destructive">*</span>
+                      </label>
+                      <Select
+                        {...register('productTypeId', {
+                          required: !isPostpago ? 'El tipo de producto es obligatorio' : false,
+                          onChange: () => {
+                            setValue('planId', '');
+                          }
+                        })}
+                      >
+                        <option value="">Seleccione un tipo de producto</option>
+                        {productTypes
+                          .filter((type) => type.activo)
+                          .map((type) => (
+                            <option key={type.id} value={type.id}>
+                              {type.nombre}
+                            </option>
+                          ))}
+                      </Select>
+                      {errors.productTypeId && (
+                        <p className="text-sm text-destructive mt-1">{errors.productTypeId.message}</p>
+                      )}
+                    </div>
+                  )}
                   <div>
                     <label className="text-sm font-medium mb-2 block">
                       Producto <span className="text-destructive">*</span>
                     </label>
                     <Select
                       {...register('planId', { required: 'El producto es obligatorio' })}
-                      disabled={!selectedProductType}
+                      disabled={!isPostpago && !selectedProductType}
                     >
                       <option value="">
-                        {selectedProductType ? 'Seleccione un producto' : 'Seleccione primero un tipo de producto'}
+                        {isPostpago || selectedProductType ? 'Seleccione un producto' : 'Seleccione primero un tipo de producto'}
                       </option>
                       {filteredPlans.map((plan) => (
                         <option key={plan.id} value={plan.id}>
@@ -2047,24 +2178,26 @@ Comentario: En espera de Instalacion`;
                       <p className="text-sm text-destructive mt-1">{errors.planId.message}</p>
                     )}
                   </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      STB <span className="text-destructive">*</span>
-                    </label>
-                    <Select
-                      {...register('stb', { required: 'El STB es obligatorio' })}
-                    >
-                      <option value="0">0</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4</option>
-                      <option value="5">5</option>
-                    </Select>
-                    {errors.stb && (
-                      <p className="text-sm text-destructive mt-1">{errors.stb.message}</p>
-                    )}
-                  </div>
+                  {!isPostpago && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        STB <span className="text-destructive">*</span>
+                      </label>
+                      <Select
+                        {...register('stb', { required: !isPostpago ? 'El STB es obligatorio' : false })}
+                      >
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                      </Select>
+                      {errors.stb && (
+                        <p className="text-sm text-destructive mt-1">{errors.stb.message}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2075,6 +2208,18 @@ Comentario: En espera de Instalacion`;
               {editingClient && currentUser?.role === 'admin' && (
                 <div className="space-y-4">
                   <h3 className="font-semibold">Estados</h3>
+                  {editingClient.tipo === 'POSTPAGO' ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Estado Postpago</label>
+                        <Select {...register('postpagoStatus')}>
+                          <option value="PENDIENTE_ACTIVACION">Pendiente Activación</option>
+                          <option value="ACTIVADA">Activada</option>
+                          <option value="PENDIENTE_MENSAJERIA">Pendiente Mensajería</option>
+                        </Select>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <label className="text-sm font-medium mb-2 block">Estado de Validación</label>
@@ -2104,79 +2249,84 @@ Comentario: En espera de Instalacion`;
                       </Select>
                     </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Comentario de Validación</label>
-                    <div className="relative">
-                      <Input
-                        {...register('validationComment')}
-                        placeholder="Comentario sobre el estado de validación"
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() => handleCopyToClipboard(watch('validationComment'), 'validationComment')}
-                        title="Copiar"
-                      >
-                        {copiedField === 'validationComment' ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Comentario de Venta</label>
-                    <div className="relative">
-                      <Input
-                        {...register('saleComment')}
-                        placeholder="Comentario sobre el estado de venta"
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() => handleCopyToClipboard(watch('saleComment'), 'saleComment')}
-                        title="Copiar"
-                      >
-                        {copiedField === 'saleComment' ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                  {watch('saleStatus') && (
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Formulario</label>
-                      <div className="relative">
-                        <Input
-                          {...register('formulario')}
-                          placeholder="Ingrese el formulario"
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(watch('formulario'), 'formulario')}
-                          title="Copiar"
-                        >
-                          {copiedField === 'formulario' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
+                  )}
+                  {editingClient.tipo !== 'POSTPAGO' && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Comentario de Validación</label>
+                        <div className="relative">
+                          <Input
+                            {...register('validationComment')}
+                            placeholder="Comentario sobre el estado de validación"
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(watch('validationComment'), 'validationComment')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'validationComment' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Comentario de Venta</label>
+                        <div className="relative">
+                          <Input
+                            {...register('saleComment')}
+                            placeholder="Comentario sobre el estado de venta"
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(watch('saleComment'), 'saleComment')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'saleComment' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      {watch('saleStatus') && (
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Formulario</label>
+                          <div className="relative">
+                            <Input
+                              {...register('formulario')}
+                              placeholder="Ingrese el formulario"
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                              onClick={() => handleCopyToClipboard(watch('formulario'), 'formulario')}
+                              title="Copiar"
+                            >
+                              {copiedField === 'formulario' ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
