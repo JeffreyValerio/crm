@@ -1,7 +1,7 @@
 /**
  * Scraper de estadísticas de extensiones Interphone.
- * Login HTTP → cookie → CSV de ayer → upsert en ExtensionStats.
- * Corre a las 7am CR para traer datos del día anterior completo.
+ * Login HTTP → cookie → CSV de hoy (quick_select=3) → upsert en ExtensionStats.
+ * Corre a las 8pm CR cuando la jornada ya terminó y el sistema está activo.
  *
  * Uso: npx tsx scripts/scrape-extension-stats.ts
  */
@@ -138,19 +138,16 @@ export async function scrapeExtensionStats(): Promise<{ scraped: number; fecha: 
   const nowCr  = new Date(Date.now() - 6 * 60 * 60 * 1000);
   const ayerCr = new Date(nowCr.getTime() - 24 * 60 * 60 * 1000);
 
-  const summaryBase = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php`;
-  const primeUrl = `${summaryBase}?quick_select=4&search=search`;
-  await fetchInsecure(primeUrl, { headers: { cookie } });
-  console.log('[scrape] Sesión CDR cargada (prime: quick_select=4)');
-  await new Promise(r => setTimeout(r, 2000));
-
-  const csvUrl = `${summaryBase}?type=csv&quick_select=4`;
+  // ── 2. Fetch CSV de Hoy (quick_select=3) con reintento ───────────────────────
+  const nowCr  = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  const ayerCr = nowCr; // El scraper corre a las 8pm CR: "hoy" ES el día que queremos guardar
+  const csvUrl = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php?type=csv&quick_select=3`;
   let csvText = '';
   for (let intento = 1; intento <= 3; intento++) {
     const csvRes = await fetchInsecure(csvUrl, { headers: { cookie } });
     csvText = await csvRes.text();
     if (csvText.includes('extension')) break;
-    console.warn(`[scrape] Intento ${intento}/3 — respuesta inválida (${csvText.slice(0, 80).replace(/\n/g, ' ')})`);
+    console.warn(`[scrape] Intento ${intento}/3 — respuesta inválida (${csvText.slice(0, 120).replace(/\n/g, ' ')})`);
     if (intento < 3) await new Promise(r => setTimeout(r, 3000));
   }
 
