@@ -132,12 +132,19 @@ export async function scrapeExtensionStats(): Promise<{ scraped: number; fecha: 
   console.log(`[scrape] Sesión activada (warmup: ${warmupUrl})`);
 
   // ── 2. Fetch CSV de Ayer con reintento ───────────────────────────────────────
-  // quick_select=4 = "Ayer" en FusionPBX (equiv. al dropdown de la UI).
-  // Los parámetros date_start/date_end son ignorados por este endpoint;
-  // solo funcionan los quick_select values.
+  // FusionPBX requiere que primero se cargue la página de resumen con
+  // quick_select=4 para que el servidor almacene el resultado en la sesión PHP.
+  // Solo después el endpoint CSV exporta esos datos correctamente.
   const nowCr  = new Date(Date.now() - 6 * 60 * 60 * 1000);
   const ayerCr = new Date(nowCr.getTime() - 24 * 60 * 60 * 1000);
-  const csvUrl = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php?type=csv&quick_select=4`;
+
+  const summaryBase = `${BASE_URL}/app/xml_cdr/xml_cdr_extension_summary.php`;
+  const primeUrl = `${summaryBase}?quick_select=4&search=search`;
+  await fetchInsecure(primeUrl, { headers: { cookie } });
+  console.log('[scrape] Sesión CDR cargada (prime: quick_select=4)');
+  await new Promise(r => setTimeout(r, 2000));
+
+  const csvUrl = `${summaryBase}?type=csv&quick_select=4`;
   let csvText = '';
   for (let intento = 1; intento <= 3; intento++) {
     const csvRes = await fetchInsecure(csvUrl, { headers: { cookie } });
