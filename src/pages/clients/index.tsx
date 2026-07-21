@@ -2274,7 +2274,6 @@ Comentario: En espera de Instalacion`;
                         </div>
                       </div>
                     )}
-                    {editingClient.tipo !== 'POSTPAGO' && (
                     <div>
                       <label className="text-sm font-medium mb-2 block">Comentario de Venta</label>
                       <div className="relative">
@@ -2299,7 +2298,6 @@ Comentario: En espera de Instalacion`;
                         </Button>
                       </div>
                     </div>
-                    )}
                     {editingClient.tipo !== 'POSTPAGO' && watch('saleStatus') && (
                       <div>
                         <label className="text-sm font-medium mb-2 block">Formulario</label>
