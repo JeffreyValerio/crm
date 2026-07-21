@@ -2232,44 +2232,49 @@ Comentario: En espera de Instalacion`;
                         <option value="DEUDA_MENOR_ANIO">Deuda Menor a un Año</option>
                       </Select>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Estado de Venta</label>
-                      <Select {...register('saleStatus')}>
-                        <option value="">Sin estado</option>
-                        <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
-                        <option value="INSTALADA">Instalada</option>
-                        <option value="CANCELADA">Cancelada</option>
-                        <option value="NO_COMPLETO_FACEID">No completó FaceID</option>
-                        <option value="CANCELADO_POR_COBERTURA">Cancelado por cobertura</option>
-                        <option value="CLIENTE_NO_PERMITE_INSTALACION">Cliente no permite instalación</option>
-                      </Select>
-                    </div>
+                    {editingClient.tipo !== 'POSTPAGO' && (
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Estado de Venta</label>
+                        <Select {...register('saleStatus')}>
+                          <option value="">Sin estado</option>
+                          <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
+                          <option value="INSTALADA">Instalada</option>
+                          <option value="CANCELADA">Cancelada</option>
+                          <option value="NO_COMPLETO_FACEID">No completó FaceID</option>
+                          <option value="CANCELADO_POR_COBERTURA">Cancelado por cobertura</option>
+                          <option value="CLIENTE_NO_PERMITE_INSTALACION">Cliente no permite instalación</option>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                   <>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Comentario de Validación</label>
-                      <div className="relative">
-                        <Input
-                          {...register('validationComment')}
-                          placeholder="Comentario sobre el estado de validación"
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(watch('validationComment'), 'validationComment')}
-                          title="Copiar"
-                        >
-                          {copiedField === 'validationComment' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
+                    {editingClient.tipo !== 'POSTPAGO' && (
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Comentario de Validación</label>
+                        <div className="relative">
+                          <Input
+                            {...register('validationComment')}
+                            placeholder="Comentario sobre el estado de validación"
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                            onClick={() => handleCopyToClipboard(watch('validationComment'), 'validationComment')}
+                            title="Copiar"
+                          >
+                            {copiedField === 'validationComment' ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    {editingClient.tipo !== 'POSTPAGO' && (
                     <div>
                       <label className="text-sm font-medium mb-2 block">Comentario de Venta</label>
                       <div className="relative">
@@ -2294,7 +2299,8 @@ Comentario: En espera de Instalacion`;
                         </Button>
                       </div>
                     </div>
-                    {watch('saleStatus') && (
+                    )}
+                    {editingClient.tipo !== 'POSTPAGO' && watch('saleStatus') && (
                       <div>
                         <label className="text-sm font-medium mb-2 block">Formulario</label>
                         <div className="relative">
