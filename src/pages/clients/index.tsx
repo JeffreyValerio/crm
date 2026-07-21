@@ -2208,7 +2208,7 @@ Comentario: En espera de Instalacion`;
               {editingClient && currentUser?.role === 'admin' && (
                 <div className="space-y-4">
                   <h3 className="font-semibold">Estados</h3>
-                  {editingClient.tipo === 'POSTPAGO' ? (
+                  {editingClient.tipo === 'POSTPAGO' && (
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
                         <label className="text-sm font-medium mb-2 block">Estado Postpago</label>
@@ -2219,13 +2219,11 @@ Comentario: En espera de Instalacion`;
                         </Select>
                       </div>
                     </div>
-                  ) : (
+                  )}
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <label className="text-sm font-medium mb-2 block">Estado de Validación</label>
-                      <Select
-                        {...register('validationStatus')}
-                      >
+                      <Select {...register('validationStatus')}>
                         <option value="EN_PROCESO_VALIDACION">En validación</option>
                         <option value="APROBADA">Aprobada</option>
                         <option value="REQUIERE_DEPOSITO">Requiere Depósito</option>
@@ -2236,9 +2234,7 @@ Comentario: En espera de Instalacion`;
                     </div>
                     <div>
                       <label className="text-sm font-medium mb-2 block">Estado de Venta</label>
-                      <Select
-                        {...register('saleStatus')}
-                      >
+                      <Select {...register('saleStatus')}>
                         <option value="">Sin estado</option>
                         <option value="PENDIENTE_INSTALACION">Pendiente Instalación</option>
                         <option value="INSTALADA">Instalada</option>
@@ -2249,15 +2245,62 @@ Comentario: En espera de Instalacion`;
                       </Select>
                     </div>
                   </div>
-                  )}
-                  {editingClient.tipo !== 'POSTPAGO' && (
-                    <>
+                  <>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Comentario de Validación</label>
+                      <div className="relative">
+                        <Input
+                          {...register('validationComment')}
+                          placeholder="Comentario sobre el estado de validación"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(watch('validationComment'), 'validationComment')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'validationComment' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Comentario de Venta</label>
+                      <div className="relative">
+                        <Input
+                          {...register('saleComment')}
+                          placeholder="Comentario sobre el estado de venta"
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(watch('saleComment'), 'saleComment')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'saleComment' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    {watch('saleStatus') && (
                       <div>
-                        <label className="text-sm font-medium mb-2 block">Comentario de Validación</label>
+                        <label className="text-sm font-medium mb-2 block">Formulario</label>
                         <div className="relative">
                           <Input
-                            {...register('validationComment')}
-                            placeholder="Comentario sobre el estado de validación"
+                            {...register('formulario')}
+                            placeholder="Ingrese el formulario"
                             className="pr-10"
                           />
                           <Button
@@ -2265,69 +2308,19 @@ Comentario: En espera de Instalacion`;
                             variant="ghost"
                             size="sm"
                             className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(watch('validationComment'), 'validationComment')}
+                            onClick={() => handleCopyToClipboard(watch('formulario'), 'formulario')}
                             title="Copiar"
                           >
-                            {copiedField === 'validationComment' ? (
+                            {copiedField === 'formulario' ? (
                               <Check className="h-4 w-4 text-green-500" />
                             ) : (
                               <Copy className="h-4 w-4" />
                             )}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Comentario de Venta</label>
-                        <div className="relative">
-                          <Input
-                            {...register('saleComment')}
-                            placeholder="Comentario sobre el estado de venta"
-                            className="pr-10"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                            onClick={() => handleCopyToClipboard(watch('saleComment'), 'saleComment')}
-                            title="Copiar"
-                          >
-                            {copiedField === 'saleComment' ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      {watch('saleStatus') && (
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Formulario</label>
-                          <div className="relative">
-                            <Input
-                              {...register('formulario')}
-                              placeholder="Ingrese el formulario"
-                              className="pr-10"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                              onClick={() => handleCopyToClipboard(watch('formulario'), 'formulario')}
-                              title="Copiar"
-                            >
-                              {copiedField === 'formulario' ? (
-                                <Check className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Copy className="h-4 w-4" />
-                              )}
                             </Button>
                           </div>
                         </div>
                       )}
-                    </>
-                  )}
+                  </>
                 </div>
               )}
               </div>{/* end estado tab */}
