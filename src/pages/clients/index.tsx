@@ -133,6 +133,7 @@ export default function ClientsPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [viewingClient, setViewingClient] = useState<Client | null>(null);
+  const [filterTipo, setFilterTipo] = useState<'FIBRA' | 'POSTPAGO' | ''>('');
   const [filterValidationStatus, setFilterValidationStatus] = useState<string>('');
   const [filterSaleStatus, setFilterSaleStatus] = useState<string>('');
   const [filterCreatedBy, setFilterCreatedBy] = useState<string>('');
@@ -315,14 +316,14 @@ export default function ClientsPage() {
     if (!loading && currentUser) {
       loadClients();
     }
-  }, [filterValidationStatus, filterSaleStatus, filterCreatedBy, filterYear, filterMonth, searchTerm, currentPage, loading, currentUser]);
+  }, [filterTipo, filterValidationStatus, filterSaleStatus, filterCreatedBy, filterYear, filterMonth, searchTerm, currentPage, loading, currentUser]);
 
   // Resetear a página 1 cuando cambia la búsqueda o los filtros
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [searchTerm, filterValidationStatus, filterSaleStatus, filterCreatedBy, filterYear, filterMonth]);
+  }, [searchTerm, filterTipo, filterValidationStatus, filterSaleStatus, filterCreatedBy, filterYear, filterMonth]);
 
   // Debounce para la búsqueda
   useEffect(() => {
@@ -354,6 +355,8 @@ export default function ClientsPage() {
 
   async function loadClients() {
     const params = new URLSearchParams();
+    // Filtro por tipo (fibra / postpago) — aplica a todos los roles
+    if (filterTipo) params.append('tipo', filterTipo);
     // Solo aplicar filtros de estado y creador si el usuario es admin
     if (currentUser?.role === 'admin') {
       if (filterValidationStatus) params.append('validationStatus', filterValidationStatus);
@@ -912,6 +915,28 @@ Comentario: En espera de Instalacion`;
           </div>
         </div>
 
+        {/* Tabs Fibra / Postpago */}
+        <div className="flex gap-1 border-b">
+          {(['', 'FIBRA', 'POSTPAGO'] as const).map((tipo) => {
+            const label = tipo === '' ? 'Todos' : tipo === 'FIBRA' ? 'Clientes' : 'Postpago';
+            const active = filterTipo === tipo;
+            return (
+              <button
+                key={tipo}
+                onClick={() => { setFilterTipo(tipo); setCurrentPage(1); }}
+                className={cn(
+                  'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+                  active
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Buscar y filtros juntos */}
         <Card>
           <CardContent className="pt-4">
@@ -931,31 +956,35 @@ Comentario: En espera de Instalacion`;
               </div>
               {currentUser?.role === 'admin' && (
                 <>
-                  <div className="col-span-1 sm:min-w-[180px]">
-                    <Select
-                      value={filterValidationStatus}
-                      onChange={(e) => setFilterValidationStatus(e.target.value)}
-                    >
-                      <option value="">Validación: todos</option>
-                      <option value="EN_PROCESO_VALIDACION">En validación</option>
-                      <option value="APROBADA">Aprobada</option>
-                      <option value="REQUIERE_DEPOSITO">Req. depósito</option>
-                      <option value="NO_APLICA">No aplica</option>
-                      <option value="INCOBRABLE">Incobrable</option>
-                      <option value="DEUDA_MENOR_ANIO">Deuda &lt;1 año</option>
-                    </Select>
-                  </div>
-                  <div className="col-span-1 sm:min-w-[180px]">
-                    <Select
-                      value={filterSaleStatus}
-                      onChange={(e) => setFilterSaleStatus(e.target.value)}
-                    >
-                      <option value="">Venta: todos</option>
-                      <option value="PENDIENTE_INSTALACION">Pendiente</option>
-                      <option value="INSTALADA">Instalada</option>
-                      <option value="CANCELADA">Cancelada</option>
-                    </Select>
-                  </div>
+                  {filterTipo !== 'POSTPAGO' && (
+                    <>
+                      <div className="col-span-1 sm:min-w-[180px]">
+                        <Select
+                          value={filterValidationStatus}
+                          onChange={(e) => setFilterValidationStatus(e.target.value)}
+                        >
+                          <option value="">Validación: todos</option>
+                          <option value="EN_PROCESO_VALIDACION">En validación</option>
+                          <option value="APROBADA">Aprobada</option>
+                          <option value="REQUIERE_DEPOSITO">Req. depósito</option>
+                          <option value="NO_APLICA">No aplica</option>
+                          <option value="INCOBRABLE">Incobrable</option>
+                          <option value="DEUDA_MENOR_ANIO">Deuda &lt;1 año</option>
+                        </Select>
+                      </div>
+                      <div className="col-span-1 sm:min-w-[180px]">
+                        <Select
+                          value={filterSaleStatus}
+                          onChange={(e) => setFilterSaleStatus(e.target.value)}
+                        >
+                          <option value="">Venta: todos</option>
+                          <option value="PENDIENTE_INSTALACION">Pendiente</option>
+                          <option value="INSTALADA">Instalada</option>
+                          <option value="CANCELADA">Cancelada</option>
+                        </Select>
+                      </div>
+                    </>
+                  )}
                   <div className="col-span-2 sm:min-w-[180px]">
                     <Select
                       value={filterCreatedBy}
@@ -1088,8 +1117,14 @@ Comentario: En espera de Instalacion`;
                     <TableHead>Plan</TableHead>
                     {currentUser?.role === 'admin' && (
                       <>
-                        <TableHead>Estado Validación</TableHead>
-                        <TableHead>Estado Venta</TableHead>
+                        {filterTipo === 'POSTPAGO' ? (
+                          <TableHead>Estado Postpago</TableHead>
+                        ) : (
+                          <>
+                            <TableHead>Estado Validación</TableHead>
+                            <TableHead>Estado Venta</TableHead>
+                          </>
+                        )}
                         <TableHead>Creado Por</TableHead>
                       </>
                     )}
@@ -1099,7 +1134,7 @@ Comentario: En espera de Instalacion`;
                 <TableBody>
                   {clients.length === 0 ? (
                     <TableEmptyState
-                      colSpan={currentUser?.role === 'admin' ? 10 : 7}
+                      colSpan={currentUser?.role === 'admin' ? (filterTipo === 'POSTPAGO' ? 9 : 10) : 7}
                       message={searchTerm.trim() ? 'No se encontraron clientes que coincidan con la búsqueda' : 'No hay clientes registrados'}
                     />
                   ) : (
@@ -1122,18 +1157,28 @@ Comentario: En espera de Instalacion`;
                         <TableCell>{client.plan?.nombre || 'N/A'}</TableCell>
                         {currentUser?.role === 'admin' && (
                           <>
-                            <TableCell>
-                              <Badge variant={validationBadgeVariant(client.validationStatus)}>
-                                {getValidationStatusLabel(client.validationStatus)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {client.saleStatus && (
-                                <Badge variant={saleBadgeVariant(client.saleStatus)}>
-                                  {getSaleStatusLabel(client.saleStatus)}
+                            {filterTipo === 'POSTPAGO' ? (
+                              <TableCell>
+                                <Badge variant={client.postpagoStatus === 'ACTIVADA' ? 'success' : client.postpagoStatus === 'PENDIENTE_MENSAJERIA' ? 'info' : 'pending'}>
+                                  {getPostpagoStatusLabel(client.postpagoStatus)}
                                 </Badge>
-                              )}
-                            </TableCell>
+                              </TableCell>
+                            ) : (
+                              <>
+                                <TableCell>
+                                  <Badge variant={validationBadgeVariant(client.validationStatus)}>
+                                    {getValidationStatusLabel(client.validationStatus)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {client.saleStatus && (
+                                    <Badge variant={saleBadgeVariant(client.saleStatus)}>
+                                      {getSaleStatusLabel(client.saleStatus)}
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                              </>
+                            )}
                             <TableCell>{getUserDisplayName(client.creator)}</TableCell>
                           </>
                         )}

@@ -14,9 +14,14 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
-      const { validationStatus, saleStatus, createdBy, search, year, month, page = '1', limit = '10' } = req.query;
+      const { tipo, validationStatus, saleStatus, createdBy, search, year, month, page = '1', limit = '10' } = req.query;
 
       const conditions: object[] = [];
+
+      // Filtro por tipo (FIBRA / POSTPAGO) — aplica a todos los roles
+      if (tipo && typeof tipo === 'string' && (tipo === 'FIBRA' || tipo === 'POSTPAGO')) {
+        conditions.push({ tipo });
+      }
 
       // Filtro de rol y creador
       if (session.role === 'admin') {
