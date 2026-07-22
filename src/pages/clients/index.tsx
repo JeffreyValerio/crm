@@ -76,6 +76,7 @@ interface Client {
   saleComment: string | null;
   formulario: string | null;
   postpagoStatus: string | null;
+  tipoPlanPostpago: string | null;
   planId: string | null;
   plan: Plan | null;
   creator?: {
@@ -119,6 +120,7 @@ interface ClientFormData {
   saleComment: string;
   formulario: string;
   postpagoStatus: string;
+  tipoPlanPostpago: string;
 }
 
 export default function ClientsPage() {
@@ -201,6 +203,7 @@ export default function ClientsPage() {
       saleComment: '',
       formulario: '',
       postpagoStatus: 'PENDIENTE_ACTIVACION',
+      tipoPlanPostpago: '',
     },
   });
 
@@ -499,6 +502,7 @@ export default function ClientsPage() {
         saleComment: client.saleComment || '',
         formulario: client.formulario || '',
         postpagoStatus: client.postpagoStatus || 'PENDIENTE_ACTIVACION',
+        tipoPlanPostpago: client.tipoPlanPostpago || '',
       }, { keepDefaultValues: false });
       
       // Desactivar flag de inicialización después de un pequeño delay
@@ -539,6 +543,7 @@ export default function ClientsPage() {
         saleComment: '',
         formulario: '',
         postpagoStatus: 'PENDIENTE_ACTIVACION',
+        tipoPlanPostpago: '',
       });
     }
     setDialogOpen(true);
@@ -624,10 +629,11 @@ export default function ClientsPage() {
         fechaNacimiento: data.fechaNacimiento || null,
         coordenadasLat: data.coordenadasLat?.trim() || null,
         coordenadasLng: data.coordenadasLng?.trim() || null,
-        numeroMedidor: isPostpago ? null : (data.numeroMedidor || null),
+        numeroMedidor: data.numeroMedidor || null,
         simUrl: isPostpago ? (data.simUrl || null) : null,
         simCedulaUrl: isPostpago ? (data.simCedulaUrl || null) : null,
         postpagoStatus: isPostpago ? (data.postpagoStatus || 'PENDIENTE_ACTIVACION') : undefined,
+        tipoPlanPostpago: isPostpago ? (data.tipoPlanPostpago || null) : null,
       };
 
       const response = await fetch(url, {
@@ -2097,6 +2103,17 @@ Comentario: En espera de Instalacion`;
                   Información Técnica
                 </h3>
                 <div className="grid gap-4 md:grid-cols-2">
+                  {isPostpago && (
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Tipo de Plan</label>
+                      <Select {...register('tipoPlanPostpago')}>
+                        <option value="">Seleccione</option>
+                        <option value="NUEVO">Nuevo</option>
+                        <option value="MIGRACION">Migración</option>
+                        <option value="PORTABILIDAD">Portabilidad</option>
+                      </Select>
+                    </div>
+                  )}
                   <div>
                     <label className="text-sm font-medium mb-2 block">
                       {isPostpago ? 'Número SIM' : 'Número de Medidor'}
@@ -2489,7 +2506,7 @@ Comentario: En espera de Instalacion`;
                     '',
                     `NOMBRE DEL CLIENTE: ${c.nombres} ${c.apellidos}`,
                     `IDENTIFICACION: ${c.numeroIdentificacion}`,
-                    `TIPO DE PLAN: `,
+                    `TIPO DE PLAN: ${c.tipoPlanPostpago ?? ''}`,
                     `PLAN CONTRATAR: ${c.plan?.nombre ?? ''}`,
                     `ELECTRONICO: ${c.email ?? ''}`,
                     `PROVINCIA: ${c.provincia}`,

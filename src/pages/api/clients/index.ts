@@ -137,6 +137,7 @@ export default async function handler(
         simUrl,
         simCedulaUrl,
         postpagoStatus,
+        tipoPlanPostpago,
       } = req.body;
 
       // Validaciones básicas
@@ -166,7 +167,7 @@ export default async function handler(
           senasExactas: senasExactas.trim(),
           coordenadasLat: coordenadasLat?.trim().replace(/,\s*$/, '') || null,
           coordenadasLng: coordenadasLng?.trim().replace(/,\s*$/, '') || null,
-          numeroMedidor: !isPostpago ? (numeroMedidor?.trim() || null) : null,
+          numeroMedidor: numeroMedidor?.trim() || null,
           planId: planId || null,
           cedulaFrontalUrl: cedulaFrontalUrl || null,
           cedulaTraseraUrl: cedulaTraseraUrl || null,
@@ -176,6 +177,7 @@ export default async function handler(
           createdBy: session.userId,
           validationStatus: !isPostpago ? 'EN_PROCESO_VALIDACION' : null,
           postpagoStatus: isPostpago ? (postpagoStatus || 'PENDIENTE_ACTIVACION') : null,
+          tipoPlanPostpago: isPostpago ? (tipoPlanPostpago || null) : null,
         },
         include: {
           plan: {

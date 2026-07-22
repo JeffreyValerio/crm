@@ -18,6 +18,7 @@ interface PostpagoClient {
   email: string | null;
   numeroIdentificacion: string;
   postpagoStatus: string | null;
+  tipoPlanPostpago: string | null;
   cedulaFrontalUrl: string | null;
   cedulaTraseraUrl: string | null;
   selfieUrl: string | null;

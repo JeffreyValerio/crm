@@ -149,6 +149,7 @@ model Client {
   formulario            String?
   // Estados (Postpago)
   postpagoStatus        PostpagoStatus?
+  tipoPlanPostpago      String?          // "NUEVO" | "MIGRACION" | "PORTABILIDAD"
   // Metadatos
   createdBy             String
   creator               User               @relation(fields: [createdBy], references: [id])

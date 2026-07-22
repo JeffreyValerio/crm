@@ -98,6 +98,7 @@ export default async function handler(
         saleComment,
         formulario,
         postpagoStatus,
+        tipoPlanPostpago,
       } = req.body;
 
       // Obtener el cliente actual para comparar estados
@@ -304,6 +305,9 @@ export default async function handler(
         // Estado postpago
         if (postpagoStatus !== undefined && currentClient.tipo === 'POSTPAGO') {
           updateData.postpagoStatus = postpagoStatus || null;
+        }
+        if (tipoPlanPostpago !== undefined && currentClient.tipo === 'POSTPAGO') {
+          updateData.tipoPlanPostpago = tipoPlanPostpago || null;
         }
       }
       // Si no es admin, ignoramos los cambios de estado y mantenemos los valores actuales

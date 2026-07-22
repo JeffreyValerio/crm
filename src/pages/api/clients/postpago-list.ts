@@ -19,6 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       email: true,
       numeroIdentificacion: true,
       postpagoStatus: true,
+      tipoPlanPostpago: true,
       cedulaFrontalUrl: true,
       cedulaTraseraUrl: true,
       selfieUrl: true,
