@@ -2096,39 +2096,38 @@ Comentario: En espera de Instalacion`;
                   <span className="text-primary">⚙️</span>
                   Información Técnica
                 </h3>
-                {!isPostpago && (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        Número de Medidor <span className="text-destructive">*</span>
-                      </label>
-                      <div className="relative">
-                        <Input
-                          {...register('numeroMedidor', { required: !isPostpago ? 'El número de medidor es obligatorio' : false })}
-                          placeholder="Ingrese el número de medidor"
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                          onClick={() => handleCopyToClipboard(watch('numeroMedidor'), 'numeroMedidor')}
-                          title="Copiar"
-                        >
-                          {copiedField === 'numeroMedidor' ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      {errors.numeroMedidor && (
-                        <p className="text-sm text-destructive mt-1">{errors.numeroMedidor.message}</p>
-                      )}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      {isPostpago ? 'Número SIM' : 'Número de Medidor'}
+                      {!isPostpago && <span className="text-destructive"> *</span>}
+                    </label>
+                    <div className="relative">
+                      <Input
+                        {...register('numeroMedidor', { required: !isPostpago ? 'El número de medidor es obligatorio' : false })}
+                        placeholder={isPostpago ? 'Ingrese el número SIM' : 'Ingrese el número de medidor'}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => handleCopyToClipboard(watch('numeroMedidor'), 'numeroMedidor')}
+                        title="Copiar"
+                      >
+                        {copiedField === 'numeroMedidor' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
+                    {errors.numeroMedidor && (
+                      <p className="text-sm text-destructive mt-1">{errors.numeroMedidor.message}</p>
+                    )}
                   </div>
-                )}
+                </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   {!isPostpago && (
                     <div>
