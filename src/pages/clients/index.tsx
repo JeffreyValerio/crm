@@ -157,7 +157,7 @@ export default function ClientsPage() {
   const [reassignUserId, setReassignUserId] = useState<string>('');
   const [reassignOriginalUserId, setReassignOriginalUserId] = useState<string>('');
   const [reassignLoading, setReassignLoading] = useState(false);
-  const [viewTab, setViewTab] = useState<'info' | 'fotos' | 'historial'>('info');
+  const [viewTab, setViewTab] = useState<'info' | 'fotos' | 'historial' | 'plantilla'>('info');
   const [editTab, setEditTab] = useState<'datos' | 'ubicacion' | 'tecnico' | 'fotos' | 'estado'>('datos');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -2397,14 +2397,19 @@ Comentario: En espera de Instalacion`;
 
                 {/* Tab bar */}
                 <div className="flex border-b -mx-6 px-6 mt-4 mb-4">
-                  {(['info', 'fotos', 'historial'] as const).map(tab => (
-                    <button key={tab} type="button" onClick={() => setViewTab(tab)}
+                  {([
+                    'info',
+                    'fotos',
+                    'historial',
+                    ...(viewingClient.tipo === 'POSTPAGO' ? ['plantilla'] : []),
+                  ] as const).map(tab => (
+                    <button key={tab} type="button" onClick={() => setViewTab(tab as any)}
                       className={cn(
                         "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap",
                         viewTab === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {tab === 'info' ? 'Información' : tab === 'fotos' ? 'Fotos' : `Historial${viewingClient.statusComments?.length ? ` (${viewingClient.statusComments.length})` : ''}`}
+                      {tab === 'info' ? 'Información' : tab === 'fotos' ? 'Fotos' : tab === 'plantilla' ? 'Plantilla' : `Historial${viewingClient.statusComments?.length ? ` (${viewingClient.statusComments.length})` : ''}`}
                     </button>
                   ))}
                 </div>
@@ -2475,6 +2480,53 @@ Comentario: En espera de Instalacion`;
                     ))}
                   </div>
                 )}
+
+                {/* PLANTILLA TAB */}
+                {viewTab === 'plantilla' && viewingClient.tipo === 'POSTPAGO' && (() => {
+                  const c = viewingClient;
+                  const texto = [
+                    'PLANTILLA POSTPAGO',
+                    '',
+                    `NOMBRE DEL CLIENTE: ${c.nombres} ${c.apellidos}`,
+                    `IDENTIFICACION: ${c.numeroIdentificacion}`,
+                    `TIPO DE PLAN: `,
+                    `PLAN CONTRATAR: ${c.plan?.nombre ?? ''}`,
+                    `ELECTRONICO: ${c.email ?? ''}`,
+                    `PROVINCIA: ${c.provincia}`,
+                    `CANTON: ${c.canton}`,
+                    `DISTRITO: ${c.distrito}`,
+                    `DIRECCION: ${c.senasExactas}`,
+                    '',
+                    'REFERENCIAS:',
+                    '1- FAMILIAR: ',
+                    '2- FAMILIAR: ',
+                    '3- AMISTAD: ',
+                    '',
+                    `CODIGO MAESTRO: `,
+                    '',
+                    `Número de llamada: ${c.telefono ?? ''}`,
+                  ].join('\n');
+                  return (
+                    <div className="space-y-3">
+                      <pre className="text-sm bg-muted/40 rounded-lg p-4 whitespace-pre-wrap font-mono leading-relaxed border">
+                        {texto}
+                      </pre>
+                      <Button
+                        className="w-full gap-2"
+                        onClick={() => {
+                          navigator.clipboard.writeText(texto);
+                          handleCopyToClipboard(texto, 'plantilla-postpago');
+                        }}
+                      >
+                        {copiedField === 'plantilla-postpago' ? (
+                          <><Check className="h-4 w-4" /> Copiado</>
+                        ) : (
+                          <><Copy className="h-4 w-4" /> Copiar plantilla</>
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })()}
 
                 {/* HISTORIAL TAB */}
                 {viewTab === 'historial' && (
