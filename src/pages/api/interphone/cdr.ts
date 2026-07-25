@@ -67,29 +67,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const [prospectos, clientes] = await Promise.all([
       prisma.prospecto.findMany({
         where: {
-          OR: [
-            { telCelular: { in: destinos } },
-            { telInstalacion: { in: destinos } },
-            { telOficina: { in: destinos } },
-          ],
+          OR: destinos.flatMap(n => [
+            { telCelular: { endsWith: n } },
+            { telInstalacion: { endsWith: n } },
+            { telOficina: { endsWith: n } },
+          ]),
         },
         select: { id: true, nroOrden: true, cliente: true, telCelular: true, telInstalacion: true, telOficina: true },
       }),
       prisma.client.findMany({
-        where: { telefono: { in: destinos } },
+        where: { OR: destinos.map(n => ({ telefono: { endsWith: n } })) },
         select: { id: true, nombres: true, apellidos: true, telefono: true },
       }),
     ]);
 
+    // Clientes primero — normalize ambos lados y matchear por sufijo de 8 dígitos
     for (const c of clientes) {
       const tel = normalize(c.telefono);
-      if (tel) vinculoMap[tel] = { tipo: 'cliente', id: c.id, nombre: `${c.nombres} ${c.apellidos}` };
+      const match = destinos.find(d => tel.endsWith(d));
+      if (match && !vinculoMap[match]) {
+        vinculoMap[match] = { tipo: 'cliente', id: c.id, nombre: `${c.nombres} ${c.apellidos}` };
+      }
     }
     for (const p of prospectos) {
       for (const phone of [p.telCelular, p.telInstalacion, p.telOficina]) {
         const tel = normalize(phone);
-        if (tel && !vinculoMap[tel]) {
-          vinculoMap[tel] = { tipo: 'prospecto', id: p.id, nombre: p.cliente ?? p.nroOrden };
+        const match = destinos.find(d => tel.endsWith(d));
+        if (match && !vinculoMap[match]) {
+          vinculoMap[match] = { tipo: 'prospecto', id: p.id, nombre: p.cliente ?? p.nroOrden };
           break;
         }
       }
@@ -98,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const enriched = registros.map(r => ({
     ...r,
-    vinculo: vinculoMap[normalize(r.destino)] ?? null,
+    vinculo: vinculoMap[r.destino] ?? null,
   }));
 
   return res.status(200).json({
