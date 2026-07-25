@@ -206,6 +206,53 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
           },
         },
       },
+      '/api/v1/cdr': {
+        get: {
+          summary: 'Registros CDR de Interphone',
+          tags: ['Interphone'],
+          parameters: [
+            { name: 'desde', in: 'query', schema: { type: 'string', format: 'date-time' }, description: 'Fecha/hora desde (ISO 8601)' },
+            { name: 'hasta', in: 'query', schema: { type: 'string', format: 'date-time' }, description: 'Fecha/hora hasta (ISO 8601)' },
+            { name: 'extension', in: 'query', schema: { type: 'string' }, description: 'Filtrar por extensión (búsqueda parcial)' },
+            { name: 'estado', in: 'query', schema: { type: 'string' }, description: 'Filtrar por estado exacto (Respondido, Sin respuesta, Cancelado…)' },
+          ],
+          responses: {
+            '200': {
+              description: 'Registros de llamadas CDR',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      count: { type: 'integer' },
+                      data: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'string' },
+                            uuid: { type: 'string' },
+                            extension: { type: 'string' },
+                            direccion: { type: 'string', description: 'Salida | Entrada | Local' },
+                            cidNumero: { type: 'string' },
+                            destino: { type: 'string' },
+                            grabacionId: { type: 'string', nullable: true },
+                            fecha: { type: 'string', format: 'date-time' },
+                            duracion: { type: 'string' },
+                            estado: { type: 'string' },
+                            causaColgar: { type: 'string', nullable: true },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '401': { description: 'API key inválida o ausente' },
+          },
+        },
+      },
       '/api/v1/extension-stats': {
         get: {
           summary: 'Estadísticas de llamadas por extensión',
