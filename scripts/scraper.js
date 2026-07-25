@@ -132,7 +132,7 @@ function mapRecord(d) {
         // Reemplazar dispatch por TODOS en la URL
         const modified = new URL(url);
         modified.searchParams.delete('dispatch');  // sin filtro de despacho
-        modified.searchParams.set('estado', 'ASIGNADA');
+        modified.searchParams.set('estado', 'TODOS');
         // Quitar page/start para que traiga todo
         // modified.searchParams.delete('page');
         // modified.searchParams.delete('start');
@@ -202,7 +202,7 @@ function mapRecord(d) {
     await page.evaluate(() => {
       const combos = Ext.ComponentQuery.query('combobox');
       const estadoCombo = combos.find(c => c.fieldLabel === 'Estado');
-      if (estadoCombo) estadoCombo.setValue('ASIGNADA');
+      if (estadoCombo) estadoCombo.setValue('TODOS');
       const despachoCombo = combos.find(c => c.fieldLabel === 'Despacho' && !c.isHidden());
       if (despachoCombo) despachoCombo.setValue('TODOS');
     });
@@ -236,7 +236,7 @@ function mapRecord(d) {
       const params = proxy.extraParams || {};
       // Sobreescribir despacho a TODOS y estado a ASIGNADA
       params.dispatch = 'TODOS';
-      params.estado = 'ASIGNADA';
+      params.estado = 'TODOS';
       proxy.extraParams = params;
     });
 
