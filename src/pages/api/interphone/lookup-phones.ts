@@ -20,25 +20,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session.userId) return res.status(401).end();
 
   const raw: unknown[] = Array.isArray(req.body?.numeros) ? req.body.numeros : [];
-  const numerosSet = new Set(
+  const numeros = [...new Set(
     raw.map(n => normalize(String(n))).filter(n => n.length >= 7)
-  );
+  )];
 
-  if (numerosSet.size === 0) return res.status(200).json({});
+  if (numeros.length === 0) return res.status(200).json({});
 
+  // Busca solo registros que coincidan — no trae toda la tabla
   const [prospectos, clientes] = await Promise.all([
     prisma.prospecto.findMany({
       where: {
         OR: [
-          { telCelular: { not: null } },
-          { telInstalacion: { not: null } },
-          { telOficina: { not: null } },
+          { telCelular: { in: numeros } },
+          { telInstalacion: { in: numeros } },
+          { telOficina: { in: numeros } },
         ],
       },
       select: { id: true, nroOrden: true, cliente: true, telCelular: true, telInstalacion: true, telOficina: true },
     }),
     prisma.client.findMany({
-      where: { telefono: { not: null } },
+      where: { telefono: { in: numeros } },
       select: { id: true, nombres: true, apellidos: true, telefono: true },
     }),
   ]);
@@ -48,21 +49,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Clientes tienen prioridad
   for (const c of clientes) {
     const tel = normalize(c.telefono);
-    if (tel && numerosSet.has(tel)) {
-      result[tel] = { tipo: 'cliente', id: c.id, nombre: `${c.nombres} ${c.apellidos}` };
-    }
+    if (tel) result[tel] = { tipo: 'cliente', id: c.id, nombre: `${c.nombres} ${c.apellidos}` };
   }
 
   for (const p of prospectos) {
     for (const phone of [p.telCelular, p.telInstalacion, p.telOficina]) {
       const tel = normalize(phone);
-      if (tel && numerosSet.has(tel) && !result[tel]) {
+      if (tel && !result[tel]) {
         result[tel] = { tipo: 'prospecto', id: p.id, nombre: p.cliente ?? p.nroOrden, nroOrden: p.nroOrden };
         break;
       }
     }
   }
 
-  console.log(`[lookup-phones] buscados=${numerosSet.size} encontrados=${Object.keys(result).length}`);
+  console.log(`[lookup-phones] buscados=${numeros.length} encontrados=${Object.keys(result).length}`);
   return res.status(200).json(result);
 }
