@@ -18,6 +18,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'No autenticado' });
 
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { role: true, extension: true },
+  });
+
   const { desde, hasta, extension, estado, search, page = '1', limit = '50' } = req.query;
   const pageNum = Math.max(1, parseInt(page as string) || 1);
   const limitNum = Math.min(200, parseInt(limit as string) || 50);
@@ -32,7 +37,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     where.fecha = { ...(where.fecha as object ?? {}), lt: new Date(hasta) };
   }
 
-  if (extension && typeof extension === 'string') {
+  // No-admins solo ven sus propias llamadas
+  if (currentUser?.role !== 'admin') {
+    if (!currentUser?.extension) {
+      return res.status(200).json({ registros: [], pagination: { total: 0, page: 1, limit: limitNum, totalPages: 0 } });
+    }
+    where.extension = { startsWith: currentUser.extension + ' ' };
+  } else if (extension && typeof extension === 'string') {
     where.extension = { contains: extension, mode: 'insensitive' };
   }
 
