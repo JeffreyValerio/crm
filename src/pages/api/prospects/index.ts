@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           asignado: { select: { id: true, nombre: true, apellidos: true, email: true } },
         },
         orderBy: [
-          { asignadoAt: { sort: 'desc', nulls: 'last' } },
+          { asignadoA: { sort: 'asc', nulls: 'first' } },
           { createdAt: 'desc' },
         ],
         skip,

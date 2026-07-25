@@ -13,6 +13,7 @@ import {
   Settings,
   Phone,
   Wifi,
+  Cpu,
 } from 'lucide-react';
 
 interface NavItem {
@@ -76,6 +77,12 @@ const navSections: NavSection[] = [
   {
     title: 'Configuración',
     items: [
+      {
+        title: 'Inventario SIM',
+        href: '/sims',
+        icon: Cpu,
+        adminOnly: true,
+      },
       {
         title: 'Planes',
         href: '/plans',

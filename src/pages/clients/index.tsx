@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle, ChevronLeft, ChevronRight, Search, UserCheck, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Upload, Download, Copy, Check, MoreVertical, MessageCircle, ChevronLeft, ChevronRight, Search, UserCheck, MapPin, Loader2 } from 'lucide-react';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { CldImage } from 'next-cloudinary';
@@ -156,6 +156,8 @@ export default function ClientsPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+  const [selectedSimId, setSelectedSimId] = useState<string | null>(null);
+  const [solicitandoSim, setSolicitandoSim] = useState(false);
   const [reassignClientId, setReassignClientId] = useState<string | null>(null);
   const [reassignUserId, setReassignUserId] = useState<string>('');
   const [reassignOriginalUserId, setReassignOriginalUserId] = useState<string>('');
@@ -617,6 +619,23 @@ export default function ClientsPage() {
     }
   }
 
+  async function solicitarSim() {
+    setSolicitandoSim(true);
+    try {
+      const res = await fetch('/api/sims/disponible');
+      if (!res.ok) { toast.error('No hay SIMs disponibles en inventario'); return; }
+      const data = await res.json();
+      setValue('numeroMedidor', data.sim.numero);
+      if (data.sim.fotoUrl) setValue('simUrl', data.sim.fotoUrl);
+      setSelectedSimId(data.sim.id);
+      toast.success(`SIM ${data.sim.numero} asignada`);
+    } catch {
+      toast.error('Error al solicitar SIM');
+    } finally {
+      setSolicitandoSim(false);
+    }
+  }
+
   const onSubmit = async (data: ClientFormData) => {
     setSubmitting(true);
 
@@ -648,6 +667,15 @@ export default function ClientsPage() {
       const result = await response.json();
 
       if (response.ok) {
+        // Marcar SIM como asignada si se solicitó una
+        if (selectedSimId && !editingClient) {
+          fetch(`/api/sims/${selectedSimId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estado: 'ASIGNADO' }),
+          }).catch(() => {});
+          setSelectedSimId(null);
+        }
         await loadClients();
         setDialogOpen(false);
         setEditingClient(null);
@@ -2164,26 +2192,40 @@ Comentario: En espera de Instalacion`;
                       {isPostpago ? 'Número SIM' : 'Número de Medidor'}
                       {!isPostpago && <span className="text-destructive"> *</span>}
                     </label>
-                    <div className="relative">
-                      <Input
-                        {...register('numeroMedidor', { required: !isPostpago ? 'El número de medidor es obligatorio' : false })}
-                        placeholder={isPostpago ? 'Ingrese el número SIM' : 'Ingrese el número de medidor'}
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() => handleCopyToClipboard(watch('numeroMedidor'), 'numeroMedidor')}
-                        title="Copiar"
-                      >
-                        {copiedField === 'numeroMedidor' ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          {...register('numeroMedidor', { required: !isPostpago ? 'El número de medidor es obligatorio' : false })}
+                          placeholder={isPostpago ? 'Ingrese el número SIM' : 'Ingrese el número de medidor'}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => handleCopyToClipboard(watch('numeroMedidor'), 'numeroMedidor')}
+                          title="Copiar"
+                        >
+                          {copiedField === 'numeroMedidor' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {isPostpago && !editingClient && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={solicitarSim}
+                          disabled={solicitandoSim}
+                          className="shrink-0 text-xs"
+                        >
+                          {solicitandoSim ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Solicitar SIM'}
+                        </Button>
+                      )}
                     </div>
                     {errors.numeroMedidor && (
                       <p className="text-sm text-destructive mt-1">{errors.numeroMedidor.message}</p>
