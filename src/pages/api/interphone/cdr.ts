@@ -8,19 +8,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'No autenticado' });
 
-  const { fecha, extension, estado, search, page = '1', limit = '50' } = req.query;
+  const { desde, hasta, extension, estado, search, page = '1', limit = '50' } = req.query;
   const pageNum = Math.max(1, parseInt(page as string) || 1);
   const limitNum = Math.min(200, parseInt(limit as string) || 50);
   const skip = (pageNum - 1) * limitNum;
 
   const where: Record<string, unknown> = {};
 
-  // Filtro por fecha (día completo en UTC)
-  if (fecha && typeof fecha === 'string') {
-    const d = new Date(fecha);
-    const nextDay = new Date(d);
-    nextDay.setDate(nextDay.getDate() + 1);
-    where.fecha = { gte: d, lt: nextDay };
+  if (desde && typeof desde === 'string') {
+    where.fecha = { ...(where.fecha as object ?? {}), gte: new Date(desde) };
+  }
+  if (hasta && typeof hasta === 'string') {
+    where.fecha = { ...(where.fecha as object ?? {}), lt: new Date(hasta) };
   }
 
   if (extension && typeof extension === 'string') {

@@ -75,7 +75,8 @@ export default function InterphonePage() {
   const [cdrRows, setCdrRows]       = useState<CdrRow[]>([]);
   const [cdrLoading, setCdrLoading] = useState(false);
   const [cdrSearch, setCdrSearch]   = useState('');
-  const [cdrFecha, setCdrFecha]     = useState(() => new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString().slice(0, 10));
+  const [cdrMes, setCdrMes]         = useState(() => new Date(Date.now() - 6 * 60 * 60 * 1000).getUTCMonth() + 1);
+  const [cdrAnio, setCdrAnio]       = useState(() => new Date(Date.now() - 6 * 60 * 60 * 1000).getUTCFullYear());
   const [cdrPage, setCdrPage]       = useState(1);
   const [cdrTotalPages, setCdrTotalPages] = useState(1);
   const [cdrTotal, setCdrTotal]     = useState(0);
@@ -147,12 +148,13 @@ export default function InterphonePage() {
     });
   }, [router]);
 
-  const loadCdr = useCallback(async (page = 1, fecha = cdrFecha, search = cdrSearch) => {
+  const loadCdr = useCallback(async (page = 1, mes = cdrMes, anio = cdrAnio, search = cdrSearch) => {
     setCdrLoading(true);
     setVinculosMap({});
     try {
-      const p = new URLSearchParams({ page: String(page), limit: '50' });
-      if (fecha) p.set('fecha', fecha);
+      const desde = new Date(Date.UTC(anio, mes - 1, 1)).toISOString();
+      const hasta  = new Date(Date.UTC(anio, mes, 1)).toISOString();
+      const p = new URLSearchParams({ page: String(page), limit: '50', desde, hasta });
       if (search.trim()) p.set('search', search.trim());
       const res = await fetch(`/api/interphone/cdr?${p}`);
       if (!res.ok) return;
@@ -174,7 +176,7 @@ export default function InterphonePage() {
     } finally {
       setCdrLoading(false);
     }
-  }, [cdrFecha, cdrSearch]);
+  }, [cdrMes, cdrAnio, cdrSearch]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (tab === 'cdr') loadCdr(1); }, [tab, loadCdr]);
@@ -228,23 +230,33 @@ export default function InterphonePage() {
         <div className="space-y-4">
           {/* Filtros CDR */}
           <div className="flex flex-wrap gap-2">
-            <Input
-              type="date"
-              value={cdrFecha}
-              onChange={e => { setCdrFecha(e.target.value); loadCdr(1, e.target.value, cdrSearch); }}
-              className="w-40"
-            />
+            <Select
+              value={String(cdrMes)}
+              onChange={e => setCdrMes(Number(e.target.value))}
+              className="w-36"
+            >
+              {MESES.map((label, i) => (
+                <option key={i} value={i + 1}>{label}</option>
+              ))}
+            </Select>
+            <Select
+              value={String(cdrAnio)}
+              onChange={e => setCdrAnio(Number(e.target.value))}
+              className="w-24"
+            >
+              {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+            </Select>
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar número, extensión..."
                 value={cdrSearch}
                 onChange={e => setCdrSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') loadCdr(1, cdrFecha, cdrSearch); }}
+                onKeyDown={e => { if (e.key === 'Enter') loadCdr(1, cdrMes, cdrAnio, cdrSearch); }}
                 className="pl-9"
               />
             </div>
-            <Button variant="outline" onClick={() => loadCdr(1, cdrFecha, cdrSearch)}>Buscar</Button>
+            <Button variant="outline" onClick={() => loadCdr(1, cdrMes, cdrAnio, cdrSearch)}>Buscar</Button>
           </div>
 
           <p className="text-sm text-muted-foreground">{cdrTotal} llamada{cdrTotal !== 1 ? 's' : ''}</p>
@@ -331,10 +343,10 @@ export default function InterphonePage() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Página {cdrPage} de {cdrTotalPages}</span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={cdrPage === 1} onClick={() => loadCdr(cdrPage - 1)}>
+                <Button variant="outline" size="sm" disabled={cdrPage === 1} onClick={() => loadCdr(cdrPage - 1, cdrMes, cdrAnio, cdrSearch)}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm" disabled={cdrPage === cdrTotalPages} onClick={() => loadCdr(cdrPage + 1)}>
+                <Button variant="outline" size="sm" disabled={cdrPage === cdrTotalPages} onClick={() => loadCdr(cdrPage + 1, cdrMes, cdrAnio, cdrSearch)}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
