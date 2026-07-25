@@ -236,7 +236,6 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
                             direccion: { type: 'string', description: 'Salida | Entrada | Local' },
                             cidNumero: { type: 'string' },
                             destino: { type: 'string' },
-                            grabacionId: { type: 'string', nullable: true },
                             fecha: { type: 'string', format: 'date-time' },
                             duracion: { type: 'string' },
                             estado: { type: 'string' },

@@ -36,7 +36,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       direccion: true,
       cidNumero: true,
       destino: true,
-      grabacionId: true,
       fecha: true,
       duracion: true,
       estado: true,
