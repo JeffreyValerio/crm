@@ -283,22 +283,22 @@ export default function InterphonePage() {
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
                             <span className="font-mono text-sm font-medium">{r.destino}</span>
-                            {vinculosMap[r.destino] && (
+                            {vinculosMap[r.destino.replace(/\D/g, '')] && (
                               <button
                                 onClick={() => {
-                                  const v = vinculosMap[r.destino];
+                                  const v = vinculosMap[r.destino.replace(/\D/g, '')];
                                   router.push(v.tipo === 'cliente' ? `/clients/${v.id}` : '/prospects');
                                 }}
                                 className="flex items-center gap-1 text-left group w-fit"
                               >
                                 <Badge
-                                  variant={vinculosMap[r.destino].tipo === 'cliente' ? 'success' : 'info'}
+                                  variant={vinculosMap[r.destino.replace(/\D/g, '')].tipo === 'cliente' ? 'success' : 'info'}
                                   className="text-[10px] py-0 px-1.5"
                                 >
-                                  {vinculosMap[r.destino].tipo === 'cliente' ? 'Cliente' : 'Prospecto'}
+                                  {vinculosMap[r.destino.replace(/\D/g, '')].tipo === 'cliente' ? 'Cliente' : 'Prospecto'}
                                 </Badge>
                                 <span className="text-xs text-primary group-hover:underline truncate max-w-[130px]">
-                                  {vinculosMap[r.destino].nombre}
+                                  {vinculosMap[r.destino.replace(/\D/g, '')].nombre}
                                 </span>
                               </button>
                             )}
