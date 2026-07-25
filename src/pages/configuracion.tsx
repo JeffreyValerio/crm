@@ -30,6 +30,7 @@ interface User {
   password: string | null;
   inviteToken: string | null;
   extension: string | null;
+  codigoVendedor: string | null;
   createdAt: string;
 }
 
@@ -54,6 +55,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
   const [extOpen, setExtOpen]           = useState(false);
   const [extUser, setExtUser]           = useState<User | null>(null);
   const [editExtension, setEditExtension] = useState('');
+  const [editCodigoVendedor, setEditCodigoVendedor] = useState('');
   const [extLoading, setExtLoading]     = useState(false);
 
   const [passOpen, setPassOpen]         = useState(false);
@@ -95,11 +97,11 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
       const res = await fetch(`/api/users/${extUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extension: editExtension }),
+        body: JSON.stringify({ extension: editExtension, codigoVendedor: editCodigoVendedor }),
       });
       if (!res.ok) { const d = await res.json(); toast.error(d.error || 'Error'); return; }
-      toast.success('Extensión actualizada');
-      setExtOpen(false); setExtUser(null); setEditExtension('');
+      toast.success('Datos actualizados');
+      setExtOpen(false); setExtUser(null); setEditExtension(''); setEditCodigoVendedor('');
       onRefresh();
     } catch { toast.error('Error al procesar'); }
     finally { setExtLoading(false); }
@@ -169,7 +171,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
             </div>
             <div className="flex gap-0.5 flex-shrink-0">
               <Button variant="ghost" size="icon" className="h-8 w-8" title="Extensión"
-                onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setExtOpen(true); }}>
+                onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setEditCodigoVendedor(u.codigoVendedor ?? ''); setExtOpen(true); }}>
                 <Edit className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8" title="Cambiar contraseña"
@@ -194,6 +196,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                 <TableHead>Usuario</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Extensión</TableHead>
+                <TableHead>Cód. Vendedor</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Registro</TableHead>
@@ -202,13 +205,16 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
-                <TableEmptyState colSpan={7} message="No hay usuarios registrados" />
+                <TableEmptyState colSpan={8} message="No hay usuarios registrados" />
               ) : users.map(u => (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{displayName(u)}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
                   <TableCell className="text-muted-foreground text-sm font-mono">
                     {u.extension ?? <span className="text-muted-foreground/50">—</span>}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm font-mono">
+                    {u.codigoVendedor ?? <span className="text-muted-foreground/50">—</span>}
                   </TableCell>
                   <TableCell>
                     {u.password ? (
@@ -230,7 +236,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title="Extensión"
-                        onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setExtOpen(true); }}>
+                        onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setEditCodigoVendedor(u.codigoVendedor ?? ''); setExtOpen(true); }}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Cambiar contraseña"
@@ -321,12 +327,12 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
         <Dialog open onOpenChange={() => setExtOpen(false)}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Extensión Interphone</DialogTitle>
+              <DialogTitle>Datos del vendedor</DialogTitle>
               <DialogDescription>{displayName(extUser)}</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSaveExtension} className="space-y-4">
               <div>
-                <label className="text-sm font-medium block mb-1">Extensión</label>
+                <label className="text-sm font-medium block mb-1">Extensión Interphone</label>
                 <Input
                   type="text"
                   placeholder="Ej: 101"
@@ -334,6 +340,16 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                   onChange={e => setEditExtension(e.target.value)}
                   className="font-mono"
                   autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Código de vendedor</label>
+                <Input
+                  type="text"
+                  placeholder="Ej: V001"
+                  value={editCodigoVendedor}
+                  onChange={e => setEditCodigoVendedor(e.target.value)}
+                  className="font-mono"
                 />
               </div>
               <DialogFooter>

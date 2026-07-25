@@ -21,7 +21,7 @@ export default async function handler(
 
   if (req.method === 'PUT') {
     try {
-      const { password, extension } = req.body;
+      const { password, extension, codigoVendedor } = req.body;
       const data: Record<string, unknown> = {};
 
       if (password !== undefined) {
@@ -33,6 +33,10 @@ export default async function handler(
 
       if (extension !== undefined) {
         data.extension = extension || null;
+      }
+
+      if (codigoVendedor !== undefined) {
+        data.codigoVendedor = codigoVendedor || null;
       }
 
       if (Object.keys(data).length === 0) {

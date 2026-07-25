@@ -32,6 +32,7 @@ model User {
   teamLeadOf        Equipo[]        @relation("TeamLeadEquipos")
   equipoMiembros    EquipoMiembro[]
   extension         String?
+  codigoVendedor    String?
 }
 
 model Notification {
