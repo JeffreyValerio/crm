@@ -2,7 +2,8 @@ name: Scrape CDR (Interphone)
 
 on:
   schedule:
-    - cron: '0 * * * *'   # Cada hora — upsert de los 100 registros más recientes (1 página)
+    - cron: '0 13-23 * * *'  # 7 AM–5 PM CST (UTC-6): 13–23 UTC
+    - cron: '0 0-2 * * *'    # 6 PM–8 PM CST: 0–2 UTC
   workflow_dispatch:       # Manual trigger
 
 jobs:
