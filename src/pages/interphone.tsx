@@ -7,7 +7,9 @@ import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock } from 'lucide-react';
+import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -31,6 +33,19 @@ interface StatRow {
 
 interface VendorOption { id: string; nombre: string; extension: string | null; }
 
+interface CdrRow {
+  id: string;
+  extension: string;
+  direccion: string;
+  cidNumero: string;
+  destino: string;
+  grabacionId: string | null;
+  fecha: string;
+  duracion: string;
+  estado: string;
+  causaColgar: string | null;
+}
+
 function fmtDuracion(seg: number | null | undefined): string {
   if (!seg || seg <= 0) return '—';
   const h = Math.floor(seg / 3600);
@@ -43,11 +58,21 @@ function fmtDuracion(seg: number | null | undefined): string {
 
 export default function InterphonePage() {
   const router = useRouter();
+  const [tab, setTab]             = useState<'stats' | 'cdr'>('stats');
   const [loading, setLoading]     = useState(true);
   const [isAdmin, setIsAdmin]     = useState(false);
   const [rows, setRows]           = useState<StatRow[]>([]);
   const [periodo, setPeriodo]     = useState('');
   const [vendors, setVendors]     = useState<VendorOption[]>([]);
+
+  // ── CDR state ──
+  const [cdrRows, setCdrRows]       = useState<CdrRow[]>([]);
+  const [cdrLoading, setCdrLoading] = useState(false);
+  const [cdrSearch, setCdrSearch]   = useState('');
+  const [cdrFecha, setCdrFecha]     = useState(() => new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString().slice(0, 10));
+  const [cdrPage, setCdrPage]       = useState(1);
+  const [cdrTotalPages, setCdrTotalPages] = useState(1);
+  const [cdrTotal, setCdrTotal]     = useState(0);
 
   // Filters
   const [modo, setModo]           = useState<'dia' | 'mes'>('dia');
@@ -115,7 +140,26 @@ export default function InterphonePage() {
     });
   }, [router]);
 
+  const loadCdr = useCallback(async (page = 1, fecha = cdrFecha, search = cdrSearch) => {
+    setCdrLoading(true);
+    try {
+      const p = new URLSearchParams({ page: String(page), limit: '50' });
+      if (fecha) p.set('fecha', fecha);
+      if (search.trim()) p.set('search', search.trim());
+      const res = await fetch(`/api/interphone/cdr?${p}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setCdrRows(data.registros ?? []);
+      setCdrPage(data.pagination?.page ?? 1);
+      setCdrTotalPages(data.pagination?.totalPages ?? 1);
+      setCdrTotal(data.pagination?.total ?? 0);
+    } finally {
+      setCdrLoading(false);
+    }
+  }, [cdrFecha, cdrSearch]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (tab === 'cdr') loadCdr(1); }, [tab, loadCdr]);
 
   const totales = rows.reduce(
     (acc, r) => ({
@@ -133,14 +177,135 @@ export default function InterphonePage() {
   return (
     <MainLayout>
       {/* Header */}
-      <div className="flex items-start justify-between mb-5 gap-3 flex-wrap">
+      <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Interphone</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Estadísticas de llamadas por extensión</p>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            {tab === 'stats' ? 'Estadísticas de llamadas por extensión' : 'Registro detallado de llamadas (CDR)'}
+          </p>
         </div>
+      </div>
 
+      {/* Tabs */}
+      <div className="border-b mb-5">
+        <nav className="-mb-px flex gap-6">
+          {([['stats', 'Estadísticas'], ['cdr', 'Registro CDR']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={cn(
+                'flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors',
+                tab === key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {key === 'stats' ? <Phone className="h-4 w-4" /> : <PhoneIncoming className="h-4 w-4" />}
+              {label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* ── Tab: Registro CDR ─────────────────────────────────────────────── */}
+      {tab === 'cdr' && (
+        <div className="space-y-4">
+          {/* Filtros CDR */}
+          <div className="flex flex-wrap gap-2">
+            <Input
+              type="date"
+              value={cdrFecha}
+              onChange={e => { setCdrFecha(e.target.value); loadCdr(1, e.target.value, cdrSearch); }}
+              className="w-40"
+            />
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar número, extensión..."
+                value={cdrSearch}
+                onChange={e => setCdrSearch(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') loadCdr(1, cdrFecha, cdrSearch); }}
+                className="pl-9"
+              />
+            </div>
+            <Button variant="outline" onClick={() => loadCdr(1, cdrFecha, cdrSearch)}>Buscar</Button>
+          </div>
+
+          <p className="text-sm text-muted-foreground">{cdrTotal} llamada{cdrTotal !== 1 ? 's' : ''}</p>
+
+          {cdrLoading ? (
+            <TableSkeleton cols={7} rows={10} />
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead>Extensión</TableHead>
+                      <TableHead>Número CID</TableHead>
+                      <TableHead>Destino</TableHead>
+                      <TableHead className="text-center">Fecha / Hora</TableHead>
+                      <TableHead className="text-center">Duración</TableHead>
+                      <TableHead className="text-center">Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cdrRows.length === 0 ? (
+                      <TableEmptyState colSpan={7} message="Sin registros para este filtro" />
+                    ) : cdrRows.map(r => (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-center">
+                          {r.direccion === 'Salida'
+                            ? <PhoneOutgoing className="h-3.5 w-3.5 text-green-500 inline" />
+                            : r.direccion === 'Entrada'
+                            ? <PhoneIncoming className="h-3.5 w-3.5 text-blue-500 inline" />
+                            : <Phone className="h-3.5 w-3.5 text-muted-foreground inline" />}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">{r.extension}</TableCell>
+                        <TableCell className="font-mono text-sm text-muted-foreground">{r.cidNumero}</TableCell>
+                        <TableCell className="font-mono text-sm font-medium">{r.destino}</TableCell>
+                        <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
+                          {new Date(r.fecha).toLocaleString('es-CR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </TableCell>
+                        <TableCell className="text-center font-mono text-sm">{r.duracion}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            variant={
+                              r.estado === 'Respondido' ? 'success'
+                              : r.estado === 'Cancelado' ? 'warning'
+                              : 'destructive'
+                            }
+                          >
+                            {r.estado}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {cdrTotalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Página {cdrPage} de {cdrTotalPages}</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={cdrPage === 1} onClick={() => loadCdr(cdrPage - 1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" disabled={cdrPage === cdrTotalPages} onClick={() => loadCdr(cdrPage + 1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab: Estadísticas ─────────────────────────────────────────────── */}
+      {tab === 'stats' && <>
         {/* Modo toggle */}
-        <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5 text-sm">
+        <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5 text-sm mb-5 w-fit">
           {(['dia', 'mes'] as const).map(m => (
             <button
               key={m}
@@ -156,7 +321,6 @@ export default function InterphonePage() {
             </button>
           ))}
         </div>
-      </div>
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 mb-5">
@@ -384,6 +548,7 @@ export default function InterphonePage() {
           {isAdmin && ' · Solo usuarios con extensión asignada'}
         </p>
       )}
+      </>}
     </MainLayout>
   );
 }

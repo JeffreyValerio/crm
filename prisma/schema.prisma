@@ -333,6 +333,26 @@ model UserKpiMeta {
   @@index([userId])
 }
 
+model CdrLlamada {
+  id          String   @id @default(cuid())
+  uuid        String   @unique // grabación UUID de Interphone (o hash extension+fecha+destino)
+  extension   String   // "111 Edison Pérez"
+  direccion   String   // "Salida" | "Entrada" | "Local"
+  cidNumero   String   // número desde el que se llamó
+  destino     String   // número marcado / del cliente
+  grabacionId String?  // UUID de la grabación en Interphone
+  fecha       DateTime // timestamp de inicio de llamada
+  duracion    String   // "0:00:42"
+  estado      String   // "Respondido" | "Sin respuesta" | "Cancelado" | etc.
+  causaColgar String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([extension])
+  @@index([fecha])
+  @@index([destino])
+}
+
 model ApiKey {
   id            String    @id @default(cuid())
   keyHash       String    @unique
