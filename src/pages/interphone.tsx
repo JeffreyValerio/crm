@@ -39,11 +39,17 @@ interface CdrRow {
   direccion: string;
   cidNumero: string;
   destino: string;
-  grabacionId: string | null;
   fecha: string;
   duracion: string;
   estado: string;
   causaColgar: string | null;
+}
+
+interface VinculoInfo {
+  tipo: 'prospecto' | 'cliente';
+  id: string;
+  nombre: string;
+  nroOrden?: string;
 }
 
 function fmtDuracion(seg: number | null | undefined): string {
@@ -73,6 +79,7 @@ export default function InterphonePage() {
   const [cdrPage, setCdrPage]       = useState(1);
   const [cdrTotalPages, setCdrTotalPages] = useState(1);
   const [cdrTotal, setCdrTotal]     = useState(0);
+  const [vinculosMap, setVinculosMap] = useState<Record<string, VinculoInfo>>({});
 
   // Filters
   const [modo, setModo]           = useState<'dia' | 'mes'>('dia');
@@ -142,6 +149,7 @@ export default function InterphonePage() {
 
   const loadCdr = useCallback(async (page = 1, fecha = cdrFecha, search = cdrSearch) => {
     setCdrLoading(true);
+    setVinculosMap({});
     try {
       const p = new URLSearchParams({ page: String(page), limit: '50' });
       if (fecha) p.set('fecha', fecha);
@@ -149,10 +157,20 @@ export default function InterphonePage() {
       const res = await fetch(`/api/interphone/cdr?${p}`);
       if (!res.ok) return;
       const data = await res.json();
-      setCdrRows(data.registros ?? []);
+      const registros: CdrRow[] = data.registros ?? [];
+      setCdrRows(registros);
       setCdrPage(data.pagination?.page ?? 1);
       setCdrTotalPages(data.pagination?.totalPages ?? 1);
       setCdrTotal(data.pagination?.total ?? 0);
+
+      const numeros = [...new Set(registros.map(r => r.destino))].filter(Boolean);
+      if (numeros.length > 0) {
+        fetch('/api/interphone/lookup-phones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ numeros }),
+        }).then(r => r.ok ? r.json() : {}).then(setVinculosMap).catch(() => {});
+      }
     } finally {
       setCdrLoading(false);
     }
@@ -262,7 +280,30 @@ export default function InterphonePage() {
                         </TableCell>
                         <TableCell className="font-medium text-sm">{r.extension}</TableCell>
                         <TableCell className="font-mono text-sm text-muted-foreground">{r.cidNumero}</TableCell>
-                        <TableCell className="font-mono text-sm font-medium">{r.destino}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-mono text-sm font-medium">{r.destino}</span>
+                            {vinculosMap[r.destino] && (
+                              <button
+                                onClick={() => {
+                                  const v = vinculosMap[r.destino];
+                                  router.push(v.tipo === 'cliente' ? `/clients/${v.id}` : '/prospects');
+                                }}
+                                className="flex items-center gap-1 text-left group w-fit"
+                              >
+                                <Badge
+                                  variant={vinculosMap[r.destino].tipo === 'cliente' ? 'success' : 'info'}
+                                  className="text-[10px] py-0 px-1.5"
+                                >
+                                  {vinculosMap[r.destino].tipo === 'cliente' ? 'Cliente' : 'Prospecto'}
+                                </Badge>
+                                <span className="text-xs text-primary group-hover:underline truncate max-w-[130px]">
+                                  {vinculosMap[r.destino].nombre}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-center text-sm text-muted-foreground whitespace-nowrap">
                           {new Date(r.fecha).toLocaleString('es-CR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </TableCell>
