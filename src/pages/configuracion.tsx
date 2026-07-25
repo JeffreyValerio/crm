@@ -1344,6 +1344,7 @@ function TabApi() {
               { path: '/api/v1/equipos', desc: 'Equipos — team lead y miembros' },
               { path: '/api/v1/users', desc: 'Usuarios — nombre, rol, extensión' },
               { path: '/api/v1/extension-stats', desc: 'Llamadas por extensión (diario)' },
+              { path: '/api/v1/cdr', desc: 'Registro CDR — llamadas individuales de Interphone' },
             ].map(e => (
               <div key={e.path} className="flex items-center gap-3 p-2 rounded border bg-muted/30 text-sm">
                 <code className="text-primary font-mono text-xs flex-shrink-0">{baseUrl}{e.path}</code>
