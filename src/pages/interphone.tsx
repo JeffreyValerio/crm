@@ -33,6 +33,12 @@ interface StatRow {
 
 interface VendorOption { id: string; nombre: string; extension: string | null; }
 
+interface VinculoInfo {
+  tipo: 'prospecto' | 'cliente';
+  id: string;
+  nombre: string;
+}
+
 interface CdrRow {
   id: string;
   extension: string;
@@ -43,13 +49,7 @@ interface CdrRow {
   duracion: string;
   estado: string;
   causaColgar: string | null;
-}
-
-interface VinculoInfo {
-  tipo: 'prospecto' | 'cliente';
-  id: string;
-  nombre: string;
-  nroOrden?: string;
+  vinculo: VinculoInfo | null;
 }
 
 function fmtDuracion(seg: number | null | undefined): string {
@@ -80,7 +80,6 @@ export default function InterphonePage() {
   const [cdrPage, setCdrPage]       = useState(1);
   const [cdrTotalPages, setCdrTotalPages] = useState(1);
   const [cdrTotal, setCdrTotal]     = useState(0);
-  const [vinculosMap, setVinculosMap] = useState<Record<string, VinculoInfo>>({});
 
   // Filters
   const [modo, setModo]           = useState<'dia' | 'mes'>('dia');
@@ -150,7 +149,6 @@ export default function InterphonePage() {
 
   const loadCdr = useCallback(async (page = 1, mes = cdrMes, anio = cdrAnio, search = cdrSearch) => {
     setCdrLoading(true);
-    setVinculosMap({});
     try {
       const desde = new Date(Date.UTC(anio, mes - 1, 1)).toISOString();
       const hasta  = new Date(Date.UTC(anio, mes, 1)).toISOString();
@@ -159,20 +157,10 @@ export default function InterphonePage() {
       const res = await fetch(`/api/interphone/cdr?${p}`);
       if (!res.ok) return;
       const data = await res.json();
-      const registros: CdrRow[] = data.registros ?? [];
-      setCdrRows(registros);
+      setCdrRows(data.registros ?? []);
       setCdrPage(data.pagination?.page ?? 1);
       setCdrTotalPages(data.pagination?.totalPages ?? 1);
       setCdrTotal(data.pagination?.total ?? 0);
-
-      const numeros = [...new Set(registros.map(r => r.destino))].filter(Boolean);
-      if (numeros.length > 0) {
-        fetch('/api/interphone/lookup-phones', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ numeros }),
-        }).then(r => r.ok ? r.json() : {}).then(setVinculosMap).catch(() => {});
-      }
     } finally {
       setCdrLoading(false);
     }
@@ -295,22 +283,19 @@ export default function InterphonePage() {
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
                             <span className="font-mono text-sm font-medium">{r.destino}</span>
-                            {vinculosMap[r.destino.replace(/\D/g, '')] && (
+                            {r.vinculo && (
                               <button
-                                onClick={() => {
-                                  const v = vinculosMap[r.destino.replace(/\D/g, '')];
-                                  router.push(v.tipo === 'cliente' ? `/clients/${v.id}` : '/prospects');
-                                }}
+                                onClick={() => router.push(r.vinculo!.tipo === 'cliente' ? `/clients/${r.vinculo!.id}` : '/prospects')}
                                 className="flex items-center gap-1 text-left group w-fit"
                               >
                                 <Badge
-                                  variant={vinculosMap[r.destino.replace(/\D/g, '')].tipo === 'cliente' ? 'success' : 'info'}
+                                  variant={r.vinculo.tipo === 'cliente' ? 'success' : 'info'}
                                   className="text-[10px] py-0 px-1.5"
                                 >
-                                  {vinculosMap[r.destino.replace(/\D/g, '')].tipo === 'cliente' ? 'Cliente' : 'Prospecto'}
+                                  {r.vinculo.tipo === 'cliente' ? 'Cliente' : 'Prospecto'}
                                 </Badge>
                                 <span className="text-xs text-primary group-hover:underline truncate max-w-[130px]">
-                                  {vinculosMap[r.destino.replace(/\D/g, '')].nombre}
+                                  {r.vinculo.nombre}
                                 </span>
                               </button>
                             )}

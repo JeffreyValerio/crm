@@ -2,6 +2,16 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 
+interface VinculoInfo {
+  tipo: 'prospecto' | 'cliente';
+  id: string;
+  nombre: string;
+}
+
+function normalize(tel: string | null | undefined): string {
+  return (tel ?? '').replace(/\D/g, '');
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).end();
 
@@ -49,8 +59,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }),
   ]);
 
+  // Lookup de vínculos: busca prospectos/clientes que coincidan con los destinos de esta página
+  const destinos = [...new Set(registros.map(r => r.destino).filter(Boolean))];
+  const vinculoMap: Record<string, VinculoInfo> = {};
+
+  if (destinos.length > 0) {
+    const [prospectos, clientes] = await Promise.all([
+      prisma.prospecto.findMany({
+        where: {
+          OR: [
+            { telCelular: { in: destinos } },
+            { telInstalacion: { in: destinos } },
+            { telOficina: { in: destinos } },
+          ],
+        },
+        select: { id: true, nroOrden: true, cliente: true, telCelular: true, telInstalacion: true, telOficina: true },
+      }),
+      prisma.client.findMany({
+        where: { telefono: { in: destinos } },
+        select: { id: true, nombres: true, apellidos: true, telefono: true },
+      }),
+    ]);
+
+    for (const c of clientes) {
+      const tel = normalize(c.telefono);
+      if (tel) vinculoMap[tel] = { tipo: 'cliente', id: c.id, nombre: `${c.nombres} ${c.apellidos}` };
+    }
+    for (const p of prospectos) {
+      for (const phone of [p.telCelular, p.telInstalacion, p.telOficina]) {
+        const tel = normalize(phone);
+        if (tel && !vinculoMap[tel]) {
+          vinculoMap[tel] = { tipo: 'prospecto', id: p.id, nombre: p.cliente ?? p.nroOrden };
+          break;
+        }
+      }
+    }
+  }
+
+  const enriched = registros.map(r => ({
+    ...r,
+    vinculo: vinculoMap[normalize(r.destino)] ?? null,
+  }));
+
   return res.status(200).json({
-    registros,
+    registros: enriched,
     pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
   });
 }
