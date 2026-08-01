@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         orderBy: [
           { asignadoA: { sort: 'asc', nulls: 'first' } },
-          { createdAt: 'desc' },
+          { asignadoAt: { sort: 'desc', nulls: 'last' } },
         ],
         skip,
         take: limitNum,

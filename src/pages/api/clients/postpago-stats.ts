@@ -9,9 +9,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session.userId) return res.status(401).json({ error: 'Not authenticated' });
   if (session.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
 
+  const { year, month } = req.query;
+  const y = year ? parseInt(year as string) : null;
+  const m = month ? parseInt(month as string) : null;
+
+  const dateFilter = y
+    ? m
+      ? { gte: new Date(Date.UTC(y, m - 1, 1)), lt: new Date(Date.UTC(y, m, 1)) }
+      : { gte: new Date(Date.UTC(y, 0, 1)), lt: new Date(Date.UTC(y + 1, 0, 1)) }
+    : undefined;
+
   const groups = await prisma.client.groupBy({
     by: ['postpagoStatus'],
-    where: { tipo: 'POSTPAGO' },
+    where: { tipo: 'POSTPAGO', ...(dateFilter ? { createdAt: dateFilter } : {}) },
     _count: { _all: true },
   });
 

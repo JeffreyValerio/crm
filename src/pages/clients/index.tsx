@@ -285,6 +285,7 @@ export default function ClientsPage() {
   }, [selectedProductType, filteredPlans.length, setValue]);
 
   useEffect(() => {
+    if (!router.isReady) return;
     async function checkAuth() {
       const response = await fetch('/api/auth/me');
       if (!response.ok) {
@@ -292,7 +293,7 @@ export default function ClientsPage() {
       } else {
         const data = await response.json();
         setCurrentUser(data.user);
-        
+
         // Cargar filtros desde query params si existen (solo para admin)
         if (data.user?.role === 'admin') {
           if (router.query.validationStatus) {
@@ -304,15 +305,21 @@ export default function ClientsPage() {
           if (router.query.createdBy) {
             setFilterCreatedBy(router.query.createdBy as string);
           }
+          if (router.query.year) {
+            setFilterYear(router.query.year as string);
+          }
+          if (router.query.month) {
+            setFilterMonth(router.query.month as string);
+          }
           await loadUsers();
         }
-        
+
         await Promise.all([loadPlans(), loadProductTypes()]);
         setLoading(false);
       }
     }
     checkAuth();
-  }, [router]);
+  }, [router.isReady]);
 
   useEffect(() => {
     if (!loading && currentUser) {

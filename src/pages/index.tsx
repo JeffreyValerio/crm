@@ -246,7 +246,7 @@ export default function HomePage() {
         fetch(`/api/prospects/stats?year=${year}&month=${month}${prospectoExtra}`),
         fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
         fetch(`/api/prospects/activity?year=${year}&month=${month}${prospectoExtra}`),
-        activeUser.role === 'admin' ? fetch('/api/clients/postpago-stats') : Promise.resolve(null),
+        activeUser.role === 'admin' ? fetch(`/api/clients/postpago-stats?year=${year}&month=${month}`) : Promise.resolve(null),
       ]);
 
       // ── Stats de clientes ─────────────────────────────────
@@ -478,6 +478,8 @@ export default function HomePage() {
     const params = new URLSearchParams();
     if (validationStatus) params.append('validationStatus', validationStatus);
     if (saleStatus) params.append('saleStatus', saleStatus);
+    if (filterYear) params.append('year', filterYear);
+    if (filterMonth) params.append('month', filterMonth);
     router.push(`/clients?${params.toString()}`);
   }
 
@@ -1049,7 +1051,7 @@ export default function HomePage() {
                     <Wifi className="h-4 w-4 text-primary" />
                     Plan Postpago
                   </CardTitle>
-                  <CardDescription>Clientes postpago · total acumulado</CardDescription>
+                  <CardDescription>Clientes postpago · {getPeriodLabel()}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
