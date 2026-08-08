@@ -415,7 +415,7 @@ export default function HomePage() {
 
     if (saleStatus === 'NO_LOCALIZABLE') {
       return {
-        label: 'No localizable',
+        label: 'Cancelada por ilocalizable',
         color: 'bg-amber-500',
         textColor: 'text-foreground',
         borderColor: 'border-amber-500',

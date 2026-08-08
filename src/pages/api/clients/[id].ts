@@ -205,7 +205,7 @@ export default async function handler(
         NO_COMPLETO_FACEID: 'No completó FaceID ⚠️',
         CANCELADO_POR_COBERTURA: 'Cancelado por cobertura ❌',
         CLIENTE_NO_PERMITE_INSTALACION: 'Cliente no permite instalación ❌',
-        NO_LOCALIZABLE: 'No localizable ⚠️',
+        NO_LOCALIZABLE: 'Cancelada por ilocalizable ⚠️',
       };
       const nombreCliente = `${currentClient.nombres} ${currentClient.apellidos}`;
 

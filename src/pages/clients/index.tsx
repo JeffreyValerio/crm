@@ -1019,7 +1019,7 @@ Comentario: En espera de Instalacion`;
                           <option value="NO_COMPLETO_FACEID">No completó FaceID</option>
                           <option value="CANCELADO_POR_COBERTURA">Cancelado por cobertura</option>
                           <option value="CLIENTE_NO_PERMITE_INSTALACION">Cliente no permite instalación</option>
-                          <option value="NO_LOCALIZABLE">No localizable</option>
+                          <option value="NO_LOCALIZABLE">Cancelada por ilocalizable</option>
                         </Select>
                       </div>
                     </>
@@ -2357,7 +2357,7 @@ Comentario: En espera de Instalacion`;
                           <option value="NO_COMPLETO_FACEID">No completó FaceID</option>
                           <option value="CANCELADO_POR_COBERTURA">Cancelado por cobertura</option>
                           <option value="CLIENTE_NO_PERMITE_INSTALACION">Cliente no permite instalación</option>
-                          <option value="NO_LOCALIZABLE">No localizable</option>
+                          <option value="NO_LOCALIZABLE">Cancelada por ilocalizable</option>
                         </Select>
                       </div>
                     )}
