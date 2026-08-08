@@ -53,6 +53,7 @@ export function getSaleStatusLabel(status: string | null): string {
     NO_COMPLETO_FACEID:             'No completó FaceID',
     CANCELADO_POR_COBERTURA:        'Cancelado por cobertura',
     CLIENTE_NO_PERMITE_INSTALACION: 'Cliente no permite instalación',
+    NO_LOCALIZABLE:                 'No localizable',
   };
   return labels[status || ''] || status || 'N/A';
 }

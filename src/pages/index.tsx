@@ -413,6 +413,16 @@ export default function HomePage() {
       };
     }
 
+    if (saleStatus === 'NO_LOCALIZABLE') {
+      return {
+        label: 'No localizable',
+        color: 'bg-amber-500',
+        textColor: 'text-foreground',
+        borderColor: 'border-amber-500',
+        icon: XCircle,
+      };
+    }
+
     // Estados de validación
     switch (status) {
       case 'EN_PROCESO_VALIDACION':

@@ -1016,6 +1016,10 @@ Comentario: En espera de Instalacion`;
                           <option value="PENDIENTE_INSTALACION">Pendiente</option>
                           <option value="INSTALADA">Instalada</option>
                           <option value="CANCELADA">Cancelada</option>
+                          <option value="NO_COMPLETO_FACEID">No completó FaceID</option>
+                          <option value="CANCELADO_POR_COBERTURA">Cancelado por cobertura</option>
+                          <option value="CLIENTE_NO_PERMITE_INSTALACION">Cliente no permite instalación</option>
+                          <option value="NO_LOCALIZABLE">No localizable</option>
                         </Select>
                       </div>
                     </>
@@ -2353,6 +2357,7 @@ Comentario: En espera de Instalacion`;
                           <option value="NO_COMPLETO_FACEID">No completó FaceID</option>
                           <option value="CANCELADO_POR_COBERTURA">Cancelado por cobertura</option>
                           <option value="CLIENTE_NO_PERMITE_INSTALACION">Cliente no permite instalación</option>
+                          <option value="NO_LOCALIZABLE">No localizable</option>
                         </Select>
                       </div>
                     )}
@@ -2782,6 +2787,7 @@ function saleBadgeVariant(status: string | null): BadgeVariant {
     case 'CANCELADO_POR_COBERTURA': return 'destructive';
     case 'CLIENTE_NO_PERMITE_INSTALACION': return 'destructive';
     case 'NO_COMPLETO_FACEID': return 'warning';
+    case 'NO_LOCALIZABLE': return 'warning';
     default: return 'default';
   }
 }
