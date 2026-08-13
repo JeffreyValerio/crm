@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
@@ -135,7 +136,7 @@ export default function HomePage() {
           return;
         }
 
-        if (data.user?.role === 'admin') {
+        if (isAdmin(data.user?.role)) {
           if (router.query.createdBy) {
             setFilterCreatedBy(router.query.createdBy as string);
           }
@@ -198,7 +199,7 @@ export default function HomePage() {
       if (year) trendsParams.append('year', year);
 
       // Filtros de usuario/equipo según el tab activo
-      if (activeUser.role === 'admin') {
+      if (isAdmin(activeUser.role)) {
         if (dashView === 'general') {
           if (filterCreatedBy) {
             params.append('createdBy', filterCreatedBy);
@@ -226,7 +227,7 @@ export default function HomePage() {
 
       // Mismo cálculo para las APIs de prospectos
       let prospectoExtra = '';
-      if (activeUser.role === 'admin') {
+      if (isAdmin(activeUser.role)) {
         if (dashView === 'general' && filterCreatedBy) {
           prospectoExtra = `&asignadoA=${filterCreatedBy}`;
         } else if (dashView === 'equipos') {
@@ -246,7 +247,7 @@ export default function HomePage() {
         fetch(`/api/prospects/stats?year=${year}&month=${month}${prospectoExtra}`),
         fetch(`/api/dashboard/trends?${trendsParams.toString()}`),
         fetch(`/api/prospects/activity?year=${year}&month=${month}${prospectoExtra}`),
-        activeUser.role === 'admin' ? fetch(`/api/clients/postpago-stats?year=${year}&month=${month}`) : Promise.resolve(null),
+        isAdmin(activeUser.role) ? fetch(`/api/clients/postpago-stats?year=${year}&month=${month}`) : Promise.resolve(null),
       ]);
 
       // ── Stats de clientes ─────────────────────────────────
@@ -263,7 +264,7 @@ export default function HomePage() {
         });
 
         const compStats: ComplianceStats[] = data.cumplimiento ?? [];
-        if (activeUser.role !== 'admin' && currentUserId) {
+        if (!isAdmin(activeUser.role) && currentUserId) {
           const mine = compStats.find((s: ComplianceStats) => s.userId === currentUserId);
           setComplianceStats(mine ? [mine] : [{
             userId: currentUserId,
@@ -288,7 +289,7 @@ export default function HomePage() {
       if (prospectsRes.ok) {
         const prospectsData = await prospectsRes.json();
         const statsArr: ProspectStat[] = prospectsData.stats || [];
-        if (activeUser.role === 'admin') {
+        if (isAdmin(activeUser.role)) {
           setProspectStats(statsArr);
         } else {
           setMyProspectStat(statsArr[0] || null);
@@ -513,7 +514,7 @@ export default function HomePage() {
             </p>
           </div>
           {/* Tabs General / Por Equipos — solo admin */}
-          {user?.role === 'admin' && equipos.length > 0 && (
+          {isAdmin(user?.role) && equipos.length > 0 && (
             <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit self-start sm:self-auto">
               <button
                 onClick={() => { setDashView('general'); setFilterEquipo(''); setFilterTeamLead(''); setFilterMiembro(''); }}
@@ -545,13 +546,13 @@ export default function HomePage() {
         <div className="sticky -top-4 sm:-top-6 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-2 bg-background/90 backdrop-blur border-b border-border">
           <div className={cn(
             'grid items-center gap-2',
-            user?.role === 'admin' && dashView === 'equipos'
+            isAdmin(user?.role) && dashView === 'equipos'
               ? 'grid-cols-2 sm:grid-cols-5'
-              : user?.role === 'admin'
+              : isAdmin(user?.role)
               ? 'grid-cols-3'
               : 'grid-cols-2'
           )}>
-            {user?.role === 'admin' && dashView === 'general' && (
+            {isAdmin(user?.role) && dashView === 'general' && (
               <Select
                 aria-label="Filtrar por vendedor"
                 value={filterCreatedBy}
@@ -565,7 +566,7 @@ export default function HomePage() {
                 })}
               </Select>
             )}
-            {user?.role === 'admin' && dashView === 'equipos' && (() => {
+            {isAdmin(user?.role) && dashView === 'equipos' && (() => {
               // Equipo activo: seleccionado directamente o derivado del team lead
               const equipoActivoId = filterEquipo || equipos.find(e => e.teamLeadId === filterTeamLead)?.id || '';
               const equipoActivo = equipos.find(e => e.id === equipoActivoId);
@@ -736,13 +737,13 @@ export default function HomePage() {
 
           {/* Tarjeta Prospectos */}
           {(() => {
-            const total = user?.role === 'admin'
+            const total = isAdmin(user?.role)
               ? prospectStats.reduce((s, p) => s + p.totalProspectos, 0)
               : myProspectStat?.totalProspectos ?? 0;
-            const conAlerta = user?.role === 'admin'
+            const conAlerta = isAdmin(user?.role)
               ? prospectStats.reduce((s, p) => s + p.conAlerta, 0)
               : myProspectStat?.conAlerta ?? 0;
-            const hasStat = user?.role === 'admin' ? true : myProspectStat !== null;
+            const hasStat = isAdmin(user?.role) ? true : myProspectStat !== null;
             if (!hasStat) return null;
             return (
               <>
@@ -756,7 +757,7 @@ export default function HomePage() {
                   <CardContent>
                     <div className="text-2xl sm:text-3xl font-bold">{total}</div>
                     <p className="text-xs text-muted-foreground mt-1 truncate">
-                      {user?.role === 'admin' ? 'Total asignados' : 'Asignados a ti'}
+                      {isAdmin(user?.role) ? 'Total asignados' : 'Asignados a ti'}
                     </p>
                   </CardContent>
                 </Card>
@@ -852,7 +853,7 @@ export default function HomePage() {
                     <Target className="h-4 w-4 text-primary" />
                     KPI de Cumplimiento
                   </CardTitle>
-                  {user?.role === 'admin' && filterMonth && (
+                  {isAdmin(user?.role) && filterMonth && (
                     <button
                       onClick={() => { setEditMetaValue(String(kpiMeta)); setEditingMeta(true); }}
                       className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -866,7 +867,7 @@ export default function HomePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {user?.role === 'admin' ? (
+                {isAdmin(user?.role) ? (
                   <div className="grid gap-4 md:grid-cols-2">
                     {complianceStats.length === 0 ? (
                       <div className="md:col-span-2 py-10 text-center text-muted-foreground">
@@ -1054,7 +1055,7 @@ export default function HomePage() {
             </Card>
 
             {/* Card Postpago — solo admin */}
-            {user?.role === 'admin' && postpagoStats !== null && postpagoStats.total > 0 && (
+            {isAdmin(user?.role) && postpagoStats !== null && postpagoStats.total > 0 && (
               <Card className="shadow-sm">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -1107,7 +1108,7 @@ export default function HomePage() {
           </div>
         </div>
         {/* Contactación de Prospectos — solo admin */}
-        {user?.role === 'admin' && prospectStats.length > 0 && (
+        {isAdmin(user?.role) && prospectStats.length > 0 && (
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">

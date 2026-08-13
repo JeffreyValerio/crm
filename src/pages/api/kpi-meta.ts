@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -27,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'PUT') {
-    if (session.role !== 'admin') return res.status(403).json({ error: 'Sin permiso' });
+    if (!isAdmin(session.role)) return res.status(403).json({ error: 'Sin permiso' });
 
     const { periodo, meta, userId } = req.body;
 

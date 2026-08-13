@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -47,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Filtro de creador según rol
   let creatorCondition: object | null = null;
-  if (session.role !== 'admin') {
+  if (!isAdmin(session.role)) {
     creatorCondition = { createdBy: session.userId };
   } else if (createdBy && typeof createdBy === 'string') {
     creatorCondition = { createdBy };
@@ -128,7 +129,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    if (session.role === 'admin') {
+    if (isAdmin(session.role)) {
       const complianceRaw = await prisma.client.groupBy({
         by: ['createdBy', 'saleStatus'],
         where,

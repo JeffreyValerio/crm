@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
@@ -93,7 +94,7 @@ export default function AdvancesAdminPage() {
         const data = await response.json();
         setCurrentUser(data.user);
         
-        if (data.user.role !== 'admin') {
+        if (!isAdmin(data.user.role)) {
           router.push('/advances');
           return;
         }
@@ -106,7 +107,7 @@ export default function AdvancesAdminPage() {
   }, [router]);
 
   useEffect(() => {
-    if (currentUser?.role === 'admin') {
+    if (isAdmin(currentUser?.role)) {
       loadAdvances();
     }
   }, [filterEstado, filterUserId, currentUser]);

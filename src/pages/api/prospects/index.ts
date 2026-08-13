@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -13,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const where: any = {};
 
     // Control de acceso
-    if (session.role !== 'admin') {
+    if (!isAdmin(session.role)) {
       where.asignadoA = session.userId;
     } else if (asignadoA) {
       where.asignadoA = asignadoA === 'sin_asignar' ? null : asignadoA;

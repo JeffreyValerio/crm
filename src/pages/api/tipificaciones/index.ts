@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -17,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Operaciones de escritura — solo admin
-  if (session.role !== 'admin') return res.status(403).json({ error: 'Sin permiso' });
+  if (!isAdmin(session.role)) return res.status(403).json({ error: 'Sin permiso' });
 
   // POST — crear nueva
   if (req.method === 'POST') {

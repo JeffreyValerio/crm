@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -6,7 +7,7 @@ import cloudinary from '@/lib/cloudinary';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'No autenticado' });
-  if (session.role !== 'admin') return res.status(403).json({ error: 'Sin permiso' });
+  if (!isAdmin(session.role)) return res.status(403).json({ error: 'Sin permiso' });
 
   const { id } = req.query;
 

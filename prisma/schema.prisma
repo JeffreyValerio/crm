@@ -10,13 +10,25 @@ datasource db {
   provider = "postgresql"
 }
 
+model Empresa {
+  id        String   @id @default(cuid())
+  nombre    String
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  usuarios  User[]
+  equipos   Equipo[]
+}
+
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
   password          String?
   nombre            String?
   apellidos         String?
-  role              String    @default("user")
+  role              String    @default("user") // superadmin | admin | teamlead | user
+  empresaId         String?
+  empresa           Empresa?  @relation(fields: [empresaId], references: [id])
   inviteToken       String?   @unique
   invitedAt         DateTime?
   invitedBy         String?
@@ -272,11 +284,15 @@ model Tipificacion {
 model Equipo {
   id          String          @id @default(cuid())
   nombre      String          @unique
+  empresaId   String?
+  empresa     Empresa?        @relation(fields: [empresaId], references: [id])
   teamLeadId  String?
   teamLead    User?           @relation("TeamLeadEquipos", fields: [teamLeadId], references: [id])
   miembros    EquipoMiembro[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  @@index([empresaId])
 }
 
 model EquipoMiembro {

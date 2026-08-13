@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -13,7 +14,7 @@ export default async function handler(
   }
 
   // Solo admin puede aprobar adelantos
-  if (session.role !== 'admin') {
+  if (!isAdmin(session.role)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 

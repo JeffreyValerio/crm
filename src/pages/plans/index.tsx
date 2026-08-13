@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
@@ -64,7 +65,7 @@ export default function PlansPage() {
         const data = await response.json();
         setCurrentUser(data.user);
         
-        if (data.user.role !== 'admin') {
+        if (!isAdmin(data.user.role)) {
           router.push('/');
           return;
         }

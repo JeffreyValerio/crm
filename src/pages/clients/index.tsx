@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
@@ -295,7 +296,7 @@ export default function ClientsPage() {
         setCurrentUser(data.user);
 
         // Cargar filtros desde query params si existen (solo para admin)
-        if (data.user?.role === 'admin') {
+        if (isAdmin(data.user?.role)) {
           if (router.query.validationStatus) {
             setFilterValidationStatus(router.query.validationStatus as string);
           }
@@ -367,7 +368,7 @@ export default function ClientsPage() {
     // Filtro por tipo (fibra / postpago) — aplica a todos los roles
     if (filterTipo) params.append('tipo', filterTipo);
     // Solo aplicar filtros de estado y creador si el usuario es admin
-    if (currentUser?.role === 'admin') {
+    if (isAdmin(currentUser?.role)) {
       if (filterValidationStatus) params.append('validationStatus', filterValidationStatus);
       if (filterSaleStatus) params.append('saleStatus', filterSaleStatus);
       if (filterCreatedBy) params.append('createdBy', filterCreatedBy);
@@ -989,7 +990,7 @@ Comentario: En espera de Instalacion`;
                   />
                 </div>
               </div>
-              {currentUser?.role === 'admin' && (
+              {isAdmin(currentUser?.role) && (
                 <>
                   {filterTipo !== 'POSTPAGO' && (
                     <>
@@ -1107,7 +1108,7 @@ Comentario: En espera de Instalacion`;
                     <p className="text-xs text-muted-foreground truncate">
                       {client.plan?.nombre || 'Sin plan'} · {client.telefono || 'Sin tel.'}
                     </p>
-                    {currentUser?.role === 'admin' && (
+                    {isAdmin(currentUser?.role) && (
                       <div className="flex gap-1 mt-1 flex-wrap">
                         <Badge variant={validationBadgeVariant(client.validationStatus)} className="text-[10px] px-1.5 py-0">
                           {getValidationStatusLabel(client.validationStatus)}
@@ -1154,7 +1155,7 @@ Comentario: En espera de Instalacion`;
                     <TableHead>Identificación</TableHead>
                     <TableHead>Teléfono</TableHead>
                     <TableHead>Plan</TableHead>
-                    {currentUser?.role === 'admin' && (
+                    {isAdmin(currentUser?.role) && (
                       <>
                         {filterTipo === 'POSTPAGO' ? (
                           <TableHead>Estado Postpago</TableHead>
@@ -1173,14 +1174,14 @@ Comentario: En espera de Instalacion`;
                 <TableBody>
                   {clients.length === 0 ? (
                     <TableEmptyState
-                      colSpan={currentUser?.role === 'admin' ? (filterTipo === 'POSTPAGO' ? 9 : 10) : 7}
+                      colSpan={isAdmin(currentUser?.role) ? (filterTipo === 'POSTPAGO' ? 9 : 10) : 7}
                       message={searchTerm.trim() ? 'No se encontraron clientes que coincidan con la búsqueda' : 'No hay clientes registrados'}
                     />
                   ) : (
                     clients.map((client) => (
                       <TableRow key={client.id}>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {client.assignedAt && currentUser?.role !== 'admin' ? (
+                          {client.assignedAt && !isAdmin(currentUser?.role) ? (
                             <div>
                               <span className="text-xs text-primary font-medium block">Asignado</span>
                               {new Date(client.assignedAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -1194,7 +1195,7 @@ Comentario: En espera de Instalacion`;
                         <TableCell>{client.numeroIdentificacion}</TableCell>
                         <TableCell>{client.telefono || 'N/A'}</TableCell>
                         <TableCell>{client.plan?.nombre || 'N/A'}</TableCell>
-                        {currentUser?.role === 'admin' && (
+                        {isAdmin(currentUser?.role) && (
                           <>
                             {filterTipo === 'POSTPAGO' ? (
                               <TableCell>
@@ -1372,7 +1373,7 @@ Comentario: En espera de Instalacion`;
                         <MessageCircle className="h-4 w-4" />
                         WhatsApp
                       </button>
-                      {currentUser?.role === 'admin' && (
+                      {isAdmin(currentUser?.role) && (
                         <>
                           <button
                             onClick={() => {
@@ -1441,7 +1442,7 @@ Comentario: En espera de Instalacion`;
                   { key: 'ubicacion', label: 'Ubicación' },
                   { key: 'tecnico', label: 'Técnico' },
                   { key: 'fotos', label: 'Fotos' },
-                  ...(editingClient && currentUser?.role === 'admin' ? [{ key: 'estado', label: 'Estado' }] : []),
+                  ...(editingClient && isAdmin(currentUser?.role) ? [{ key: 'estado', label: 'Estado' }] : []),
                 ].map(tab => (
                   <button key={tab.key} type="button" onClick={() => setEditTab(tab.key as any)}
                     className={cn(
@@ -2319,7 +2320,7 @@ Comentario: En espera de Instalacion`;
               {/* ESTADO TAB */}
               <div className={editTab !== 'estado' ? 'hidden' : ''}>
               {/* Estados - Solo en edición y solo para admin */}
-              {editingClient && currentUser?.role === 'admin' && (
+              {editingClient && isAdmin(currentUser?.role) && (
                 <div className="space-y-4">
                   <h3 className="font-semibold">Estados</h3>
                   {editingClient.tipo === 'POSTPAGO' && (
@@ -2558,7 +2559,7 @@ Comentario: En espera de Instalacion`;
                       {viewingClient.plan?.nombre && <ViewRow label="Plan" value={viewingClient.plan.nombre} copyKey="v-plan" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
                       {viewingClient.formulario && <ViewRow label="Formulario" value={viewingClient.formulario} copyKey="v-form" copiedField={copiedField} onCopy={handleCopyToClipboard} />}
                     </ViewSection>
-                    {currentUser?.role === 'admin' && (
+                    {isAdmin(currentUser?.role) && (
                       <ViewSection title="Sistema y Estado">
                         <ViewRow label="Creado por" value={getUserDisplayName(viewingClient.creator)} copyKey="v-creator" copiedField={copiedField} onCopy={handleCopyToClipboard} />
                         <ViewRow label="Registro" value={new Date(viewingClient.createdAt).toLocaleString('es-CR')} copyKey="v-fecha" copiedField={copiedField} onCopy={handleCopyToClipboard} />

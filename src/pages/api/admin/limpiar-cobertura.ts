@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from '@/lib/session';
 import { spawn } from 'child_process';
@@ -9,7 +10,7 @@ const LOCK_FILE = join(process.cwd(), '.limpiar-cobertura.lock');
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'No autenticado' });
-  if (session.role !== 'admin') return res.status(403).json({ error: 'Sin permisos' });
+  if (!isAdmin(session.role)) return res.status(403).json({ error: 'Sin permisos' });
 
   if (req.method === 'GET') {
     const corriendo = existsSync(LOCK_FILE);

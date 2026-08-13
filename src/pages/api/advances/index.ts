@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -17,7 +18,7 @@ export default async function handler(
       const where: any = {};
 
       // Si no es admin, solo puede ver sus propios adelantos
-      if (session.role !== 'admin') {
+      if (!isAdmin(session.role)) {
         where.userId = session.userId;
       } else {
         // Admin puede filtrar por usuario si se especifica

@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -24,7 +25,7 @@ export default async function handler(
       }
 
       // Filtro de rol y creador
-      if (session.role === 'admin') {
+      if (isAdmin(session.role)) {
         if (validationStatus) conditions.push({ validationStatus });
         if (saleStatus) conditions.push({ saleStatus });
         if (createdBy) conditions.push({ createdBy });

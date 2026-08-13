@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -8,11 +9,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'Not authenticated' });
 
-  const isAdmin = session.role === 'admin';
+  const userIsAdmin = isAdmin(session.role);
   const { modo = 'dia', fecha, year, mes, vendorId } = req.query;
 
   // Non-admin: force to own user only
-  const effectiveVendorId = isAdmin ? (vendorId as string | undefined) : session.userId;
+  const effectiveVendorId = userIsAdmin ? (vendorId as string | undefined) : session.userId;
 
   // Resolve extension filter for a single vendor
   let extensionFilter: string | undefined;
@@ -22,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       select: { extension: true },
     });
     if (!u?.extension) {
-      return res.status(200).json({ rows: [], periodo: '', isAdmin });
+      return res.status(200).json({ rows: [], periodo: '', isAdmin: userIsAdmin });
     }
     extensionFilter = u.extension;
   }
@@ -148,5 +149,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
   });
 
-  return res.status(200).json({ rows: result, periodo: periodoStr, isAdmin });
+  return res.status(200).json({ rows: result, periodo: periodoStr, isAdmin: userIsAdmin });
 }

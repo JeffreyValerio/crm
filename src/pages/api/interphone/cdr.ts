@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { isAdmin } from '@/lib/roles';
 
 interface VinculoInfo {
   tipo: 'prospecto' | 'cliente';
@@ -38,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // No-admins solo ven sus propias llamadas
-  if (currentUser?.role !== 'admin') {
+  if (!isAdmin(currentUser?.role)) {
     if (!currentUser?.extension) {
       return res.status(200).json({ registros: [], pagination: { total: 0, page: 1, limit: limitNum, totalPages: 0 } });
     }

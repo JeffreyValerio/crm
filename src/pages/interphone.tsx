@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -66,7 +67,7 @@ export default function InterphonePage() {
   const router = useRouter();
   const [tab, setTab]             = useState<'stats' | 'cdr'>('stats');
   const [loading, setLoading]     = useState(true);
-  const [isAdmin, setIsAdmin]     = useState(false);
+  const [userIsAdmin, setUserIsAdmin]     = useState(false);
   const [rows, setRows]           = useState<StatRow[]>([]);
   const [periodo, setPeriodo]     = useState('');
   const [vendors, setVendors]     = useState<VendorOption[]>([]);
@@ -118,7 +119,7 @@ export default function InterphonePage() {
       const data = await res.json();
       setRows(data.rows ?? []);
       setPeriodo(data.periodo ?? '');
-      setIsAdmin(data.isAdmin ?? false);
+      setUserIsAdmin(data.isAdmin ?? false);
     } finally {
       setLoading(false);
     }
@@ -128,7 +129,7 @@ export default function InterphonePage() {
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(({ user }) => {
       if (!user) { router.push('/login'); return; }
-      if (user.role === 'admin') {
+      if (isAdmin(user.role)) {
         fetch('/api/users').then(r => r.json()).then(({ users }) => {
           setVendors(
             (users ?? [])
@@ -390,7 +391,7 @@ export default function InterphonePage() {
           </>
         )}
 
-        {isAdmin && vendors.length > 0 && (
+        {userIsAdmin && vendors.length > 0 && (
           <Select
             value={filterVendor}
             onChange={e => setFilterVendor(e.target.value)}
@@ -583,7 +584,7 @@ export default function InterphonePage() {
       {!loading && rows.length > 0 && (
         <p className="text-xs text-muted-foreground mt-3 text-right">
           {modo === 'dia' ? `Datos del ${periodo}` : `${MESES[mes - 1]} ${year}`}
-          {isAdmin && ' · Solo usuarios con extensión asignada'}
+          {userIsAdmin && ' · Solo usuarios con extensión asignada'}
         </p>
       )}
       </>}

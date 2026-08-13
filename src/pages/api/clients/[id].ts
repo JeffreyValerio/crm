@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -57,7 +58,7 @@ export default async function handler(
       }
 
       // Usuarios no admin solo pueden ver sus propios clientes
-      if (session.role !== 'admin' && client.createdBy !== session.userId) {
+      if (!isAdmin(session.role) && client.createdBy !== session.userId) {
         return res.status(403).json({ error: 'No tienes permiso para ver este cliente' });
       }
 
@@ -112,7 +113,7 @@ export default async function handler(
       }
 
       // Usuarios no admin solo pueden editar sus propios clientes
-      if (session.role !== 'admin' && currentClient.createdBy !== session.userId) {
+      if (!isAdmin(session.role) && currentClient.createdBy !== session.userId) {
         return res.status(403).json({ error: 'No tienes permiso para editar este cliente' });
       }
 
@@ -210,7 +211,7 @@ export default async function handler(
       const nombreCliente = `${currentClient.nombres} ${currentClient.apellidos}`;
 
       // Manejar cambio de estado de validación - Solo para admin
-      if (session.role === 'admin') {
+      if (isAdmin(session.role)) {
         if (validationStatus && validationStatus !== currentClient.validationStatus) {
           updateData.validationStatus = validationStatus;
           updateData.validationComment = validationComment?.trim() || null;
@@ -371,7 +372,7 @@ export default async function handler(
       }
 
       // Usuarios no admin solo pueden eliminar sus propios clientes
-      if (session.role !== 'admin' && client.createdBy !== session.userId) {
+      if (!isAdmin(session.role) && client.createdBy !== session.userId) {
         return res.status(403).json({ error: 'No tienes permiso para eliminar este cliente' });
       }
 
@@ -416,7 +417,7 @@ export default async function handler(
 
   if (req.method === 'PATCH') {
     try {
-      if (session.role !== 'admin') {
+      if (!isAdmin(session.role)) {
         return res.status(403).json({ error: 'No tienes permiso para reasignar este cliente' });
       }
 

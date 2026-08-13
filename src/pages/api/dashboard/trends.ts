@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -15,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const y = year ? parseInt(year as string) : new Date().getFullYear();
 
   let creatorFilter: object = {};
-  if (session.role !== 'admin') {
+  if (!isAdmin(session.role)) {
     creatorFilter = { createdBy: session.userId };
   } else if (createdBy && typeof createdBy === 'string') {
     creatorFilter = { createdBy };
@@ -61,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // ── 2. Comparativa por vendedor (instalaciones por mes) ──────────────────
     let comparativa: Array<{ mes: string; [vendedor: string]: number | string }> = [];
 
-    if (session.role === 'admin') {
+    if (isAdmin(session.role)) {
       const instPorVendedor = await prisma.client.findMany({
         where: {
           ...creatorFilter,
@@ -101,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       tendencia,
       comparativa,
-      vendedores: session.role === 'admin'
+      vendedores: isAdmin(session.role)
         ? [...new Set(
             (await prisma.client.findMany({
               where: {

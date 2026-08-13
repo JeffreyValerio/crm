@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
@@ -1462,7 +1463,7 @@ export default function ConfiguracionPage() {
       const res = await fetch('/api/auth/me');
       if (!res.ok) { router.push('/login'); return; }
       const { user } = await res.json();
-      if (user?.role !== 'admin' && user?.role !== 'developer') { router.push('/'); return; }
+      if (!isAdmin(user?.role) && user?.role !== 'developer') { router.push('/'); return; }
       setUserRole(user.role);
       if (user.role === 'developer') {
         setTab('api');

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { isAdmin } from '@/lib/roles';
 import {
   LayoutDashboard,
   LogOut,
@@ -60,7 +61,7 @@ const navSections: NavSection[] = [
         title: 'Postpago',
         href: '/clientes-postpago',
         icon: Wifi,
-        roles: ['admin'],
+        roles: ['admin', 'superadmin'],
       },
     ],
   },
@@ -84,7 +85,7 @@ const navSections: NavSection[] = [
         adminOnly: true,
       },
       {
-        title: 'Planes',
+        title: 'Oferta Comercial',
         href: '/plans',
         icon: Package,
         adminOnly: true,
@@ -93,7 +94,7 @@ const navSections: NavSection[] = [
         title: 'Configuración',
         href: '/configuracion',
         icon: Settings,
-        roles: ['admin', 'developer'],
+        roles: ['admin', 'superadmin', 'developer'],
       },
     ],
     roles: ['admin', 'developer'],
@@ -141,13 +142,13 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     // Developer solo ve secciones explícitamente marcadas para él
     if (userRole === 'developer' && (!section.roles || !section.roles.includes('developer'))) return false;
     if (section.roles && userRole && !section.roles.includes(userRole)) return false;
-    if (section.adminOnly && userRole !== 'admin') return false;
+    if (section.adminOnly && !isAdmin(userRole)) return false;
     // Filtrar items dentro de cada sección
     const filteredItems = section.items.filter((item) => {
       if (userRole === 'developer' && item.roles && !item.roles.includes('developer')) return false;
       if (item.roles && userRole && !item.roles.includes(userRole)) return false;
-      if (item.adminOnly && userRole !== 'admin') return false;
-      if (item.userOnly && userRole === 'admin') return false;
+      if (item.adminOnly && !isAdmin(userRole)) return false;
+      if (item.userOnly && isAdmin(userRole)) return false;
       return true;
     });
     // Solo mostrar la sección si tiene items visibles
@@ -196,10 +197,10 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
         {filteredSections.map((section, sectionIndex) => {
           const filteredItems = section.items.filter((item) => {
-            if (item.adminOnly && userRole !== 'admin') {
+            if (item.adminOnly && !isAdmin(userRole)) {
               return false;
             }
-            if (item.userOnly && userRole === 'admin') {
+            if (item.userOnly && isAdmin(userRole)) {
               return false;
             }
             return true;

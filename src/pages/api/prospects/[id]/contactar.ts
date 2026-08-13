@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -25,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const prospecto = await prisma.prospecto.findUnique({ where: { id } });
   if (!prospecto) return res.status(404).json({ error: 'No encontrado' });
 
-  if (session.role !== 'admin' && prospecto.asignadoA !== session.userId) {
+  if (!isAdmin(session.role) && prospecto.asignadoA !== session.userId) {
     return res.status(403).json({ error: 'Sin acceso' });
   }
 

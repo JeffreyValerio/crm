@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -26,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
     const cedulasConCliente = new Set(clientesExistentes.map(c => c.numeroIdentificacion));
 
-    if (session.role === 'admin') {
+    if (isAdmin(session.role)) {
       const asignadoAFilter = req.query.asignadoA as string | undefined;
       const equipoId = req.query.equipoId as string | undefined;
       const filtrarPorMes = !!(req.query.month as string);

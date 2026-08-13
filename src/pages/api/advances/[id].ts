@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -44,7 +45,7 @@ export default async function handler(
       }
 
       // Solo el admin o el dueño del adelanto pueden verlo
-      if (session.role !== 'admin' && advance.userId !== session.userId) {
+      if (!isAdmin(session.role) && advance.userId !== session.userId) {
         return res.status(403).json({ error: 'Forbidden' });
       }
 

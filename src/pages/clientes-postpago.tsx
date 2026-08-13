@@ -1,3 +1,4 @@
+import { isAdmin } from '@/lib/roles';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -89,7 +90,7 @@ export default function ClientesPostpagoPage() {
       const authRes = await fetch('/api/auth/me');
       if (!authRes.ok) { router.push('/login'); return; }
       const { user } = await authRes.json();
-      if (user?.role !== 'admin') { router.push('/'); return; }
+      if (!isAdmin(user?.role)) { router.push('/'); return; }
 
       const res = await fetch('/api/clients/postpago-list');
       if (res.ok) {
