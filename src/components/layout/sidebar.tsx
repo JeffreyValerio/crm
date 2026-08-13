@@ -97,7 +97,7 @@ const navSections: NavSection[] = [
         roles: ['admin', 'superadmin', 'developer'],
       },
     ],
-    roles: ['admin', 'developer'],
+    roles: ['admin', 'superadmin', 'developer'],
   },
 ];
 
