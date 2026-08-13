@@ -1481,7 +1481,12 @@ export default function ConfiguracionPage() {
 
   const vendors = users;
   const isDeveloper = userRole === 'developer';
-  const visibleTabs = isDeveloper ? TABS.filter(t => t.key === 'api') : TABS;
+  const isSuperAdminUser = userRole === 'superadmin';
+  const visibleTabs = isDeveloper
+    ? TABS.filter(t => t.key === 'api')
+    : isSuperAdminUser
+      ? TABS
+      : TABS.filter(t => t.key !== 'tipificaciones' && t.key !== 'api');
 
   return (
     <MainLayout>

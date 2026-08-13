@@ -1,4 +1,4 @@
-import { isAdmin } from '@/lib/roles';
+import { isSuperAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -6,7 +6,7 @@ import { getSession } from '@/lib/session';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'No autenticado' });
-  if (!isAdmin(session.role)) return res.status(403).json({ error: 'Sin permiso' });
+  if (!isSuperAdmin(session.role)) return res.status(403).json({ error: 'Sin permiso' });
 
   const { id } = req.query;
   if (typeof id !== 'string') return res.status(400).json({ error: 'ID inválido' });

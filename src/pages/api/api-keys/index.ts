@@ -1,4 +1,4 @@
-import { isAdmin } from '@/lib/roles';
+import { isSuperAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getIronSession } from 'iron-session';
 import { sessionOptions, type SessionData } from '@/lib/session';
@@ -7,7 +7,7 @@ import { generateApiKey, hashApiKey } from '@/lib/api-key-auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getIronSession<SessionData>(req, res, sessionOptions);
-  if (!session.userId || (!isAdmin(session.role) && session.role !== 'developer')) {
+  if (!session.userId || (!isSuperAdmin(session.role) && session.role !== 'developer')) {
     return res.status(403).json({ error: 'Acceso denegado' });
   }
 
