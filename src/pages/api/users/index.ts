@@ -19,7 +19,20 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
+      // Admin solo ve usuarios de su empresa; superadmin ve todos
+      let empresaFilter: { empresaId: string } | undefined;
+      if (session.role === 'admin') {
+        const me = await prisma.user.findUnique({
+          where: { id: session.userId },
+          select: { empresaId: true },
+        });
+        if (me?.empresaId) {
+          empresaFilter = { empresaId: me.empresaId };
+        }
+      }
+
       const users = await prisma.user.findMany({
+        where: empresaFilter,
         select: {
           id: true,
           email: true,
