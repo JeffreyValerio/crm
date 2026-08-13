@@ -256,6 +256,8 @@ model Prospecto {
   totalContactos        Int       @default(0)
   ultimoContacto        DateTime?
   proveedorCompetidor   String?
+  // Tipo de prospecto
+  tipo              String   @default("GPON") // GPON | POSTPAGO | META
   // Gestión interna
   observacionesInternas String?
   asignadoA         String?

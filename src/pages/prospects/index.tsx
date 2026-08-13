@@ -20,12 +20,24 @@ import {
   Check,
   CheckCircle,
   MapPin,
+  PlusCircle,
 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatTel, formatCedula } from '@/lib/formatters';
 import { nombreUsuario } from '@/lib/labels';
+import { isAdmin } from '@/lib/roles';
+
+// ── tipos ─────────────────────────────────────────────────────────────────────
+
+type Tab = 'GPON' | 'POSTPAGO' | 'META';
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'GPON', label: 'GPON' },
+  { key: 'POSTPAGO', label: 'POSTPAGO' },
+  { key: 'META', label: 'META LEADS' },
+];
 
 interface Usuario {
   id: string;
@@ -86,9 +98,8 @@ interface Prospecto {
   totalContactos: number;
   ultimoContacto: string | null;
   proveedorCompetidor: string | null;
+  tipo: string;
 }
-
-// ── tipificaciones dinámicas desde DB ───────────────────────────────────────
 
 type ResultadoContacto = string;
 
@@ -125,6 +136,10 @@ export default function ProspectsPage() {
   const [prospectos, setProspectos] = useState<Prospecto[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [session, setSession] = useState<{ role: string; userId: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('GPON');
+  const [puedesSolicitar, setPuedesSolicitar] = useState(false);
+  const [solicitandoProspectos, setSolicitandoProspectos] = useState(false);
+  const [mostrarContactados, setMostrarContactados] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAsignado, setFilterAsignado] = useState('');
   const [filterTipificacion, setFilterTipificacion] = useState('');
@@ -152,11 +167,8 @@ export default function ProspectsPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [sinCoberturaConfirm, setSinCoberturaConfirm] = useState(false);
 
-  // Verificación de cobertura Claro fibra óptica
   const [coberturaStatus, setCoberturaStatus] = useState<'idle' | 'loading' | 'tiene' | 'no_tiene' | 'error'>('idle');
 
-
-  // Inline obs editing state (for assigned agent in detail dialog)
   const [editingObs, setEditingObs] = useState(false);
   const [obsEditValue, setObsEditValue] = useState('');
   const [obsEditLoading, setObsEditLoading] = useState(false);
@@ -172,25 +184,34 @@ export default function ProspectsPage() {
       .then(d => setTipificaciones(d.tipificaciones || []));
   }, []);
 
-
   useEffect(() => {
     if (!session) return;
-    if (session.role === 'admin') {
+    // admin y superadmin necesitan lista de usuarios para filtros y asignación
+    if (isAdmin(session.role)) {
       fetch('/api/users').then(r => r.json()).then(d => setUsuarios(d.users || []));
     }
     fetchProspectos(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
-  async function fetchProspectos(page: number, asignadoOverride?: string, tipificacionOverride?: string) {
+  async function fetchProspectos(
+    page: number,
+    asignadoOverride?: string,
+    tipificacionOverride?: string,
+    tabOverride?: Tab,
+    mostrarContactadosOverride?: boolean,
+  ) {
     setSelectedIds(new Set());
     setLoading(true);
     const asignadoFilter = asignadoOverride !== undefined ? asignadoOverride : filterAsignado;
     const tipificacionFilter = tipificacionOverride !== undefined ? tipificacionOverride : filterTipificacion;
-    const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) });
+    const tab = tabOverride !== undefined ? tabOverride : activeTab;
+    const contactadosFlag = mostrarContactadosOverride !== undefined ? mostrarContactadosOverride : mostrarContactados;
+    const params = new URLSearchParams({ page: String(page), limit: String(LIMIT), tipo: tab });
     if (searchTerm.trim()) params.set('search', searchTerm.trim());
     if (asignadoFilter) params.set('asignadoA', asignadoFilter);
     if (tipificacionFilter) params.set('metodoContacto', tipificacionFilter);
+    if (contactadosFlag) params.set('mostrarContactados', 'true');
     try {
       const res = await fetch(`/api/prospects?${params}`);
       const data = await res.json();
@@ -202,14 +223,52 @@ export default function ProspectsPage() {
       setTotalPages(data.pagination?.totalPages || 1);
       setTotal(data.pagination?.total || 0);
       setCurrentPage(page);
+      if (data.puedesSolicitar !== undefined) setPuedesSolicitar(data.puedesSolicitar);
     } finally {
       setLoading(false);
     }
   }
 
+  function changeTab(tab: Tab) {
+    setActiveTab(tab);
+    setSearchTerm('');
+    setFilterAsignado('');
+    setFilterTipificacion('');
+    setMostrarContactados(false);
+    fetchProspectos(1, '', '', tab, false);
+  }
+
+  function toggleContactados() {
+    const next = !mostrarContactados;
+    setMostrarContactados(next);
+    fetchProspectos(1, undefined, undefined, undefined, next);
+  }
+
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     fetchProspectos(1);
+  }
+
+  async function handleSolicitarProspectos() {
+    setSolicitandoProspectos(true);
+    try {
+      const res = await fetch('/api/prospects/solicitar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: activeTab }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Error al solicitar prospectos');
+        return;
+      }
+      toast.success(`${data.asignados} prospecto${data.asignados !== 1 ? 's' : ''} asignado${data.asignados !== 1 ? 's' : ''}`);
+      fetchProspectos(1);
+    } catch {
+      toast.error('Error al solicitar prospectos');
+    } finally {
+      setSolicitandoProspectos(false);
+    }
   }
 
   function openAssign(p: Prospecto) {
@@ -285,7 +344,6 @@ export default function ProspectsPage() {
         return;
       }
 
-      // Actualizar el dialog en tiempo real
       if (data.prospecto) {
         setViewingProspecto(prev => prev ? { ...prev, ...data.prospecto } : prev);
       }
@@ -323,7 +381,6 @@ export default function ProspectsPage() {
       if (!res.ok) throw new Error('Error al guardar');
       toast.success('Observaciones guardadas');
       setEditingObs(false);
-      // Refresh list and update the viewed record
       fetchProspectos(currentPage);
       setViewingProspecto(prev => prev ? { ...prev, observacionesInternas: obsEditValue } : null);
     } catch {
@@ -366,8 +423,10 @@ export default function ProspectsPage() {
 
   if (!session) return <TableSkeleton cols={7} rows={10} showFilters />;
 
-  const isAssignedAgent = (p: Prospecto) =>
-    session.role !== 'admin' && p.asignadoA === session.userId;
+  // ── permisos derivados ────────────────────────────────────────────────────
+  const canAssign = isAdmin(session.role);
+  const canSeeAgentCol = isAdmin(session.role) || session.role === 'teamlead';
+  const isVendedor = session.role === 'user' || session.role === 'teamlead';
 
   function getTipEtiqueta(valor: string | null | undefined): string {
     if (!valor) return '—';
@@ -378,6 +437,10 @@ export default function ProspectsPage() {
     return tipificaciones.find(t => t.valor === contactMetodo);
   }
 
+  // colSpan para la tabla
+  // cols fijos: cliente, tel, provincia, contactos, fecha, acciones = 6
+  const tableCols = 6 + (canAssign ? 1 : 0) + (canSeeAgentCol ? 1 : 0);
+
   return (
     <MainLayout>
       <div className="space-y-4">
@@ -387,14 +450,51 @@ export default function ProspectsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Prospectos</h1>
             <p className="text-muted-foreground text-sm hidden sm:block">
               {total} prospecto{total !== 1 ? 's' : ''}{' '}
-              {session.role !== 'admin' ? 'asignados a ti' : 'en total'}
+              {isVendedor ? 'asignados a ti' : 'en total'}
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            {/* Toggle contactados — solo vendedores/teamleads */}
+            {isVendedor && (
+              <Button
+                variant={mostrarContactados ? 'secondary' : 'outline'}
+                onClick={toggleContactados}
+              >
+                {mostrarContactados ? 'Ver pendientes' : 'Ver contactados'}
+              </Button>
+            )}
+            {/* Botón Solicitar — solo cuando están en vista pendientes y pueden solicitar */}
+            {isVendedor && !mostrarContactados && puedesSolicitar && (
+              <Button
+                onClick={handleSolicitarProspectos}
+                disabled={solicitandoProspectos}
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                {solicitandoProspectos ? 'Solicitando...' : 'Solicitar Prospectos'}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 border-b">
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => changeTab(tab.key)}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === tab.key
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Filtros */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_auto_auto] sm:gap-3">
-          {/* Búsqueda — ocupa todo en móvil, flex-1 en desktop */}
           <form onSubmit={handleSearch} className="col-span-2 sm:col-span-1 flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -411,7 +511,7 @@ export default function ProspectsPage() {
             </Button>
           </form>
 
-          {session.role === 'admin' && (
+          {canAssign && (
             <Select
               value={filterAsignado}
               onChange={e => { const v = e.target.value; setFilterAsignado(v); fetchProspectos(1, v); }}
@@ -439,7 +539,7 @@ export default function ProspectsPage() {
 
         {/* Lista */}
         {loading ? (
-          <TableSkeleton cols={session.role === 'admin' ? 6 : 4} rows={10} />
+          <TableSkeleton cols={canAssign ? 6 : 4} rows={10} />
         ) : (
           <>
             {/* Vista cards — móvil */}
@@ -451,7 +551,7 @@ export default function ProspectsPage() {
                   key={p.id}
                   className={`flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 ${tieneAlerta(p) && p.asignadoA ? 'border-destructive/40 bg-red-50/30 dark:bg-red-950/10' : ''}`}
                 >
-                  {session.role === 'admin' && (
+                  {canAssign && (
                     <input
                       type="checkbox"
                       className="h-4 w-4 cursor-pointer accent-primary flex-shrink-0"
@@ -464,13 +564,11 @@ export default function ProspectsPage() {
                       }}
                     />
                   )}
-                  {/* Avatar inicial */}
                   <div className="flex-shrink-0 h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
                     <span className="text-sm font-semibold text-primary">
                       {(p.cliente || '?').charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{p.cliente || '—'}</p>
                     <p className="text-xs text-muted-foreground truncate">
@@ -482,17 +580,16 @@ export default function ProspectsPage() {
                       {tieneAlerta(p) && p.asignadoA && (
                         <AlertTriangle className="h-3 w-3 text-destructive" />
                       )}
-                      {session.role === 'admin' && p.asignado && (
+                      {canSeeAgentCol && p.asignado && (
                         <span className="text-xs text-muted-foreground truncate">· {nombreUsuario(p.asignado)}</span>
                       )}
                     </div>
                   </div>
-                  {/* Acciones */}
                   <div className="flex gap-0.5 flex-shrink-0">
                     <Button variant="ghost" size="sm" onClick={() => openDetalle(p)} title="Ver detalle" className="h-8 w-8 p-0">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {session.role === 'admin' && (
+                    {canAssign && (
                       <Button variant="ghost" size="sm" onClick={() => openAssign(p)} title="Asignar" className="h-8 w-8 p-0">
                         <UserCheck className="h-4 w-4" />
                       </Button>
@@ -507,7 +604,7 @@ export default function ProspectsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {session.role === 'admin' && (
+                    {canAssign && (
                       <TableHead className="w-10">
                         <input
                           type="checkbox"
@@ -527,7 +624,7 @@ export default function ProspectsPage() {
                     <TableHead>Tel. Celular</TableHead>
                     <TableHead>Provincia</TableHead>
                     <TableHead>Contactos</TableHead>
-                    {session.role === 'admin' && <TableHead>Asignado a</TableHead>}
+                    {canSeeAgentCol && <TableHead>Asignado a</TableHead>}
                     <TableHead>Fecha asignado</TableHead>
                     <TableHead className="w-28">Acciones</TableHead>
                   </TableRow>
@@ -535,7 +632,7 @@ export default function ProspectsPage() {
                 <TableBody>
                   {prospectos.length === 0 ? (
                     <TableEmptyState
-                      colSpan={session.role === 'admin' ? 8 : 6}
+                      colSpan={tableCols}
                       message="No hay prospectos que coincidan"
                     />
                   ) : (
@@ -544,7 +641,7 @@ export default function ProspectsPage() {
                         key={p.id}
                         className={tieneAlerta(p) && p.asignadoA ? 'bg-red-50/50 dark:bg-red-950/10' : ''}
                       >
-                        {session.role === 'admin' && (
+                        {canAssign && (
                           <TableCell className="w-10">
                             <input
                               type="checkbox"
@@ -578,7 +675,7 @@ export default function ProspectsPage() {
                             )}
                           </div>
                         </TableCell>
-                        {session.role === 'admin' && (
+                        {canSeeAgentCol && (
                           <TableCell className="text-sm">
                             {p.asignado ? (
                               <span className="text-foreground">{nombreUsuario(p.asignado)}</span>
@@ -597,7 +694,7 @@ export default function ProspectsPage() {
                             <Button variant="ghost" size="sm" onClick={() => openDetalle(p)} title="Ver detalle">
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {session.role === 'admin' && (
+                            {canAssign && (
                               <Button variant="ghost" size="sm" onClick={() => openAssign(p)} title="Asignar">
                                 <UserCheck className="h-4 w-4" />
                               </Button>
@@ -646,8 +743,8 @@ export default function ProspectsPage() {
         )}
       </div>
 
-      {/* ── Barra flotante de selección en bloque (admin) ───────────────────── */}
-      {session.role === 'admin' && selectedIds.size > 0 && (
+      {/* ── Barra flotante de selección en bloque (admin/superadmin) ────────── */}
+      {canAssign && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-xl border bg-background shadow-lg px-4 py-3">
           <span className="text-sm font-medium whitespace-nowrap">
             {selectedIds.size} seleccionado{selectedIds.size !== 1 ? 's' : ''}
@@ -662,19 +759,10 @@ export default function ProspectsPage() {
               <option key={u.id} value={u.id}>{nombreUsuario(u)}</option>
             ))}
           </Select>
-          <Button
-            size="sm"
-            onClick={handleBulkAssign}
-            disabled={bulkLoading}
-          >
+          <Button size="sm" onClick={handleBulkAssign} disabled={bulkLoading}>
             {bulkLoading ? 'Asignando...' : 'Asignar'}
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setSelectedIds(new Set())}
-            disabled={bulkLoading}
-          >
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} disabled={bulkLoading}>
             Cancelar
           </Button>
         </div>
@@ -689,7 +777,6 @@ export default function ProspectsPage() {
             </DialogHeader>
 
             <div className="space-y-4 text-sm">
-              {/* Alert banner */}
               {tieneAlerta(viewingProspecto) && viewingProspecto.asignadoA && (
                 <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-destructive text-xs font-medium">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -705,9 +792,7 @@ export default function ProspectsPage() {
 
               {/* Sección: Cliente */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Cliente
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Cliente</p>
                 <div className="grid grid-cols-2 gap-3">
                   <CopyField label="Cliente" value={viewingProspecto.cliente} fieldKey="nombre" copiedField={copiedField} onCopy={copyToClipboard} />
                   <CopyField label="ID / Cédula" value={formatCedula(viewingProspecto.idCliente)} fieldKey="idCliente" copiedField={copiedField} onCopy={copyToClipboard} />
@@ -718,9 +803,7 @@ export default function ProspectsPage() {
 
               {/* Sección: Contacto */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Contacto
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Contacto</p>
                 <div className="grid grid-cols-2 gap-3">
                   <CopyField label="Tel. Celular" value={formatTel(viewingProspecto.telCelular)} fieldKey="telCelular" copiedField={copiedField} onCopy={copyToClipboard} />
                   <CopyField label="Tel. Instalación" value={formatTel(viewingProspecto.telInstalacion)} fieldKey="telInstalacion" copiedField={copiedField} onCopy={copyToClipboard} />
@@ -733,9 +816,7 @@ export default function ProspectsPage() {
 
               {/* Sección: Ubicación */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Ubicación
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Ubicación</p>
                 <div className="grid grid-cols-2 gap-3">
                   <DetailField label="Provincia" value={viewingProspecto.provincia} />
                   <DetailField label="Cantón" value={viewingProspecto.canton} />
@@ -818,111 +899,101 @@ export default function ProspectsPage() {
 
               <hr className="border-border" />
 
-              {/* Registrar contacto — solo agente asignado */}
-                <>
-                  <hr className="border-border" />
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                      Registrar contacto
-                    </p>
-                    {(() => {
-                      const tipSeleccionada = getSelectedTip();
-                      const esOtroProveedor = !!tipSeleccionada && tipSeleccionada.etiqueta.toLowerCase().includes('otro proveedor');
-                      const puedeRegistrar = !!contactMetodo && (!esOtroProveedor || (!!contactProveedor && !!contactObs.trim()));
-                      return (
-                        <div className="space-y-2">
-                          <div className="flex gap-2 items-center">
+              {/* Registrar contacto */}
+              <>
+                <hr className="border-border" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    Registrar contacto
+                  </p>
+                  {(() => {
+                    const tipSeleccionada = getSelectedTip();
+                    const esOtroProveedor = !!tipSeleccionada && tipSeleccionada.etiqueta.toLowerCase().includes('otro proveedor');
+                    const puedeRegistrar = !!contactMetodo && (!esOtroProveedor || (!!contactProveedor && !!contactObs.trim()));
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex gap-2 items-center">
+                          <Select
+                            value={contactMetodo}
+                            onChange={e => { setContactMetodo(e.target.value as ResultadoContacto); setContactProveedor(''); setContactObs(''); }}
+                            className="flex-1"
+                          >
+                            <option value="" disabled>— Seleccione —</option>
+                            {tipificaciones.map(t => (
+                              <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
+                            ))}
+                          </Select>
+                          <Button
+                            onClick={() => {
+                              const tip = getSelectedTip();
+                              if (tip?.eliminaProspecto) {
+                                setSinCoberturaConfirm(true);
+                              } else {
+                                handleContactar(viewingProspecto, contactMetodo as ResultadoContacto, esOtroProveedor ? contactProveedor : undefined, esOtroProveedor ? contactObs : undefined);
+                              }
+                            }}
+                            disabled={!puedeRegistrar || contactLoading === viewingProspecto.id}
+                            className="flex-shrink-0"
+                          >
+                            {contactLoading === viewingProspecto.id ? 'Guardando...' : 'Registrar'}
+                          </Button>
+                        </div>
+                        {esOtroProveedor && (
+                          <>
                             <Select
-                              value={contactMetodo}
-                              onChange={e => { setContactMetodo(e.target.value as ResultadoContacto); setContactProveedor(''); setContactObs(''); }}
-                              className="flex-1"
+                              value={contactProveedor}
+                              onChange={e => setContactProveedor(e.target.value)}
+                              className="w-full"
                             >
-                              <option value="" disabled>— Seleccione —</option>
-                              {tipificaciones.map(t => (
-                                <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
+                              <option value="" disabled>— Seleccione proveedor *</option>
+                              {['TIGO', 'LIBERTY', 'METROCOM', 'TELECABLE', 'KOLBI', 'STARLINK', 'OTRO'].map(p => (
+                                <option key={p} value={p}>{p}</option>
                               ))}
                             </Select>
-                            <Button
-                              onClick={() => {
-                                const tip = getSelectedTip();
-                                if (tip?.eliminaProspecto) {
-                                  setSinCoberturaConfirm(true);
-                                } else {
-                                  handleContactar(viewingProspecto, contactMetodo as ResultadoContacto, esOtroProveedor ? contactProveedor : undefined, esOtroProveedor ? contactObs : undefined);
-                                }
-                              }}
-                              disabled={!puedeRegistrar || contactLoading === viewingProspecto.id}
-                              className="flex-shrink-0"
-                            >
-                              {contactLoading === viewingProspecto.id ? 'Guardando...' : 'Registrar'}
-                            </Button>
-                          </div>
-                          {esOtroProveedor && (
-                            <>
-                              <Select
-                                value={contactProveedor}
-                                onChange={e => setContactProveedor(e.target.value)}
-                                className="w-full"
-                              >
-                                <option value="" disabled>— Seleccione proveedor *</option>
-                                {['TIGO', 'LIBERTY', 'METROCOM', 'TELECABLE', 'KOLBI', 'STARLINK', 'OTRO'].map(p => (
-                                  <option key={p} value={p}>{p}</option>
-                                ))}
-                              </Select>
-                              <textarea
-                                className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                                rows={2}
-                                value={contactObs}
-                                onChange={e => setContactObs(e.target.value)}
-                                placeholder="Observaciones requeridas *"
-                              />
-                            </>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    {viewingProspecto.totalContactos > 0 && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {viewingProspecto.totalContactos} contacto{viewingProspecto.totalContactos !== 1 ? 's' : ''} registrado{viewingProspecto.totalContactos !== 1 ? 's' : ''} · Último:{' '}
-                        {viewingProspecto.ultimoContacto
-                          ? new Date(viewingProspecto.ultimoContacto).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
-                          : '—'}
-                        {viewingProspecto.metodoContacto && (
-                          <> · {getTipEtiqueta(viewingProspecto.metodoContacto)}</>
+                            <textarea
+                              className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                              rows={2}
+                              value={contactObs}
+                              onChange={e => setContactObs(e.target.value)}
+                              placeholder="Observaciones requeridas *"
+                            />
+                          </>
                         )}
-                      </p>
-                    )}
-                  </div>
-                </>
+                      </div>
+                    );
+                  })()}
+                  {viewingProspecto.totalContactos > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {viewingProspecto.totalContactos} contacto{viewingProspecto.totalContactos !== 1 ? 's' : ''} registrado{viewingProspecto.totalContactos !== 1 ? 's' : ''} · Último:{' '}
+                      {viewingProspecto.ultimoContacto
+                        ? new Date(viewingProspecto.ultimoContacto).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : '—'}
+                      {viewingProspecto.metodoContacto && (
+                        <> · {getTipEtiqueta(viewingProspecto.metodoContacto)}</>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </>
 
               {/* Sección: Gestión */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Gestión
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Gestión</p>
                 <div className="grid grid-cols-2 gap-3">
                   <DetailField
                     label="Asignado a"
                     value={viewingProspecto.asignado ? nombreUsuario(viewingProspecto.asignado) : null}
                   />
-                  <DetailField
-                    label="Total contactos"
-                    value={String(viewingProspecto.totalContactos)}
-                  />
+                  <DetailField label="Total contactos" value={String(viewingProspecto.totalContactos)} />
                   {viewingProspecto.proveedorCompetidor && (
-                    <DetailField
-                      label="Proveedor competidor"
-                      value={viewingProspecto.proveedorCompetidor}
-                    />
+                    <DetailField label="Proveedor competidor" value={viewingProspecto.proveedorCompetidor} />
                   )}
                   <div>
                     <span className="text-xs text-muted-foreground">Último contacto</span>
                     <p className="mt-0.5">
                       {viewingProspecto.ultimoContacto
                         ? new Date(viewingProspecto.ultimoContacto).toLocaleDateString('es-CR', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
+                            day: '2-digit', month: 'short', year: 'numeric',
                           })
                         : '—'}
                       {viewingProspecto.ultimoContacto && viewingProspecto.metodoContacto && (
@@ -934,7 +1005,6 @@ export default function ProspectsPage() {
                   </div>
                 </div>
 
-                {/* Cliente convertido */}
                 {clienteConvertido && (
                   <div className="mt-3 flex items-center justify-between rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 px-3 py-2">
                     <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
@@ -958,22 +1028,19 @@ export default function ProspectsPage() {
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs text-muted-foreground">Observaciones internas</span>
-                    {/* Show edit button for the assigned agent or admin */}
-                    {(session.role === 'admin' ||
-                      viewingProspecto.asignadoA === session.userId) &&
-                      !editingObs && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs px-2"
-                          onClick={() => {
-                            setObsEditValue(viewingProspecto.observacionesInternas || '');
-                            setEditingObs(true);
-                          }}
-                        >
-                          Editar
-                        </Button>
-                      )}
+                    {(canAssign || viewingProspecto.asignadoA === session.userId) && !editingObs && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs px-2"
+                        onClick={() => {
+                          setObsEditValue(viewingProspecto.observacionesInternas || '');
+                          setEditingObs(true);
+                        }}
+                      >
+                        Editar
+                      </Button>
+                    )}
                   </div>
 
                   {editingObs ? (
@@ -987,18 +1054,8 @@ export default function ProspectsPage() {
                         autoFocus
                       />
                       <div className="flex gap-2 justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingObs(false)}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={handleSaveObs}
-                          disabled={obsEditLoading}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => setEditingObs(false)}>Cancelar</Button>
+                        <Button size="sm" onClick={handleSaveObs} disabled={obsEditLoading}>
                           {obsEditLoading ? 'Guardando...' : 'Guardar'}
                         </Button>
                       </div>
@@ -1030,9 +1087,7 @@ export default function ProspectsPage() {
               Esta acción no se puede deshacer.
             </p>
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setSinCoberturaConfirm(false)}>
-                Cancelar
-              </Button>
+              <Button variant="outline" onClick={() => setSinCoberturaConfirm(false)}>Cancelar</Button>
               <Button
                 variant="destructive"
                 disabled={contactLoading === viewingProspecto.id}
@@ -1049,7 +1104,7 @@ export default function ProspectsPage() {
       )}
 
       {/* ── Dialog: Asignar ──────────────────────────────────────────────────── */}
-      {assigningProspecto && session.role === 'admin' && (
+      {assigningProspecto && canAssign && (
         <Dialog open onOpenChange={() => setAssigningProspecto(null)}>
           <DialogContent>
             <DialogHeader>
@@ -1083,9 +1138,7 @@ export default function ProspectsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAssigningProspecto(null)}>
-                Cancelar
-              </Button>
+              <Button variant="outline" onClick={() => setAssigningProspecto(null)}>Cancelar</Button>
               <Button onClick={handleAssign} disabled={assignLoading}>
                 {assignLoading ? 'Guardando...' : 'Guardar'}
               </Button>

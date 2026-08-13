@@ -21,7 +21,7 @@ async function main() {
 
   // Leer stats del script de limpieza
   const statsFile = join(process.cwd(), '.sync-stats.json');
-  let cleanupStats = { totalConFibra: 0, totalBorrados: 0, totalErrores: 0, fechaFin: new Date().toISOString() };
+  let cleanupStats = { totalConFibra: 0, totalMarcados: 0, totalErrores: 0, fechaFin: new Date().toISOString() };
   if (existsSync(statsFile)) {
     cleanupStats = JSON.parse(readFileSync(statsFile, 'utf-8'));
   }
@@ -75,8 +75,8 @@ async function main() {
             <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${cleanupStats.totalConFibra.toLocaleString('es-CR')}</td>
           </tr>
           <tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 12px 16px; color: #dc2626;">❌ Eliminados (sin cobertura)</td>
-            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${cleanupStats.totalBorrados.toLocaleString('es-CR')}</td>
+            <td style="padding: 12px 16px; color: #d97706;">📦 Marcados como PostPago (sin cobertura)</td>
+            <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${cleanupStats.totalMarcados.toLocaleString('es-CR')}</td>
           </tr>
           <tr>
             <td style="padding: 12px 16px; color: #d97706;">⚠️ Errores WMS</td>
@@ -112,7 +112,7 @@ async function main() {
   await transporter.sendMail({
     from: `"CRM" <${process.env.SMTP_USER}>`,
     to: NOTIFY_TO,
-    subject: `✅ Sync completado — ${cleanupStats.totalBorrados.toLocaleString('es-CR')} eliminados, ${totalActual.toLocaleString('es-CR')} restantes`,
+    subject: `✅ Sync completado — ${cleanupStats.totalMarcados.toLocaleString('es-CR')} → PostPago, ${totalActual.toLocaleString('es-CR')} prospectos en DB`,
     html,
   });
 

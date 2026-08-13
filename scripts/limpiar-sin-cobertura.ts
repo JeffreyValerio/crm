@@ -1,10 +1,10 @@
 /**
- * Elimina prospectos sin cobertura de fibra óptica Claro.
- * Procesa en lotes de 10: valida, borra los sin cobertura, continúa.
+ * Marca prospectos sin cobertura de fibra óptica Claro como tipo='POSTPAGO'.
+ * Procesa en lotes de 10: valida cobertura, actualiza los sin cobertura, continúa.
  *
  * Uso:
- *   npm run prospects:limpiar                          → simulación (no borra nada)
- *   npm run prospects:limpiar -- --ejecutar            → borra en tiempo real por lotes
+ *   npm run prospects:limpiar                          → simulación (no cambia nada)
+ *   npm run prospects:limpiar -- --ejecutar            → actualiza en tiempo real por lotes
  *   npm run prospects:limpiar -- --asignado=<userId>   → solo ese agente
  */
 
@@ -121,7 +121,7 @@ async function main() {
   const total = prospectos.length;
   console.log(`📋 Prospectos con coordenadas: ${total}\n`);
 
-  let totalBorrados = 0;
+  let totalMarcados = 0;
   let totalConFibra = 0;
   let totalErrores = 0;
   const loteActual: string[] = []; // ids sin cobertura acumulados en el lote
@@ -152,15 +152,18 @@ async function main() {
       }
     }
 
-    // Al completar cada lote (o al llegar al final), borrar los acumulados
+    // Al completar cada lote (o al llegar al final), marcar como POSTPAGO
     const esUltimo = i === total - 1;
     if (loteActual.length >= LOTE || (esUltimo && loteActual.length > 0)) {
       if (EJECUTAR) {
-        const { count } = await prisma.prospecto.deleteMany({ where: { id: { in: [...loteActual] } } });
-        totalBorrados += count;
-        console.log(`\n🗑️  Lote eliminado: ${count} prospectos (total borrados: ${totalBorrados})\n`);
+        const { count } = await prisma.prospecto.updateMany({
+          where: { id: { in: [...loteActual] } },
+          data: { tipo: 'POSTPAGO' },
+        });
+        totalMarcados += count;
+        console.log(`\n📦 Lote marcado como POSTPAGO: ${count} prospectos (total: ${totalMarcados})\n`);
       } else {
-        console.log(`\n   [SIMULACIÓN] Se borrarían ${loteActual.length} de este lote\n`);
+        console.log(`\n   [SIMULACIÓN] Se marcarían ${loteActual.length} como POSTPAGO en este lote\n`);
       }
       loteActual.length = 0;
     }
@@ -170,19 +173,19 @@ async function main() {
 
   console.log('\n═════════════════════════════════════════');
   console.log(`✅ Con cobertura:  ${totalConFibra}`);
-  console.log(`❌ Borrados:       ${totalBorrados}`);
+  console.log(`📦 Marcados POSTPAGO: ${totalMarcados}`);
   console.log(`⚠️  Errores WMS:   ${totalErrores}`);
   console.log('═════════════════════════════════════════\n');
 
   if (!EJECUTAR && (total - totalConFibra - totalErrores) > 0) {
-    console.log('Ejecuta con --ejecutar para confirmar el borrado.');
+    console.log('Ejecuta con --ejecutar para confirmar el cambio a POSTPAGO.');
   }
 
   // Guardar stats para el email de notificación
   if (EJECUTAR) {
     writeFileSync(
       join(process.cwd(), '.sync-stats.json'),
-      JSON.stringify({ totalConFibra, totalBorrados, totalErrores, fechaFin: new Date().toISOString() }),
+      JSON.stringify({ totalConFibra, totalMarcados, totalErrores, fechaFin: new Date().toISOString() }),
     );
   }
 }

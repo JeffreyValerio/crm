@@ -2,7 +2,9 @@ name: Sync Prospects
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # 6:00am CST (UTC-6) daily
+    - cron: '0 12 * * *'  # 6:00am CST (UTC-6)
+    - cron: '0 18 * * *'  # 12:00pm CST (UTC-6)
+    - cron: '0 0 * * *'   # 6:00pm CST (UTC-6)
   workflow_dispatch:       # Manual trigger
 
 jobs:
