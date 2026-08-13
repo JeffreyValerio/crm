@@ -47,7 +47,7 @@ function displayName(u: User) {
 function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => void }) {
   const [inviteOpen, setInviteOpen]     = useState(false);
   const [inviteEmail, setInviteEmail]   = useState('');
-  const [inviteRole, setInviteRole]     = useState<'user' | 'developer'>('user');
+  const [inviteRole, setInviteRole]     = useState<'user' | 'teamlead' | 'admin' | 'developer'>('user');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError]   = useState('');
   const [inviteSuccess, setInviteSuccess] = useState(false);
@@ -304,6 +304,8 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                     className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="user">Vendedor</option>
+                    <option value="teamlead">Team Lead</option>
+                    <option value="admin">Admin</option>
                     <option value="developer">Desarrollador (solo API)</option>
                   </select>
                 </div>
