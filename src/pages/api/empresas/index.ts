@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         usuarios: {
           where: { role: 'admin' },
           select: { id: true, nombre: true, apellidos: true, email: true },
-          take: 1,
+          orderBy: { nombre: 'asc' },
         },
       },
     });

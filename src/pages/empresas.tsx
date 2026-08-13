@@ -221,15 +221,19 @@ export default function EmpresasPage() {
                     <TableRow key={e.id}>
                       <TableCell className="font-medium">{e.nombre}</TableCell>
                       <TableCell>
-                        {admin ? (
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">
-                              {[admin.nombre, admin.apellidos].filter(Boolean).join(' ') || admin.email}
-                            </span>
-                            <span className="text-xs text-muted-foreground">{admin.email}</span>
-                          </div>
-                        ) : (
+                        {e.usuarios.length === 0 ? (
                           <Badge variant="warning" className="text-xs">Sin admin</Badge>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            {e.usuarios.map((a) => (
+                              <div key={a.id} className="flex flex-col">
+                                <span className="text-sm font-medium">
+                                  {[a.nombre, a.apellidos].filter(Boolean).join(' ') || a.email}
+                                </span>
+                                <span className="text-xs text-muted-foreground">{a.email}</span>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </TableCell>
                       <TableCell className="text-center">
