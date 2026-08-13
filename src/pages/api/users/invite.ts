@@ -25,7 +25,10 @@ export default async function handler(
 
   const email = req.body.email?.trim().toLowerCase();
   const rawRole = req.body.role;
-  const role = rawRole === 'developer' ? 'developer' : 'user';
+  const empresaId: string | undefined = req.body.empresaId || undefined;
+
+  const ALLOWED_ROLES = ['user', 'admin', 'teamlead', 'developer'];
+  const role = ALLOWED_ROLES.includes(rawRole) ? rawRole : 'user';
 
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Email válido es requerido' });
@@ -52,6 +55,7 @@ export default async function handler(
         invitedAt: new Date(),
         invitedBy: session.email || undefined,
         role,
+        ...(empresaId ? { empresaId } : {}),
       },
       create: {
         email,
@@ -59,6 +63,7 @@ export default async function handler(
         invitedAt: new Date(),
         invitedBy: session.email || undefined,
         role,
+        ...(empresaId ? { empresaId } : {}),
       },
     });
 

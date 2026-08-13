@@ -15,6 +15,7 @@ import {
   Phone,
   Wifi,
   Cpu,
+  Building2,
 } from 'lucide-react';
 
 interface NavItem {
@@ -74,6 +75,18 @@ const navSections: NavSection[] = [
         icon: Phone,
       },
     ],
+  },
+  {
+    title: 'Administración',
+    items: [
+      {
+        title: 'Empresas',
+        href: '/empresas',
+        icon: Building2,
+        roles: ['superadmin'],
+      },
+    ],
+    roles: ['superadmin'],
   },
   {
     title: 'Configuración',
