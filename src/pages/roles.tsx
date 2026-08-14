@@ -4,30 +4,16 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { Check, X, Loader2, ShieldCheck, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { PANTALLAS_CONFIG } from '@/lib/permisos';
 
-// ─── Config (refleja la misma constante que el API) ──────────────────────────
+// ─── Config UI de roles ───────────────────────────────────────────────────────
 
 const ROLES_CONFIG = [
-  { key: 'superadmin', label: 'Superadmin',     description: 'Acceso total al sistema' },
-  { key: 'admin',      label: 'Admin',           description: 'Administrador de empresa' },
-  { key: 'teamlead',   label: 'Team Lead',       description: 'Líder de equipo de ventas' },
-  { key: 'user',       label: 'Vendedor',        description: 'Agente de ventas' },
-  { key: 'developer',  label: 'Desarrollador',   description: 'Acceso técnico limitado' },
-] as const;
-
-const PANTALLAS_CONFIG = [
-  { id: 'dashboard',         label: 'Dashboard',          acciones: ['ver'] },
-  { id: 'clientes_gpon',     label: 'Clientes GPON',      acciones: ['ver', 'crear', 'editar', 'eliminar'] },
-  { id: 'clientes_postpago', label: 'Clientes Postpago',  acciones: ['ver', 'crear', 'editar'] },
-  { id: 'prospectos',        label: 'Prospectos',         acciones: ['ver', 'solicitar', 'asignar', 'contactar'] },
-  { id: 'interphone',        label: 'Interphone',         acciones: ['ver', 'llamar'] },
-  { id: 'nomina',            label: 'Nómina',             acciones: ['ver', 'crear', 'aprobar', 'pagar', 'editar'] },
-  { id: 'adelantos',         label: 'Adelantos',          acciones: ['ver', 'crear', 'aprobar', 'rechazar'] },
-  { id: 'inventario_sim',    label: 'Inventario SIM',     acciones: ['ver', 'agregar', 'asignar'] },
-  { id: 'oferta_comercial',  label: 'Oferta Comercial',   acciones: ['ver', 'crear', 'editar', 'eliminar'] },
-  { id: 'configuracion',     label: 'Configuración',      acciones: ['ver', 'usuarios', 'equipos', 'metas', 'tipificaciones', 'api'] },
-  { id: 'empresas',          label: 'Empresas',           acciones: ['ver', 'crear', 'editar', 'eliminar'] },
-  { id: 'roles',             label: 'Gestión de Roles',   acciones: ['ver', 'editar'] },
+  { key: 'superadmin', label: 'Superadmin',   description: 'Acceso total al sistema' },
+  { key: 'admin',      label: 'Admin',         description: 'Administrador de empresa' },
+  { key: 'teamlead',   label: 'Team Lead',     description: 'Líder de equipo de ventas' },
+  { key: 'user',       label: 'Vendedor',      description: 'Agente de ventas' },
+  { key: 'developer',  label: 'Desarrollador', description: 'Acceso técnico limitado' },
 ] as const;
 
 const ACCION_LABELS: Record<string, string> = {
