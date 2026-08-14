@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TableEmptyState } from '@/components/ui/table-empty-state';
@@ -9,11 +10,22 @@ import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { Trash2, Upload, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const PROVINCIAS = [
+  'San José',
+  'Alajuela',
+  'Cartago',
+  'Heredia',
+  'Guanacaste',
+  'Puntarenas',
+  'Limón',
+];
+
 interface SimCard {
   id: string;
   numero: string;
   fotoUrl: string | null;
   estado: string;
+  provincia: string | null;
   createdAt: string;
 }
 
@@ -29,7 +41,9 @@ export default function SimsPage() {
   const [loading, setLoading] = useState(true);
   const [sims, setSims] = useState<SimCard[]>([]);
   const [filtro, setFiltro] = useState<Filtro>('SIN_ASIGNAR');
+  const [filterProvincia, setFilterProvincia] = useState('');
   const [numero, setNumero] = useState('');
+  const [provincia, setProvincia] = useState('');
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
   const [fotoPublicId, setFotoPublicId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -50,7 +64,14 @@ export default function SimsPage() {
     }
   }
 
-  const simsVisibles = filtro === 'TODOS' ? sims : sims.filter(s => s.estado === filtro);
+  const simsVisibles = sims.filter(s => {
+    if (filtro !== 'TODOS' && s.estado !== filtro) return false;
+    if (filterProvincia && s.provincia !== filterProvincia) return false;
+    return true;
+  });
+
+  const sinAsignar = sims.filter(s => s.estado === 'SIN_ASIGNAR').length;
+  const asignadas = sims.filter(s => s.estado === 'ASIGNADO').length;
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -85,12 +106,13 @@ export default function SimsPage() {
       const res = await fetch('/api/sims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ numero: numero.trim(), fotoUrl, fotoPublicId }),
+        body: JSON.stringify({ numero: numero.trim(), fotoUrl, fotoPublicId, provincia: provincia || null }),
       });
       const data = await res.json();
       if (!res.ok) { toast.error(data.error || 'Error al agregar'); return; }
       toast.success('SIM agregada');
       setNumero('');
+      setProvincia('');
       clearFoto();
       loadSims();
     } finally {
@@ -111,9 +133,6 @@ export default function SimsPage() {
     }
   }
 
-  const sinAsignar = sims.filter(s => s.estado === 'SIN_ASIGNAR').length;
-  const asignadas = sims.filter(s => s.estado === 'ASIGNADO').length;
-
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -125,14 +144,25 @@ export default function SimsPage() {
         </div>
 
         {/* Formulario agregar */}
-        <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-start">
+        <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-start flex-wrap">
           <Input
             placeholder="Número de SIM"
             value={numero}
             onChange={e => setNumero(e.target.value)}
-            className="sm:w-72"
+            className="sm:w-64"
             required
           />
+
+          <Select
+            value={provincia}
+            onChange={e => setProvincia(e.target.value)}
+            className="sm:w-48"
+          >
+            <option value="">Provincia (opcional)</option>
+            {PROVINCIAS.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </Select>
 
           <div className="flex items-center gap-2">
             {fotoUrl ? (
@@ -168,30 +198,43 @@ export default function SimsPage() {
         </form>
 
         {/* Filtros */}
-        <div className="flex gap-2">
-          {FILTROS.map(f => (
-            <button
-              key={f.value}
-              onClick={() => setFiltro(f.value)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                filtro === f.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {f.label}
-              {f.value !== 'TODOS' && (
-                <span className="ml-1.5 text-xs opacity-70">
-                  ({f.value === 'SIN_ASIGNAR' ? sinAsignar : asignadas})
-                </span>
-              )}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex gap-2">
+            {FILTROS.map(f => (
+              <button
+                key={f.value}
+                onClick={() => setFiltro(f.value)}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  filtro === f.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {f.label}
+                {f.value !== 'TODOS' && (
+                  <span className="ml-1.5 text-xs opacity-70">
+                    ({f.value === 'SIN_ASIGNAR' ? sinAsignar : asignadas})
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <Select
+            value={filterProvincia}
+            onChange={e => setFilterProvincia(e.target.value)}
+            className="w-48"
+          >
+            <option value="">Todas las provincias</option>
+            {PROVINCIAS.map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </Select>
         </div>
 
         {/* Tabla */}
         {loading ? (
-          <TableSkeleton cols={4} rows={8} />
+          <TableSkeleton cols={5} rows={8} />
         ) : (
           <div className="rounded-md border">
             <Table>
@@ -199,6 +242,7 @@ export default function SimsPage() {
                 <TableRow>
                   <TableHead>Foto</TableHead>
                   <TableHead>Número SIM</TableHead>
+                  <TableHead>Provincia</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Fecha registro</TableHead>
                   <TableHead className="w-16"></TableHead>
@@ -206,7 +250,7 @@ export default function SimsPage() {
               </TableHeader>
               <TableBody>
                 {simsVisibles.length === 0 ? (
-                  <TableEmptyState colSpan={5} message="No hay SIMs en esta categoría" />
+                  <TableEmptyState colSpan={6} message="No hay SIMs en esta categoría" />
                 ) : simsVisibles.map(sim => (
                   <TableRow key={sim.id}>
                     <TableCell>
@@ -224,6 +268,9 @@ export default function SimsPage() {
                       )}
                     </TableCell>
                     <TableCell className="font-mono font-medium">{sim.numero}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {sim.provincia ?? <span className="opacity-40">—</span>}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={sim.estado === 'SIN_ASIGNAR' ? 'success' : 'default'}>
                         {sim.estado === 'SIN_ASIGNAR' ? 'Disponible' : 'Asignada'}

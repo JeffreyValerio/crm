@@ -411,7 +411,9 @@ model SimCard {
   fotoUrl      String?
   fotoPublicId String?
   estado       String   @default("SIN_ASIGNAR")
+  provincia    String?
   createdAt    DateTime @default(now())
 
   @@index([estado])
+  @@index([provincia])
 }

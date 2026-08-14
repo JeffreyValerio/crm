@@ -13,7 +13,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!(await hasPermiso(session.role, 'inventario_sim', 'ver'))) {
       return res.status(403).json({ error: 'Sin permiso para ver el inventario de SIMs' });
     }
-    const sims = await prisma.simCard.findMany({ orderBy: { numero: 'asc' } });
+    const { provincia, estado } = req.query;
+    const where: any = {};
+    if (provincia && typeof provincia === 'string') where.provincia = provincia;
+    if (estado && typeof estado === 'string') where.estado = estado;
+    const sims = await prisma.simCard.findMany({ where, orderBy: { numero: 'asc' } });
     return res.status(200).json({ sims });
   }
 
@@ -22,14 +26,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Sin permiso para agregar SIMs' });
     }
 
-    const { numero, fotoUrl, fotoPublicId } = req.body;
+    const { numero, fotoUrl, fotoPublicId, provincia } = req.body;
     if (!numero?.trim()) return res.status(400).json({ error: 'El número de SIM es requerido' });
 
     const existing = await prisma.simCard.findUnique({ where: { numero: numero.trim() } });
     if (existing) return res.status(409).json({ error: 'Ya existe una SIM con ese número' });
 
     const sim = await prisma.simCard.create({
-      data: { numero: numero.trim(), fotoUrl: fotoUrl || null, fotoPublicId: fotoPublicId || null },
+      data: {
+        numero: numero.trim(),
+        fotoUrl: fotoUrl || null,
+        fotoPublicId: fotoPublicId || null,
+        provincia: provincia?.trim() || null,
+      },
     });
     return res.status(201).json({ sim });
   }

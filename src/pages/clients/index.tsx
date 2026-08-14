@@ -159,6 +159,9 @@ export default function ClientsPage() {
   const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const [selectedSimId, setSelectedSimId] = useState<string | null>(null);
   const [solicitandoSim, setSolicitandoSim] = useState(false);
+  const [simsDisponibles, setSimsDisponibles] = useState<{ id: string; numero: string; fotoUrl: string | null }[]>([]);
+  const [loadingSimsDisp, setLoadingSimsDisp] = useState(false);
+  const [simSeleccionada, setSimSeleccionada] = useState<string>('');
   const [reassignClientId, setReassignClientId] = useState<string | null>(null);
   const [reassignUserId, setReassignUserId] = useState<string>('');
   const [reassignOriginalUserId, setReassignOriginalUserId] = useState<string>('');
@@ -347,6 +350,18 @@ export default function ClientsPage() {
 
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
+
+  // Cargar SIMs disponibles por provincia cuando el diálogo está abierto
+  useEffect(() => {
+    if (!dialogOpen || !needsSim || editingClient) return;
+    if (!selectedProvince) { setSimsDisponibles([]); setSimSeleccionada(''); return; }
+    setLoadingSimsDisp(true);
+    fetch(`/api/sims/disponible?provincia=${encodeURIComponent(selectedProvince)}`)
+      .then(r => r.json())
+      .then(data => { setSimsDisponibles(data.sims || []); setSimSeleccionada(''); })
+      .catch(() => setSimsDisponibles([]))
+      .finally(() => setLoadingSimsDisp(false));
+  }, [selectedProvince, dialogOpen, needsSim, editingClient]);
 
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
@@ -630,15 +645,33 @@ export default function ClientsPage() {
   }
 
   async function solicitarSim() {
+    // Si hay una SIM seleccionada del dropdown, usarla directamente
+    if (simSeleccionada) {
+      const sim = simsDisponibles.find(s => s.id === simSeleccionada);
+      if (sim) {
+        setValue('numeroMedidor', sim.numero);
+        if (sim.fotoUrl) setValue('simUrl', sim.fotoUrl);
+        setSelectedSimId(sim.id);
+        toast.success(`SIM ${sim.numero} asignada`);
+      }
+      return;
+    }
+    // Fallback: pedir cualquier SIM disponible
     setSolicitandoSim(true);
     try {
-      const res = await fetch('/api/sims/disponible');
-      if (!res.ok) { toast.error('No hay SIMs disponibles en inventario'); return; }
+      const provincia = watch('provincia');
+      const url = provincia
+        ? `/api/sims/disponible?provincia=${encodeURIComponent(provincia)}`
+        : '/api/sims/disponible';
+      const res = await fetch(url);
+      if (!res.ok) { toast.error('No hay SIMs disponibles' + (provincia ? ` en ${provincia}` : '')); return; }
       const data = await res.json();
-      setValue('numeroMedidor', data.sim.numero);
-      if (data.sim.fotoUrl) setValue('simUrl', data.sim.fotoUrl);
-      setSelectedSimId(data.sim.id);
-      toast.success(`SIM ${data.sim.numero} asignada`);
+      const sim = data.sims?.[0];
+      if (!sim) { toast.error('No hay SIMs disponibles'); return; }
+      setValue('numeroMedidor', sim.numero);
+      if (sim.fotoUrl) setValue('simUrl', sim.fotoUrl);
+      setSelectedSimId(sim.id);
+      toast.success(`SIM ${sim.numero} asignada`);
     } catch {
       toast.error('Error al solicitar SIM');
     } finally {
@@ -689,6 +722,8 @@ export default function ClientsPage() {
         await loadClients();
         setDialogOpen(false);
         setEditingClient(null);
+        setSimsDisponibles([]);
+        setSimSeleccionada('');
         reset();
         toast.success(editingClient ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente');
       } else {
@@ -2206,6 +2241,29 @@ Comentario: En espera de Instalacion`;
                       {isPostpago ? 'Número SIM' : 'Número de Medidor'}
                       {!isPostpago && <span className="text-destructive"> *</span>}
                     </label>
+                    {/* Selector de SIM disponible por provincia — solo al crear */}
+                    {needsSim && !editingClient && (
+                      <div className="mb-2">
+                        {!selectedProvince ? (
+                          <p className="text-xs text-muted-foreground">Selecciona una provincia en el tab Ubicación para ver las SIMs disponibles.</p>
+                        ) : loadingSimsDisp ? (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Buscando SIMs en {selectedProvince}...</p>
+                        ) : simsDisponibles.length === 0 ? (
+                          <p className="text-xs text-amber-500">No hay SIMs disponibles en {selectedProvince}.</p>
+                        ) : (
+                          <Select
+                            value={simSeleccionada}
+                            onChange={e => setSimSeleccionada(e.target.value)}
+                            className="text-sm"
+                          >
+                            <option value="">— Seleccionar SIM de {selectedProvince} ({simsDisponibles.length} disponibles) —</option>
+                            {simsDisponibles.map(s => (
+                              <option key={s.id} value={s.id}>{s.numero}</option>
+                            ))}
+                          </Select>
+                        )}
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <div className="relative flex-1">
                         <Input
@@ -2237,7 +2295,7 @@ Comentario: En espera de Instalacion`;
                           disabled={solicitandoSim}
                           className="shrink-0 text-xs"
                         >
-                          {solicitandoSim ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Solicitar SIM'}
+                          {solicitandoSim ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Asignar'}
                         </Button>
                       )}
                     </div>
@@ -2451,7 +2509,7 @@ Comentario: En espera de Instalacion`;
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setDialogOpen(false)}
+                  onClick={() => { setDialogOpen(false); setSimsDisponibles([]); setSimSeleccionada(''); }}
                 >
                   Cancelar
                 </Button>
