@@ -1,4 +1,4 @@
-import { isAdmin } from '@/lib/roles';
+import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -33,12 +33,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const filtrarPorMes = !!(req.query.month as string);
       const whereAdmin: Record<string, unknown> = {};
       if (filtrarPorMes) whereAdmin.createdAt = { gte: monthStart, lt: monthEnd };
-      if (asignadoAFilter) {
+
+      // Admins (no superadmin) solo ven prospectos asignados a usuarios de su empresa
+      if (!isSuperAdmin(session.role)) {
+        const me = await prisma.user.findUnique({
+          where: { id: session.userId },
+          select: { empresaId: true },
+        });
+        const empresaUsers = me?.empresaId
+          ? await prisma.user.findMany({
+              where: { empresaId: me.empresaId },
+              select: { id: true },
+            })
+          : [];
+        const empresaIds = empresaUsers.map(u => u.id);
+        whereAdmin.asignadoA = asignadoAFilter
+          ? (empresaIds.includes(asignadoAFilter) ? asignadoAFilter : '__NO_MATCH__')
+          : { in: empresaIds };
+      } else if (asignadoAFilter) {
         whereAdmin.asignadoA = asignadoAFilter;
       } else if (equipoId) {
         const ids = await resolveEquipoUserIds(equipoId);
         whereAdmin.asignadoA = ids ? { in: ids } : '__NO_MATCH__';
       }
+
       const prospectos = await prisma.prospecto.findMany({ where: whereAdmin });
 
       // Cargar usuarios asignados por separado
