@@ -45,6 +45,7 @@ export default async function handler(
           extension: true,
           codigoVendedor: true,
           createdAt: true,
+          empresa: { select: { id: true, nombre: true } },
         },
         orderBy: {
           createdAt: 'desc',

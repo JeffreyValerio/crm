@@ -33,6 +33,7 @@ interface User {
   extension: string | null;
   codigoVendedor: string | null;
   createdAt: string;
+  empresa: { id: string; nombre: string } | null;
 }
 
 interface KpiGlobal { periodo: string; meta: number; }
@@ -411,7 +412,28 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
 
 // ── Tab Metas KPI ─────────────────────────────────────────────────────────────
 
-function TabMetasKPI({ vendors }: { vendors: User[] }) {
+function TabMetasKPI({ vendors, superAdmin }: { vendors: User[]; superAdmin: boolean }) {
+  // Solo vendedores y teamleads — son los que tienen meta de venta
+  const soloVendedores = vendors.filter(u => u.role === 'user' || u.role === 'teamlead');
+
+  // Agrupar por empresa para superadmin
+  const empresaGroups = soloVendedores.reduce<Array<{ id: string; nombre: string; users: User[] }>>((acc, u) => {
+    const eId   = u.empresa?.id     ?? '__sin__';
+    const eName = u.empresa?.nombre ?? 'Sin empresa';
+    const found = acc.find(g => g.id === eId);
+    if (found) found.users.push(u);
+    else acc.push({ id: eId, nombre: eName, users: [u] });
+    return acc;
+  }, []);
+
+  const [activeEmpresaId, setActiveEmpresaId] = useState('');
+  const resolvedEmpresaId = activeEmpresaId || empresaGroups[0]?.id || '';
+
+  // Vendedores visibles en la tabla según empresa seleccionada
+  const visibleVendors = superAdmin
+    ? (empresaGroups.find(g => g.id === resolvedEmpresaId)?.users ?? [])
+    : soloVendedores;
+
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [globales, setGlobales] = useState<KpiGlobal[]>([]);
@@ -473,6 +495,26 @@ function TabMetasKPI({ vendors }: { vendors: User[] }) {
 
   return (
     <div className="space-y-4">
+      {/* Tabs por empresa — solo superadmin con varias */}
+      {superAdmin && empresaGroups.length > 1 && (
+        <div className="flex gap-1 border-b overflow-x-auto">
+          {empresaGroups.map(g => (
+            <button
+              key={g.id}
+              onClick={() => setActiveEmpresaId(g.id)}
+              className={cn(
+                'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px',
+                resolvedEmpresaId === g.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {g.nombre}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Selector de año */}
       <div className="flex items-center gap-2">
         <button onClick={() => setYear(y => y - 1)} className="p-1.5 rounded-md hover:bg-accent transition-colors">
@@ -491,96 +533,263 @@ function TabMetasKPI({ vendors }: { vendors: User[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40">
-              <th className="px-4 py-3 text-left font-semibold text-muted-foreground w-28">Mes</th>
-              <th className="px-4 py-3 text-center font-semibold w-24">
-                <span className="flex items-center justify-center gap-1">
-                  <Target className="h-3.5 w-3.5 text-primary" /> Global
-                </span>
-              </th>
-              {vendors.map(v => (
-                <th key={v.id} className="px-4 py-3 text-center font-medium min-w-[120px]">
-                  <div className="truncate max-w-[120px] mx-auto">{displayName(v)}</div>
+              <th className="px-4 py-3 text-left font-semibold text-muted-foreground min-w-[160px]">Vendedor</th>
+              {mesesVisibles.map(mes => (
+                <th key={mes} className="px-3 py-3 text-center font-medium min-w-[68px]">
+                  {MESES[mes - 1].slice(0, 3)}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {mesesVisibles.map(mes => {
-              const globalVal = getGlobal(mes);
-              return (
-                <tr key={mes} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-2.5 font-medium text-muted-foreground">{MESES[mes - 1]}</td>
-
-                  {/* Celda global */}
-                  <td className="px-2 py-1.5 text-center">
-                    {editingCell?.mes === mes && editingCell.userId === null ? (
+            {/* Fila de meta global */}
+            <tr className="border-b bg-muted/30">
+              <td className="px-4 py-2.5 font-semibold">
+                <span className="flex items-center gap-1.5">
+                  <Target className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  Global
+                </span>
+              </td>
+              {mesesVisibles.map(mes => {
+                const globalVal = getGlobal(mes);
+                const isEditing = editingCell?.mes === mes && editingCell.userId === null;
+                return (
+                  <td key={mes} className="px-2 py-1.5 text-center">
+                    {isEditing ? (
                       <input
                         type="number" min={0}
                         value={editValue}
                         onChange={e => setEditValue(e.target.value)}
                         onBlur={saveCell}
                         onKeyDown={e => { if (e.key === 'Enter') saveCell(); if (e.key === 'Escape') setEditingCell(null); }}
-                        className="w-16 text-center rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-14 text-center rounded border bg-background px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         autoFocus
                         disabled={saving}
                       />
                     ) : (
                       <button
                         onClick={() => startEdit(mes, null)}
-                        className="w-16 rounded px-2 py-1 text-center font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                        className="w-14 rounded px-1 py-1 text-center font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                       >
                         {globalVal}
                       </button>
                     )}
                   </td>
+                );
+              })}
+            </tr>
 
-                  {/* Celdas por usuario */}
-                  {vendors.map(v => {
-                    const userVal = getUserMeta(mes, v.id);
-                    const isEditing = editingCell?.mes === mes && editingCell.userId === v.id;
-                    const isCustom = userVal !== null;
-                    return (
-                      <td key={v.id} className="px-2 py-1.5 text-center">
-                        {isEditing ? (
-                          <input
-                            type="number" min={0}
-                            value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onBlur={saveCell}
-                            onKeyDown={e => { if (e.key === 'Enter') saveCell(); if (e.key === 'Escape') setEditingCell(null); }}
-                            className="w-16 text-center rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                            autoFocus
-                            disabled={saving}
-                          />
-                        ) : (
-                          <button
-                            onClick={() => startEdit(mes, v.id)}
-                            className={cn(
-                              'w-16 rounded px-2 py-1 text-center transition-colors',
-                              isCustom
-                                ? 'font-semibold bg-secondary hover:bg-secondary/80'
-                                : 'text-muted-foreground hover:bg-muted'
-                            )}
-                            title={isCustom ? 'Meta personalizada' : `Usa global (${globalVal})`}
-                          >
-                            {isCustom ? userVal : '—'}
-                          </button>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+            {/* Una fila por vendedor */}
+            {visibleVendors.map(v => (
+              <tr key={v.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                <td className="px-4 py-2.5 font-medium">
+                  <div className="truncate max-w-[160px]" title={displayName(v)}>{displayName(v)}</div>
+                </td>
+                {mesesVisibles.map(mes => {
+                  const globalVal = getGlobal(mes);
+                  const userVal   = getUserMeta(mes, v.id);
+                  const isEditing = editingCell?.mes === mes && editingCell.userId === v.id;
+                  const isCustom  = userVal !== null;
+                  return (
+                    <td key={mes} className="px-2 py-1.5 text-center">
+                      {isEditing ? (
+                        <input
+                          type="number" min={0}
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={saveCell}
+                          onKeyDown={e => { if (e.key === 'Enter') saveCell(); if (e.key === 'Escape') setEditingCell(null); }}
+                          className="w-14 text-center rounded border bg-background px-1 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          autoFocus
+                          disabled={saving}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => startEdit(mes, v.id)}
+                          className={cn(
+                            'w-14 rounded px-1 py-1 text-center transition-colors',
+                            isCustom
+                              ? 'font-semibold bg-secondary hover:bg-secondary/80'
+                              : 'text-muted-foreground hover:bg-muted'
+                          )}
+                          title={isCustom ? 'Meta personalizada' : `Usa global (${globalVal})`}
+                        >
+                          {isCustom ? userVal : '—'}
+                        </button>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Valores en <span className="font-semibold text-primary">azul</span> = meta global del mes ·
-        Valores en <span className="font-semibold">gris oscuro</span> = meta personalizada del usuario ·
-        <span className="text-muted-foreground"> — </span> = usa la meta global
+        Fila <span className="font-semibold text-primary">Global</span> = meta por defecto para todos ·
+        Valores en <span className="font-semibold">negrita</span> = meta personalizada del vendedor ·
+        <span className="mx-1">—</span> = usa la meta global
       </p>
+    </div>
+  );
+}
+
+// ── Tab Metas Empresa ─────────────────────────────────────────────────────────
+
+interface EmpresaConMeta {
+  id: string;
+  nombre: string;
+  meta: { metaGpon: number; metaPostpago: number; metaPortabilidad: number };
+}
+
+const TIPOS_META_EMPRESA = [
+  { key: 'metaGpon'         as const, label: 'GPON' },
+  { key: 'metaPostpago'     as const, label: 'Postpago' },
+  { key: 'metaPortabilidad' as const, label: 'Portabilidad' },
+];
+
+function TabMetasEmpresas({ superAdmin }: { superAdmin: boolean }) {
+  const [empresas, setEmpresas]     = useState<EmpresaConMeta[]>([]);
+  const [activeId, setActiveId]     = useState('');
+  const [loading, setLoading]       = useState(true);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editValue, setEditValue]   = useState('');
+  const [saving, setSaving]         = useState(false);
+
+  const fetchMetas = useCallback(async () => {
+    const res = await fetch('/api/empresa-meta');
+    if (res.ok) {
+      const data = await res.json();
+      if (superAdmin) {
+        const list: EmpresaConMeta[] = data.empresas ?? [];
+        setEmpresas(list);
+        setActiveId(id => id || (list[0]?.id ?? ''));
+      } else {
+        const single: EmpresaConMeta | null = data.empresa ?? null;
+        setEmpresas(single ? [single] : []);
+        if (single) setActiveId(single.id);
+      }
+    }
+    setLoading(false);
+  }, [superAdmin]);
+
+  useEffect(() => { fetchMetas(); }, [fetchMetas]);
+
+  const current = empresas.find(e => e.id === activeId);
+
+  async function saveField(field: 'metaGpon' | 'metaPostpago' | 'metaPortabilidad', value: number) {
+    if (!current) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/empresa-meta', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId: current.id, ...current.meta, [field]: value }),
+      });
+      if (!res.ok) throw new Error();
+      setEmpresas(prev =>
+        prev.map(e => e.id === current.id ? { ...e, meta: { ...e.meta, [field]: value } } : e)
+      );
+      setEditingKey(null);
+      toast.success('Meta actualizada');
+    } catch {
+      toast.error('Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function tryCommit(field: 'metaGpon' | 'metaPostpago' | 'metaPortabilidad') {
+    const n = parseInt(editValue);
+    if (!isNaN(n) && n >= 0) saveField(field, n);
+    else setEditingKey(null);
+  }
+
+  if (loading) return <div className="py-6 text-center text-sm text-muted-foreground">Cargando...</div>;
+
+  if (empresas.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-4 text-center">
+        {superAdmin ? 'No hay empresas registradas.' : 'No tenés empresa asignada.'}
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Tabs por empresa — solo superadmin con varias */}
+      {superAdmin && (
+        <div className="flex gap-1 border-b overflow-x-auto">
+          {empresas.map(e => (
+            <button
+              key={e.id}
+              onClick={() => setActiveId(e.id)}
+              className={cn(
+                'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px',
+                activeId === e.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {e.nombre}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Tabla editable */}
+      {current && (
+        <div className="max-w-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="py-2 pr-8 text-left font-medium text-muted-foreground">Tipo de venta</th>
+                <th className="py-2 text-center font-medium text-muted-foreground w-32">Meta mensual</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TIPOS_META_EMPRESA.map(({ key, label }) => {
+                const val = current.meta[key];
+                const ek  = `${current.id}-${key}`;
+                const isEditing = editingKey === ek;
+                return (
+                  <tr key={key} className="border-b last:border-0">
+                    <td className="py-3 font-medium">{label}</td>
+                    <td className="py-1.5 text-center">
+                      {isEditing ? (
+                        <input
+                          type="number" min={0}
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={() => tryCommit(key)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') tryCommit(key);
+                            if (e.key === 'Escape') setEditingKey(null);
+                          }}
+                          className="w-20 text-center rounded border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          autoFocus
+                          disabled={saving}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => { setEditingKey(ek); setEditValue(String(val)); }}
+                          className="w-20 rounded px-2 py-1 text-center font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                        >
+                          {val}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="text-xs text-muted-foreground mt-3">
+            Clic en el número para editar · Enter para guardar · Esc para cancelar
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1544,24 +1753,43 @@ export default function ConfiguracionPage() {
           </Card>
         )}
         {tab === 'metas' && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                Metas de instalaciones por mes
-              </CardTitle>
-              <CardDescription>
-                Define cuántas instalaciones debe lograr cada vendedor por mes. La columna Global aplica a todos salvo que tengan una meta individual.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {vendors.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">No hay usuarios registrados.</p>
-              ) : (
-                <TabMetasKPI vendors={vendors} />
-              )}
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            {/* KPI de instalaciones por vendedor */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  Metas de instalaciones por mes
+                </CardTitle>
+                <CardDescription>
+                  Define cuántas instalaciones debe lograr cada vendedor por mes. La columna Global aplica a todos salvo que tengan una meta individual.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {vendors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">No hay usuarios registrados.</p>
+                ) : (
+                  <TabMetasKPI vendors={vendors} superAdmin={isSuperAdminUser} />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Metas de ventas por tipo (GPON / Postpago / Portabilidad) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  Metas de ventas por tipo
+                </CardTitle>
+                <CardDescription>
+                  Meta mensual de ventas por tipo de servicio para cada empresa.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TabMetasEmpresas superAdmin={isSuperAdminUser} />
+              </CardContent>
+            </Card>
+          </div>
         )}
         {tab === 'tipificaciones' && (
           <Card>

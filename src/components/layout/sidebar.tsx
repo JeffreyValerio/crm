@@ -123,6 +123,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const router = useRouter();
   const [userRole, setUserRole] = React.useState<string | null>(null);
   const [empresaNombre, setEmpresaNombre] = React.useState<string | null>(null);
+  const [roleLoaded, setRoleLoaded] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   React.useEffect(() => {
@@ -138,6 +139,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         setUserRole(data.user?.role || null);
         setEmpresaNombre(data.user?.empresaNombre || null);
       }
+      setRoleLoaded(true);
     }
     checkRole();
   }, []);
@@ -210,7 +212,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         )}
       </div>
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-        {filteredSections.map((section, sectionIndex) => {
+        {!roleLoaded ? null : filteredSections.map((section, sectionIndex) => {
           const filteredItems = section.items.filter((item) => {
             if (item.adminOnly && !isAdmin(userRole)) {
               return false;

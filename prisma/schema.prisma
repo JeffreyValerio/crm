@@ -18,6 +18,18 @@ model Empresa {
   updatedAt DateTime @updatedAt
   usuarios  User[]
   equipos   Equipo[]
+  metaVenta EmpresaMetaVenta?
+}
+
+model EmpresaMetaVenta {
+  id               String   @id @default(cuid())
+  empresaId        String   @unique
+  empresa          Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  metaGpon         Int      @default(5)
+  metaPostpago     Int      @default(15)
+  metaPortabilidad Int      @default(10)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model User {

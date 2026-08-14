@@ -948,7 +948,7 @@ Comentario: En espera de Instalacion`;
             </Button>
             <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
-              Nuevo Cliente
+              Nuevo GPON
             </Button>
           </div>
         </div>
@@ -1418,8 +1418,8 @@ Comentario: En espera de Instalacion`;
             <DialogHeader>
               <DialogTitle>
                 {editingClient
-                  ? (editingClient.tipo === 'POSTPAGO' ? 'Editar Plan Postpago' : 'Editar Cliente')
-                  : (newClientType === 'POSTPAGO' ? 'Plan Postpago' : 'Nuevo Cliente')}
+                  ? (editingClient.tipo === 'POSTPAGO' ? 'Editar Plan Postpago' : 'Editar GPON')
+                  : (newClientType === 'POSTPAGO' ? 'Plan Postpago' : 'Nuevo GPON')}
               </DialogTitle>
               <DialogDescription>
                 {editingClient ? 'Modifica la información del cliente' : 'Completa los datos del nuevo cliente'}
