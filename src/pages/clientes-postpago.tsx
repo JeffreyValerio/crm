@@ -1,4 +1,3 @@
-import { isAdmin } from '@/lib/roles';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -28,6 +27,11 @@ interface PostpagoClient {
   createdAt: string;
   plan: { nombre: string; productType: { nombre: string } | null } | null;
   creator: { nombre: string | null; apellidos: string | null; email: string };
+}
+
+interface Empresa {
+  id: string;
+  nombre: string;
 }
 
 function getCloudinaryPublicId(url: string | null): string | null {
@@ -84,23 +88,50 @@ export default function ClientesPostpagoPage() {
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<PostpagoClient[]>([]);
   const [search, setSearch] = useState('');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [empresaActiva, setEmpresaActiva] = useState<string>('');   // '' = todas
 
   useEffect(() => {
-    async function load() {
+    async function init() {
       const authRes = await fetch('/api/auth/me');
       if (!authRes.ok) { router.push('/login'); return; }
       const { user } = await authRes.json();
-      if (!isAdmin(user?.role)) { router.push('/'); return; }
+      if (user?.role !== 'admin' && user?.role !== 'superadmin') { router.push('/'); return; }
 
-      const res = await fetch('/api/clients/postpago-list');
-      if (res.ok) {
-        const data = await res.json();
-        setClients(data.clients);
+      const superadmin = user?.role === 'superadmin';
+      setIsSuperAdmin(superadmin);
+
+      if (superadmin) {
+        const empRes = await fetch('/api/empresas');
+        if (empRes.ok) {
+          const data = await empRes.json();
+          setEmpresas(data.empresas || []);
+        }
       }
+
+      // Carga inicial sin filtro de empresa
+      await loadClients('');
       setLoading(false);
     }
-    load();
+    init();
   }, [router]);
+
+  async function loadClients(empresaId: string) {
+    const url = empresaId
+      ? `/api/clients/postpago-list?empresaId=${encodeURIComponent(empresaId)}`
+      : '/api/clients/postpago-list';
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      setClients(data.clients || []);
+    }
+  }
+
+  function handleEmpresaTab(empresaId: string) {
+    setEmpresaActiva(empresaId);
+    loadClients(empresaId);
+  }
 
   const filtered = clients.filter(c => {
     if (!search.trim()) return true;
@@ -118,6 +149,7 @@ export default function ClientesPostpagoPage() {
   return (
     <MainLayout>
       <div className="space-y-4">
+        {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -137,6 +169,38 @@ export default function ClientesPostpagoPage() {
           </div>
         </div>
 
+        {/* Tabs de empresa — solo superadmin */}
+        {isSuperAdmin && empresas.length > 0 && (
+          <div className="flex gap-1 border-b overflow-x-auto">
+            <button
+              onClick={() => handleEmpresaTab('')}
+              className={cn(
+                'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0',
+                empresaActiva === ''
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Todas
+            </button>
+            {empresas.map(emp => (
+              <button
+                key={emp.id}
+                onClick={() => handleEmpresaTab(emp.id)}
+                className={cn(
+                  'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0',
+                  empresaActiva === emp.id
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {emp.nombre}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Lista */}
         {filtered.length === 0 ? (
           <div className="py-20 text-center text-muted-foreground">
             <Wifi className="h-10 w-10 mx-auto mb-3 opacity-30" />

@@ -1,4 +1,4 @@
-import { isAdmin } from '@/lib/roles';
+import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -14,8 +14,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(403).json({ error: 'Sin permiso para ver clientes postpago' });
   }
 
+  const where: any = { tipo: 'POSTPAGO' };
+
+  if (isSuperAdmin(session.role)) {
+    // Superadmin: puede filtrar por empresa vía ?empresaId=
+    const { empresaId } = req.query;
+    if (empresaId && typeof empresaId === 'string') {
+      // Obtener IDs de usuarios de esa empresa
+      const empresaUsers = await prisma.user.findMany({
+        where: { empresaId },
+        select: { id: true },
+      });
+      where.createdBy = { in: empresaUsers.map(u => u.id) };
+    }
+    // Sin filtro: ve todos
+  } else {
+    // Admin: solo clientes creados por usuarios de su empresa
+    const me = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { empresaId: true },
+    });
+    if (me?.empresaId) {
+      const empresaUsers = await prisma.user.findMany({
+        where: { empresaId: me.empresaId },
+        select: { id: true },
+      });
+      where.createdBy = { in: empresaUsers.map(u => u.id) };
+    } else {
+      // Admin sin empresa: solo sus propios clientes
+      where.createdBy = session.userId;
+    }
+  }
+
   const clients = await prisma.client.findMany({
-    where: { tipo: 'POSTPAGO' },
+    where,
     select: {
       id: true,
       nombres: true,
