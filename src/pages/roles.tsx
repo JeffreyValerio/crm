@@ -4,7 +4,7 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { Check, X, Loader2, ShieldCheck, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { PANTALLAS_CONFIG } from '@/lib/permisos';
+import { PANTALLAS_CONFIG } from '@/lib/permisos-config';
 
 // ─── Config UI de roles ───────────────────────────────────────────────────────
 

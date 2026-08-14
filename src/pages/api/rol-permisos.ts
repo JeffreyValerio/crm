@@ -2,12 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { isSuperAdmin } from '@/lib/roles';
-import {
-  PANTALLAS_CONFIG,
-  ROLES_SISTEMA,
-  DEFAULTS,
-  invalidarCachePermisos,
-} from '@/lib/permisos';
+import { PANTALLAS_CONFIG, ROLES_SISTEMA, DEFAULTS } from '@/lib/permisos-config';
+import { invalidarCachePermisos } from '@/lib/permisos';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);

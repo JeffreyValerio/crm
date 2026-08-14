@@ -1,110 +1,14 @@
 /**
- * lib/permisos.ts
+ * lib/permisos.ts  — SERVER ONLY
  *
- * Fuente de verdad para el sistema de permisos por rol.
- * - Define pantallas, acciones posibles y valores por defecto.
- * - Expone hasPermiso() y getPermisosRol() con cache en proceso (TTL 60s).
- * - Las APIs y páginas importan desde aquí; nunca directamente desde /api/rol-permisos.
+ * Lógica de permisos con acceso a DB y cache en proceso.
+ * NO importar desde páginas cliente — usar @/lib/permisos-config para constantes.
  */
 
 import { prisma } from '@/lib/prisma';
-
-// ─── Definiciones de pantallas ────────────────────────────────────────────────
-
-export const PANTALLAS_CONFIG = [
-  { id: 'dashboard',         label: 'Dashboard',          acciones: ['ver'] },
-  { id: 'clientes_gpon',     label: 'Clientes GPON',      acciones: ['ver', 'crear', 'editar', 'eliminar'] },
-  { id: 'clientes_postpago', label: 'Clientes Postpago',  acciones: ['ver', 'crear', 'editar'] },
-  { id: 'prospectos',        label: 'Prospectos',         acciones: ['ver', 'solicitar', 'asignar', 'contactar'] },
-  { id: 'interphone',        label: 'Interphone',         acciones: ['ver', 'llamar'] },
-  { id: 'nomina',            label: 'Nómina',             acciones: ['ver', 'crear', 'aprobar', 'pagar', 'editar'] },
-  { id: 'adelantos',         label: 'Adelantos',          acciones: ['ver', 'crear', 'aprobar', 'rechazar'] },
-  { id: 'inventario_sim',    label: 'Inventario SIM',     acciones: ['ver', 'agregar', 'asignar'] },
-  { id: 'oferta_comercial',  label: 'Oferta Comercial',   acciones: ['ver', 'crear', 'editar', 'eliminar'] },
-  { id: 'configuracion',     label: 'Configuración',      acciones: ['ver', 'usuarios', 'equipos', 'metas', 'tipificaciones', 'api'] },
-  { id: 'empresas',          label: 'Empresas',           acciones: ['ver', 'crear', 'editar', 'eliminar'] },
-  { id: 'roles',             label: 'Gestión de Roles',   acciones: ['ver', 'editar'] },
-] as const;
-
-export type PantallaId = (typeof PANTALLAS_CONFIG)[number]['id'];
-
-export const ROLES_SISTEMA = ['superadmin', 'admin', 'teamlead', 'user', 'developer'] as const;
-export type RolSistema = (typeof ROLES_SISTEMA)[number];
-
-// ─── Defaults (refleja el estado actual del código hardcodeado) ───────────────
-
-export const DEFAULTS: Record<string, Record<string, string[]>> = {
-  superadmin: {
-    dashboard:         ['ver'],
-    clientes_gpon:     ['ver', 'crear', 'editar', 'eliminar'],
-    clientes_postpago: ['ver', 'crear', 'editar'],
-    prospectos:        ['ver', 'solicitar', 'asignar', 'contactar'],
-    interphone:        ['ver', 'llamar'],
-    nomina:            ['ver', 'crear', 'aprobar', 'pagar', 'editar'],
-    adelantos:         ['ver', 'crear', 'aprobar', 'rechazar'],
-    inventario_sim:    ['ver', 'agregar', 'asignar'],
-    oferta_comercial:  ['ver', 'crear', 'editar', 'eliminar'],
-    configuracion:     ['ver', 'usuarios', 'equipos', 'metas', 'tipificaciones', 'api'],
-    empresas:          ['ver', 'crear', 'editar', 'eliminar'],
-    roles:             ['ver', 'editar'],
-  },
-  admin: {
-    dashboard:         ['ver'],
-    clientes_gpon:     ['ver', 'crear', 'editar'],
-    clientes_postpago: ['ver', 'crear', 'editar'],
-    prospectos:        ['ver', 'asignar', 'contactar'],
-    interphone:        ['ver', 'llamar'],
-    nomina:            ['ver', 'crear', 'aprobar', 'pagar', 'editar'],
-    adelantos:         ['ver', 'aprobar', 'rechazar'],
-    inventario_sim:    ['ver', 'agregar', 'asignar'],
-    oferta_comercial:  ['ver', 'crear', 'editar', 'eliminar'],
-    configuracion:     ['ver', 'usuarios', 'equipos', 'metas'],
-    empresas:          [],
-    roles:             [],
-  },
-  teamlead: {
-    dashboard:         ['ver'],
-    clientes_gpon:     ['ver', 'crear', 'editar'],
-    clientes_postpago: ['ver', 'crear', 'editar'],
-    prospectos:        ['ver', 'solicitar', 'contactar'],
-    interphone:        ['ver', 'llamar'],
-    nomina:            ['ver'],
-    adelantos:         ['ver', 'crear'],
-    inventario_sim:    [],
-    oferta_comercial:  [],
-    configuracion:     [],
-    empresas:          [],
-    roles:             [],
-  },
-  user: {
-    dashboard:         ['ver'],
-    clientes_gpon:     ['ver', 'crear'],
-    clientes_postpago: ['ver', 'crear'],
-    prospectos:        ['ver', 'solicitar', 'contactar'],
-    interphone:        ['ver', 'llamar'],
-    nomina:            ['ver'],
-    adelantos:         ['ver', 'crear'],
-    inventario_sim:    [],
-    oferta_comercial:  [],
-    configuracion:     [],
-    empresas:          [],
-    roles:             [],
-  },
-  developer: {
-    dashboard:         [],
-    clientes_gpon:     [],
-    clientes_postpago: [],
-    prospectos:        [],
-    interphone:        [],
-    nomina:            [],
-    adelantos:         [],
-    inventario_sim:    [],
-    oferta_comercial:  [],
-    configuracion:     ['ver', 'api'],
-    empresas:          [],
-    roles:             [],
-  },
-};
+export { PANTALLAS_CONFIG, ROLES_SISTEMA, DEFAULTS } from '@/lib/permisos-config';
+export type { PantallaId, RolSistema } from '@/lib/permisos-config';
+import { DEFAULTS } from '@/lib/permisos-config';
 
 // ─── Cache en proceso ─────────────────────────────────────────────────────────
 //
