@@ -10,6 +10,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!isAdmin(session.role)) return res.status(403).json({ error: 'Sin permiso' });
 
   if (req.method === 'GET') {
+    if (!(await hasPermiso(session.role, 'inventario_sim', 'ver'))) {
+      return res.status(403).json({ error: 'Sin permiso para ver el inventario de SIMs' });
+    }
     const sims = await prisma.simCard.findMany({ orderBy: { numero: 'asc' } });
     return res.status(200).json({ sims });
   }

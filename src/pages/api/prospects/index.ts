@@ -2,6 +2,7 @@ import { isSuperAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
@@ -9,6 +10,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     try {
+      if (!(await hasPermiso(session.role, 'prospectos', 'ver'))) {
+        return res.status(403).json({ error: 'Sin permiso para ver prospectos' });
+      }
+
       const { search, asignadoA, metodoContacto, tipo, mostrarContactados, page = '1', limit = '15' } = req.query;
 
       const where: any = {};

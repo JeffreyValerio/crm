@@ -2,6 +2,7 @@ import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(
   req: NextApiRequest,
@@ -17,6 +18,10 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
+      if (!(await hasPermiso(session.role, 'adelantos', 'ver'))) {
+        return res.status(403).json({ error: 'Sin permiso para ver adelantos' });
+      }
+
       const advance = await prisma.advance.findUnique({
         where: { id: id as string },
         include: {

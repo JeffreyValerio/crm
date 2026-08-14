@@ -19,6 +19,12 @@ export default async function handler(
     try {
       const { tipo, validationStatus, saleStatus, createdBy, search, year, month, page = '1', limit = '10' } = req.query;
 
+      // Verificar permiso de lectura según tipo solicitado
+      const pantallaVer = tipo === 'POSTPAGO' ? 'clientes_postpago' : 'clientes_gpon';
+      if (!(await hasPermiso(session.role, pantallaVer, 'ver'))) {
+        return res.status(403).json({ error: 'Sin permiso para ver clientes' });
+      }
+
       const conditions: object[] = [];
 
       // Filtro por tipo (FIBRA / POSTPAGO) — aplica a todos los roles

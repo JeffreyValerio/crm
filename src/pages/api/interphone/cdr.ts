@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { isAdmin } from '@/lib/roles';
+import { hasPermiso } from '@/lib/permisos';
 
 interface VinculoInfo {
   tipo: 'prospecto' | 'cliente';
@@ -18,6 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'No autenticado' });
+  if (!(await hasPermiso(session.role, 'interphone', 'ver'))) {
+    return res.status(403).json({ error: 'Sin permiso para ver Interphone' });
+  }
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session.userId },

@@ -16,6 +16,10 @@ export default async function handler(
 
   if (req.method === 'GET') {
     try {
+      if (!(await hasPermiso(session.role, 'adelantos', 'ver'))) {
+        return res.status(403).json({ error: 'Sin permiso para ver adelantos' });
+      }
+
       const where: any = {};
 
       // Si no es admin, solo puede ver sus propios adelantos
