@@ -25,45 +25,49 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
   userOnly?: boolean;
-  roles?: string[]; // si se define, solo esos roles ven el item
+  roles?: string[];   // si se define, solo esos roles ven el item (hard gate)
+  pantalla?: string;  // si se define, se exige permiso 'ver' en esa pantalla (DB gate)
 }
 
 interface NavSection {
   title: string;
   items: NavItem[];
   adminOnly?: boolean;
-  roles?: string[]; // si se define, solo esos roles ven la sección
+  roles?: string[];   // hard gate a nivel sección
 }
 
 const navSections: NavSection[] = [
   {
     title: 'Principal',
     items: [
-  {
-    title: 'Dashboard',
-    href: '/',
-    icon: LayoutDashboard,
+      {
+        title: 'Dashboard',
+        href: '/',
+        icon: LayoutDashboard,
+        pantalla: 'dashboard',
       },
     ],
   },
   {
     title: 'Operaciones',
     items: [
-  {
-    title: 'Clientes',
-    href: '/clients',
-    icon: UserCircle,
-  },
+      {
+        title: 'Clientes',
+        href: '/clients',
+        icon: UserCircle,
+        pantalla: 'clientes_gpon',
+      },
       {
         title: 'Prospectos',
         href: '/prospects',
         icon: Target,
+        pantalla: 'prospectos',
       },
       {
         title: 'Postpago',
         href: '/clientes-postpago',
         icon: Wifi,
-        roles: ['admin', 'superadmin'],
+        pantalla: 'clientes_postpago',
       },
     ],
   },
@@ -74,6 +78,7 @@ const navSections: NavSection[] = [
         title: 'Interphone',
         href: '/interphone',
         icon: Phone,
+        pantalla: 'interphone',
       },
     ],
   },
@@ -102,22 +107,21 @@ const navSections: NavSection[] = [
         title: 'Inventario SIM',
         href: '/sims',
         icon: Cpu,
-        adminOnly: true,
+        pantalla: 'inventario_sim',
       },
       {
         title: 'Oferta Comercial',
         href: '/plans',
         icon: Package,
-        adminOnly: true,
+        pantalla: 'oferta_comercial',
       },
       {
         title: 'Configuración',
         href: '/configuracion',
         icon: Settings,
-        roles: ['admin', 'superadmin', 'developer'],
+        pantalla: 'configuracion',
       },
     ],
-    roles: ['admin', 'superadmin', 'developer'],
   },
 ];
 
@@ -132,6 +136,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const [empresaNombre, setEmpresaNombre] = React.useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  // Permisos del usuario actual, indexados por pantalla → acciones[]
+  const [permisos, setPermisos] = React.useState<Record<string, string[]>>({});
 
   React.useEffect(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
@@ -140,11 +146,18 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
 
   React.useEffect(() => {
     async function checkRole() {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const data = await response.json();
+      const [meRes, permisosRes] = await Promise.all([
+        fetch('/api/auth/me'),
+        fetch('/api/mis-permisos'),
+      ]);
+      if (meRes.ok) {
+        const data = await meRes.json();
         setUserRole(data.user?.role || null);
         setEmpresaNombre(data.user?.empresaNombre || null);
+      }
+      if (permisosRes.ok) {
+        const data = await permisosRes.json();
+        setPermisos(data.permisos ?? {});
       }
       setRoleLoaded(true);
     }
@@ -162,22 +175,30 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     router.push('/login');
   };
 
-  const filteredSections = navSections.filter((section) => {
-    // Developer solo ve secciones explícitamente marcadas para él
-    if (userRole === 'developer' && (!section.roles || !section.roles.includes('developer'))) return false;
-    if (section.roles && userRole && !section.roles.includes(userRole)) return false;
-    if (section.adminOnly && !isAdmin(userRole)) return false;
-    // Filtrar items dentro de cada sección
-    const filteredItems = section.items.filter((item) => {
-      if (userRole === 'developer' && item.roles && !item.roles.includes('developer')) return false;
-      if (item.roles && userRole && !item.roles.includes(userRole)) return false;
-      if (item.adminOnly && !isAdmin(userRole)) return false;
-      if (item.userOnly && isAdmin(userRole)) return false;
-      return true;
+  /** Determina si un item es visible para el usuario actual */
+  function itemVisible(item: NavItem): boolean {
+    // Hard gate por rol (Empresas, Roles, etc.)
+    if (item.roles && userRole && !item.roles.includes(userRole)) return false;
+    if (item.adminOnly && !isAdmin(userRole)) return false;
+    if (item.userOnly && isAdmin(userRole)) return false;
+
+    // Gate dinámico por permiso 'ver' en la pantalla correspondiente
+    if (item.pantalla) {
+      const acciones: string[] = permisos[item.pantalla] ?? [];
+      if (!acciones.includes('ver')) return false;
+    }
+
+    return true;
+  }
+
+  const filteredSections = navSections
+    .filter((section) => {
+      // Hard gate de sección (ej: Administración solo superadmin)
+      if (section.roles && userRole && !section.roles.includes(userRole)) return false;
+      if (section.adminOnly && !isAdmin(userRole)) return false;
+      // La sección se muestra si al menos un item es visible
+      return section.items.some(itemVisible);
     });
-    // Solo mostrar la sección si tiene items visibles
-    return filteredItems.length > 0;
-  });
 
   // En móvil, cerrar al navegar
   const handleNavClick = () => {
@@ -220,15 +241,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       </div>
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
         {!roleLoaded ? null : filteredSections.map((section, sectionIndex) => {
-          const filteredItems = section.items.filter((item) => {
-            if (item.adminOnly && !isAdmin(userRole)) {
-              return false;
-            }
-            if (item.userOnly && isAdmin(userRole)) {
-              return false;
-            }
-            return true;
-          });
+          const filteredItems = section.items.filter(itemVisible);
 
           if (filteredItems.length === 0) return null;
 
