@@ -1,4 +1,4 @@
-import { isAdmin } from '@/lib/roles';
+import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -30,6 +30,21 @@ export default async function handler(
         if (validationStatus) conditions.push({ validationStatus });
         if (saleStatus) conditions.push({ saleStatus });
         if (createdBy) conditions.push({ createdBy });
+
+        // Admin solo ve clientes de usuarios de su empresa; superadmin ve todos
+        if (!isSuperAdmin(session.role)) {
+          const me = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { empresaId: true },
+          });
+          if (me?.empresaId) {
+            const empresaUserIds = await prisma.user.findMany({
+              where: { empresaId: me.empresaId },
+              select: { id: true },
+            });
+            conditions.push({ createdBy: { in: empresaUserIds.map(u => u.id) } });
+          }
+        }
       } else {
         conditions.push({ createdBy: session.userId });
       }
