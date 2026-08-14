@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { resolveEquipoUserIds } from '@/lib/equipo-filter';
+import { excludeTestUsersFromClients, excludeTestUsers } from '@/lib/excluded-users';
 
 const DEFAULT_META_POR_MES = 8;
 
@@ -72,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     : null;
 
-  const conditions = [creatorCondition, periodCondition].filter(Boolean) as object[];
+  const conditions = [creatorCondition, periodCondition, excludeTestUsersFromClients].filter(Boolean) as object[];
   const where: object =
     conditions.length === 0 ? {} :
     conditions.length === 1 ? conditions[0] :
@@ -139,7 +140,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const userIds = [...new Set(complianceRaw.map(r => r.createdBy))];
       const [users, userKpis, globalKpis] = await Promise.all([
         prisma.user.findMany({
-          where: { id: { in: userIds } },
+          where: { id: { in: userIds }, ...excludeTestUsers },
           select: { id: true, email: true, nombre: true, apellidos: true },
         }),
         periodosInvolucrados.length > 0

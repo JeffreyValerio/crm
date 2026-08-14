@@ -1,4 +1,5 @@
 import { isAdmin } from '@/lib/roles';
+import { EXCLUDED_USER_EMAILS } from '@/lib/excluded-users';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
@@ -155,12 +156,16 @@ export default function HomePage() {
       const response = await fetch('/api/users');
       if (response.ok) {
         const data = await response.json();
-        setUsers(data.users?.map((u: { id: string; email: string; nombre?: string; apellidos?: string }) => ({
-          id: u.id,
-          email: u.email,
-          nombre: u.nombre,
-          apellidos: u.apellidos,
-        })) || []);
+        setUsers(
+          (data.users ?? [])
+            .filter((u: { email: string }) => !EXCLUDED_USER_EMAILS.includes(u.email))
+            .map((u: { id: string; email: string; nombre?: string; apellidos?: string }) => ({
+              id: u.id,
+              email: u.email,
+              nombre: u.nombre,
+              apellidos: u.apellidos,
+            }))
+        );
       }
     } catch (error) {
       console.error('Error loading users:', error);

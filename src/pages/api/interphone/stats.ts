@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { hasPermiso } from '@/lib/permisos';
+import { excludeTestUsers } from '@/lib/excluded-users';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -50,11 +51,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     periodoStr = startDate.toISOString().slice(0, 10);
   }
 
-  // Users with extensions
+  // Users with extensions (excluir cuentas de prueba)
   const users = await prisma.user.findMany({
     where: extensionFilter
-      ? { extension: extensionFilter }
-      : { extension: { not: null } },
+      ? { extension: extensionFilter, ...excludeTestUsers }
+      : { extension: { not: null }, ...excludeTestUsers },
     select: { id: true, nombre: true, apellidos: true, email: true, extension: true },
     orderBy: { nombre: 'asc' },
   });

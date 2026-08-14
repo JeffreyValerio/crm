@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { resolveEquipoUserIds } from '@/lib/equipo-filter';
+import { excludeTestUsersFromClients } from '@/lib/excluded-users';
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -31,6 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const registrados = await prisma.client.findMany({
       where: {
         ...creatorFilter,
+        ...excludeTestUsersFromClients,
         createdAt: {
           gte: new Date(Date.UTC(y, 0, 1)),
           lt: new Date(Date.UTC(y + 1, 0, 1)),
@@ -43,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const instalados = await prisma.client.findMany({
       where: {
         ...creatorFilter,
+        ...excludeTestUsersFromClients,
         saleStatus: 'INSTALADA',
         instaladaAt: {
           gte: new Date(Date.UTC(y, 0, 1)),
@@ -66,6 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const instPorVendedor = await prisma.client.findMany({
         where: {
           ...creatorFilter,
+          ...excludeTestUsersFromClients,
           saleStatus: 'INSTALADA',
           instaladaAt: {
             gte: new Date(Date.UTC(y, 0, 1)),
@@ -107,6 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             (await prisma.client.findMany({
               where: {
                 ...creatorFilter,
+                ...excludeTestUsersFromClients,
                 saleStatus: 'INSTALADA',
                 instaladaAt: {
                   gte: new Date(Date.UTC(y, 0, 1)),
