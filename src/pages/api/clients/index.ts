@@ -2,6 +2,7 @@ import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { clientesCreados } from '@/lib/metrics';
 
 export default async function handler(
   req: NextApiRequest,
@@ -202,6 +203,7 @@ export default async function handler(
         },
       });
 
+      clientesCreados.inc({ tipo: isPostpago ? 'POSTPAGO' : 'FIBRA' });
       return res.status(201).json({ client });
     } catch (error: any) {
       console.error('Error creating client:', error);

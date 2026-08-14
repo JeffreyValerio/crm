@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s       # cada cuánto raspa métricas
+  evaluation_interval: 15s   # cada cuánto evalúa reglas de alerta
+
+scrape_configs:
+  # Prometheus se monitorea a sí mismo
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Métricas del servidor (CPU, RAM, disco, red)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Métricas de PostgreSQL (Railway u otro)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Métricas del proceso Next.js
+  - job_name: 'crm-app'
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+    metrics_path: '/api/metrics'
+    bearer_token_file: /etc/prometheus/metrics_token

@@ -46,3 +46,7 @@ scripts/data.json
 .sync-start.json
 .sync-stats.json
 .sync-import-stats.json
+
+# Monitoring
+monitoring/metrics_token
+monitoring/grafana/data/

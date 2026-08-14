@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { prospectosSolicitados } from '@/lib/metrics';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
@@ -54,5 +55,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     data: { asignadoA: session.userId, asignadoAt: new Date() },
   });
 
+  prospectosSolicitados.inc({ tipo: tipoValido });
   return res.status(200).json({ asignados: ids.length, tipo: tipoValido });
 }
