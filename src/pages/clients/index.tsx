@@ -216,6 +216,8 @@ export default function ClientsPage() {
   const selectedProvince = watch('provincia');
   const selectedCanton = watch('canton');
   const isPostpago = editingClient ? editingClient.tipo === 'POSTPAGO' : newClientType === 'POSTPAGO';
+  const isFullClaro = !isPostpago && productTypes.find(pt => pt.id === selectedProductType)?.nombre?.toUpperCase().startsWith('FULL CLARO') === true;
+  const needsSim = isPostpago || isFullClaro;
   const filteredPlans = selectedProductType
     ? plans.filter((p) => p.productTypeId === selectedProductType && p.activo)
     : [];
@@ -633,7 +635,8 @@ export default function ClientsPage() {
       const res = await fetch('/api/sims/disponible');
       if (!res.ok) { toast.error('No hay SIMs disponibles en inventario'); return; }
       const data = await res.json();
-      setValue('numeroMedidor', data.sim.numero);
+      // Solo para postpago el número SIM va al campo de medidor
+      if (isPostpago) setValue('numeroMedidor', data.sim.numero);
       if (data.sim.fotoUrl) setValue('simUrl', data.sim.fotoUrl);
       setSelectedSimId(data.sim.id);
       toast.success(`SIM ${data.sim.numero} asignada`);
@@ -660,8 +663,8 @@ export default function ClientsPage() {
         coordenadasLat: data.coordenadasLat?.trim() || null,
         coordenadasLng: data.coordenadasLng?.trim() || null,
         numeroMedidor: data.numeroMedidor || null,
-        simUrl: isPostpago ? (data.simUrl || null) : null,
-        simCedulaUrl: isPostpago ? (data.simCedulaUrl || null) : null,
+        simUrl: needsSim ? (data.simUrl || null) : null,
+        simCedulaUrl: needsSim ? (data.simCedulaUrl || null) : null,
         postpagoStatus: isPostpago ? (data.postpagoStatus || 'PENDIENTE_ACTIVACION') : undefined,
         tipoPlanPostpago: isPostpago ? (data.tipoPlanPostpago || null) : null,
       };
@@ -1574,7 +1577,7 @@ Comentario: En espera de Instalacion`;
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">
-                      {isPostpago ? 'Selfie con SIM y Cédula' : 'Selfie'} <span className="text-destructive">*</span>
+                      {needsSim ? 'Selfie con SIM y Cédula' : 'Selfie'} <span className="text-destructive">*</span>
                     </label>
                     {watch('selfieUrl') ? (
                       <div className="relative">
@@ -1629,7 +1632,7 @@ Comentario: En espera de Instalacion`;
                     )}
                   </div>
                 </div>
-                {isPostpago && (
+                {needsSim && (
                   <div className="grid gap-4 md:grid-cols-3 mt-4">
                     <div>
                       <label className="text-sm font-medium mb-2 block">SIM y Cédula</label>
@@ -2226,7 +2229,7 @@ Comentario: En espera de Instalacion`;
                           )}
                         </Button>
                       </div>
-                      {isPostpago && !editingClient && (
+                      {needsSim && !editingClient && (
                         <Button
                           type="button"
                           variant="outline"
