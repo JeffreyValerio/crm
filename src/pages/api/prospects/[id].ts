@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { sendProspectosAsignadosEmail } from '@/lib/mail';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
@@ -43,6 +44,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Solo admin puede asignar
     if (asignadoA !== undefined && !isAdmin(session.role)) {
       return res.status(403).json({ error: 'Solo administradores pueden asignar' });
+    }
+    if (asignadoA !== undefined && !(await hasPermiso(session.role, 'prospectos', 'asignar'))) {
+      return res.status(403).json({ error: 'Sin permiso para asignar prospectos' });
     }
 
     // Solo admin o el agente asignado pueden editar observaciones

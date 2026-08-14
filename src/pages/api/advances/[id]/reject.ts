@@ -2,6 +2,7 @@ import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(
   req: NextApiRequest,
@@ -16,6 +17,10 @@ export default async function handler(
   // Solo admin puede rechazar adelantos
   if (!isAdmin(session.role)) {
     return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  if (!(await hasPermiso(session.role, 'adelantos', 'rechazar'))) {
+    return res.status(403).json({ error: 'Sin permiso para rechazar adelantos' });
   }
 
   const { id } = req.query;

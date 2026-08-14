@@ -2,6 +2,7 @@ import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(
   req: NextApiRequest,
@@ -66,6 +67,10 @@ export default async function handler(
 
   if (req.method === 'POST') {
     try {
+      if (!(await hasPermiso(session.role, 'adelantos', 'crear'))) {
+        return res.status(403).json({ error: 'Sin permiso para solicitar adelantos' });
+      }
+
       const { monto, observaciones } = req.body;
 
       if (!monto || monto <= 0) {

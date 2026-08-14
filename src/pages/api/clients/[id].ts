@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import cloudinary from '@/lib/cloudinary';
 import { sendStatusNotificationEmail } from '@/lib/mail';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(
   req: NextApiRequest,
@@ -115,6 +116,12 @@ export default async function handler(
       // Usuarios no admin solo pueden editar sus propios clientes
       if (!isAdmin(session.role) && currentClient.createdBy !== session.userId) {
         return res.status(403).json({ error: 'No tienes permiso para editar este cliente' });
+      }
+
+      // Verificar permiso por tipo de cliente
+      const pantallaEdit = currentClient.tipo === 'POSTPAGO' ? 'clientes_postpago' : 'clientes_gpon';
+      if (!(await hasPermiso(session.role, pantallaEdit, 'editar'))) {
+        return res.status(403).json({ error: 'Sin permiso para editar clientes' });
       }
 
       // Preparar datos para actualizar
@@ -374,6 +381,12 @@ export default async function handler(
       // Usuarios no admin solo pueden eliminar sus propios clientes
       if (!isAdmin(session.role) && client.createdBy !== session.userId) {
         return res.status(403).json({ error: 'No tienes permiso para eliminar este cliente' });
+      }
+
+      // Verificar permiso de eliminar
+      const pantallaDelete = client.tipo === 'POSTPAGO' ? 'clientes_postpago' : 'clientes_gpon';
+      if (!(await hasPermiso(session.role, pantallaDelete, 'eliminar'))) {
+        return res.status(403).json({ error: 'Sin permiso para eliminar clientes' });
       }
 
       // Función helper para eliminar imagen de Cloudinary

@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { clientesCreados } from '@/lib/metrics';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(
   req: NextApiRequest,
@@ -135,6 +136,12 @@ export default async function handler(
 
   if (req.method === 'POST') {
     try {
+      const isPostpagoBody = req.body?.tipo === 'POSTPAGO';
+      const pantalla = isPostpagoBody ? 'clientes_postpago' : 'clientes_gpon';
+      if (!(await hasPermiso(session.role, pantalla, 'crear'))) {
+        return res.status(403).json({ error: 'Sin permiso para crear clientes' });
+      }
+
       const {
         tipo,
         nombres,

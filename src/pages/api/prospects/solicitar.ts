@@ -2,13 +2,16 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
 import { prospectosSolicitados } from '@/lib/metrics';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   const session = await getSession(req, res);
   if (!session.userId) return res.status(401).json({ error: 'No autenticado' });
-  if (session.role !== 'user' && session.role !== 'teamlead') return res.status(403).json({ error: 'Sin permiso para solicitar prospectos' });
+  if (!(await hasPermiso(session.role, 'prospectos', 'solicitar'))) {
+    return res.status(403).json({ error: 'Sin permiso para solicitar prospectos' });
+  }
 
   const { tipo = 'GPON' } = req.body as { tipo?: string };
   const tipoValido = ['GPON', 'POSTPAGO', 'META'].includes(tipo) ? tipo : 'GPON';

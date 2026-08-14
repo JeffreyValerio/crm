@@ -161,10 +161,11 @@ export async function getAcciones(rol: string, pantalla: string): Promise<string
  *   }
  */
 export async function hasPermiso(
-  rol: string,
+  rol: string | undefined | null,
   pantalla: string,
   accion: string,
 ): Promise<boolean> {
+  if (!rol) return false;
   const acciones = await getAcciones(rol, pantalla);
   return acciones.includes(accion);
 }

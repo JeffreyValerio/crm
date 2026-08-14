@@ -2,6 +2,7 @@ import { isAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { hasPermiso } from '@/lib/permisos';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession(req, res);
@@ -14,6 +15,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
+    if (!(await hasPermiso(session.role, 'inventario_sim', 'agregar'))) {
+      return res.status(403).json({ error: 'Sin permiso para agregar SIMs' });
+    }
+
     const { numero, fotoUrl, fotoPublicId } = req.body;
     if (!numero?.trim()) return res.status(400).json({ error: 'El número de SIM es requerido' });
 
