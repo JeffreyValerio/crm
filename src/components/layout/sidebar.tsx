@@ -16,6 +16,7 @@ import {
   Wifi,
   Cpu,
   Building2,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface NavItem {
@@ -83,6 +84,12 @@ const navSections: NavSection[] = [
         title: 'Empresas',
         href: '/empresas',
         icon: Building2,
+        roles: ['superadmin'],
+      },
+      {
+        title: 'Roles',
+        href: '/roles',
+        icon: ShieldCheck,
         roles: ['superadmin'],
       },
     ],

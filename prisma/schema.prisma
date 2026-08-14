@@ -385,6 +385,16 @@ model CdrLlamada {
   @@index([destino])
 }
 
+model RolPermiso {
+  id       String   @id @default(cuid())
+  rol      String   // superadmin | admin | teamlead | user | developer
+  pantalla String   // dashboard | clientes_gpon | prospectos | ...
+  acciones String[] // ['ver', 'crear', 'editar', ...]
+
+  @@unique([rol, pantalla])
+  @@index([rol])
+}
+
 model ApiKey {
   id            String    @id @default(cuid())
   keyHash       String    @unique
