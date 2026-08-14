@@ -11,14 +11,15 @@ datasource db {
 }
 
 model Empresa {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   nombre    String
   logoUrl   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   usuarios  User[]
   equipos   Equipo[]
   metaVenta EmpresaMetaVenta?
+  sims      SimCard[]
 }
 
 model EmpresaMetaVenta {
@@ -412,8 +413,11 @@ model SimCard {
   fotoPublicId String?
   estado       String   @default("SIN_ASIGNAR")
   provincia    String?
+  empresaId    String?
+  empresa      Empresa? @relation(fields: [empresaId], references: [id])
   createdAt    DateTime @default(now())
 
   @@index([estado])
   @@index([provincia])
+  @@index([empresaId])
 }
