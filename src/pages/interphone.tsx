@@ -68,6 +68,7 @@ export default function InterphonePage() {
   const [tab, setTab]             = useState<'stats' | 'cdr'>('stats');
   const [loading, setLoading]     = useState(true);
   const [userIsAdmin, setUserIsAdmin]     = useState(false);
+  const [empresaNombre, setEmpresaNombre] = useState<string | null>(null);
   const [rows, setRows]           = useState<StatRow[]>([]);
   const [periodo, setPeriodo]     = useState('');
   const [vendors, setVendors]     = useState<VendorOption[]>([]);
@@ -129,6 +130,7 @@ export default function InterphonePage() {
   useEffect(() => {
     fetch('/api/auth/me').then(r => r.json()).then(({ user }) => {
       if (!user) { router.push('/login'); return; }
+      setEmpresaNombre(user.empresaNombre ?? null);
       if (isAdmin(user.role)) {
         fetch('/api/users').then(r => r.json()).then(({ users }) => {
           setVendors(
@@ -188,7 +190,7 @@ export default function InterphonePage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">Interphone</h1>
+          <h1 className="text-2xl font-bold">{empresaNombre?.toUpperCase() === 'PIKI' ? 'Call My Way' : 'Interphone'}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {tab === 'stats' ? 'Estadísticas de llamadas por extensión' : 'Registro detallado de llamadas (CDR)'}
           </p>
