@@ -12,6 +12,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { tipo = 'GPON' } = req.body as { tipo?: string };
   const tipoValido = ['GPON', 'POSTPAGO', 'META'].includes(tipo) ? tipo : 'GPON';
 
+  // Usuarios de PIKI no pueden solicitar prospectos GPON
+  if (tipoValido === 'GPON') {
+    const me = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { empresa: { select: { nombre: true } } },
+    });
+    if (me?.empresa?.nombre?.toUpperCase() === 'PIKI') {
+      return res.status(403).json({ error: 'Tu empresa no tiene acceso a prospectos GPON.' });
+    }
+  }
+
   // Verificar que no tiene prospectos sin contactar del mismo tipo
   const sinContactar = await prisma.prospecto.count({
     where: { asignadoA: session.userId, totalContactos: 0, tipo: tipoValido },

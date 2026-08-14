@@ -26,6 +26,7 @@ export default async function handler(
         nombre: true,
         apellidos: true,
         role: true,
+        empresa: { select: { nombre: true } },
       },
     });
 
@@ -40,6 +41,7 @@ export default async function handler(
         nombre: user.nombre,
         apellidos: user.apellidos,
         role: user.role,
+        empresaNombre: user.empresa?.nombre ?? null,
       },
     });
   } catch (error) {

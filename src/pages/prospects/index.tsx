@@ -135,7 +135,7 @@ export default function ProspectsPage() {
   const [loading, setLoading] = useState(true);
   const [prospectos, setProspectos] = useState<Prospecto[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [session, setSession] = useState<{ role: string; userId: string } | null>(null);
+  const [session, setSession] = useState<{ role: string; userId: string; empresaNombre: string | null } | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('GPON');
   const [puedesSolicitar, setPuedesSolicitar] = useState(false);
   const [solicitandoProspectos, setSolicitandoProspectos] = useState(false);
@@ -427,6 +427,8 @@ export default function ProspectsPage() {
   const canAssign = isAdmin(session.role);
   const canSeeAgentCol = isAdmin(session.role) || session.role === 'teamlead';
   const isVendedor = session.role === 'user' || session.role === 'teamlead';
+  const esPiki = session.empresaNombre?.toUpperCase() === 'PIKI';
+  const puedesSolicitarEnTab = isVendedor && !(esPiki && activeTab === 'GPON');
 
   function getTipEtiqueta(valor: string | null | undefined): string {
     if (!valor) return '—';
@@ -463,8 +465,8 @@ export default function ProspectsPage() {
                 {mostrarContactados ? 'Ver pendientes' : 'Ver contactados'}
               </Button>
             )}
-            {/* Botón Solicitar — solo cuando están en vista pendientes y pueden solicitar */}
-            {isVendedor && !mostrarContactados && puedesSolicitar && (
+            {/* Botón Solicitar — solo cuando están en vista pendientes, pueden solicitar, y el tab lo permite */}
+            {puedesSolicitarEnTab && !mostrarContactados && puedesSolicitar && (
               <Button
                 onClick={handleSolicitarProspectos}
                 disabled={solicitandoProspectos}
