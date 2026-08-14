@@ -1,4 +1,4 @@
-import { isAdmin } from '@/lib/roles';
+import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -22,7 +22,7 @@ export default async function handler(
 
   if (req.method === 'PUT') {
     try {
-      const { password, extension, codigoVendedor } = req.body;
+      const { password, extension, codigoVendedor, role, empresaId } = req.body;
       const data: Record<string, unknown> = {};
 
       if (password !== undefined) {
@@ -38,6 +38,22 @@ export default async function handler(
 
       if (codigoVendedor !== undefined) {
         data.codigoVendedor = codigoVendedor || null;
+      }
+
+      // Solo superadmin puede cambiar rol y empresa
+      if (isSuperAdmin(session.role)) {
+        if (role !== undefined) {
+          const rolesValidos = ['superadmin', 'admin', 'teamlead', 'user', 'developer', 'inactive'];
+          if (!rolesValidos.includes(role)) return res.status(400).json({ error: 'Rol inválido' });
+          // No puede quitarse el superadmin a sí mismo
+          if (id === session.userId && role !== 'superadmin') {
+            return res.status(400).json({ error: 'No podés cambiar tu propio rol' });
+          }
+          data.role = role;
+        }
+        if (empresaId !== undefined) {
+          data.empresaId = empresaId || null;
+        }
       }
 
       if (Object.keys(data).length === 0) {

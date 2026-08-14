@@ -45,7 +45,16 @@ function displayName(u: User) {
 
 // ── Tab Usuarios ─────────────────────────────────────────────────────────────
 
-function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => void }) {
+interface Empresa { id: string; nombre: string; }
+
+function TabUsuarios({ users, onRefresh, superAdmin }: { users: User[]; onRefresh: () => void; superAdmin: boolean }) {
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+
+  useEffect(() => {
+    if (!superAdmin) return;
+    fetch('/api/empresas').then(r => r.json()).then(d => setEmpresas(d.empresas ?? []));
+  }, [superAdmin]);
+
   const [inviteOpen, setInviteOpen]     = useState(false);
   const [inviteEmail, setInviteEmail]   = useState('');
   const [inviteRole, setInviteRole]     = useState<'user' | 'teamlead' | 'admin' | 'developer'>('user');
@@ -58,6 +67,8 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
   const [extUser, setExtUser]           = useState<User | null>(null);
   const [editExtension, setEditExtension] = useState('');
   const [editCodigoVendedor, setEditCodigoVendedor] = useState('');
+  const [editRole, setEditRole]         = useState('');
+  const [editEmpresaId, setEditEmpresaId] = useState('');
   const [extLoading, setExtLoading]     = useState(false);
 
   const [passOpen, setPassOpen]         = useState(false);
@@ -96,14 +107,16 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
     if (!extUser) return;
     setExtLoading(true);
     try {
+      const body: Record<string, string> = { extension: editExtension, codigoVendedor: editCodigoVendedor };
+      if (superAdmin) { body.role = editRole; body.empresaId = editEmpresaId; }
       const res = await fetch(`/api/users/${extUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extension: editExtension, codigoVendedor: editCodigoVendedor }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { const d = await res.json(); toast.error(d.error || 'Error'); return; }
       toast.success('Datos actualizados');
-      setExtOpen(false); setExtUser(null); setEditExtension(''); setEditCodigoVendedor('');
+      setExtOpen(false); setExtUser(null); setEditExtension(''); setEditCodigoVendedor(''); setEditRole(''); setEditEmpresaId('');
       onRefresh();
     } catch { toast.error('Error al procesar'); }
     finally { setExtLoading(false); }
@@ -173,7 +186,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
             </div>
             <div className="flex gap-0.5 flex-shrink-0">
               <Button variant="ghost" size="icon" className="h-8 w-8" title="Extensión"
-                onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setEditCodigoVendedor(u.codigoVendedor ?? ''); setExtOpen(true); }}>
+                onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setEditCodigoVendedor(u.codigoVendedor ?? ''); setEditRole(u.role); setEditEmpresaId(u.empresa?.id ?? ''); setExtOpen(true); }}>
                 <Edit className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8" title="Cambiar contraseña"
@@ -197,6 +210,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
               <TableRow>
                 <TableHead>Usuario</TableHead>
                 <TableHead>Email</TableHead>
+                {superAdmin && <TableHead>Empresa</TableHead>}
                 <TableHead>Extensión</TableHead>
                 <TableHead>Cód. Vendedor</TableHead>
                 <TableHead>Estado</TableHead>
@@ -207,11 +221,16 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
-                <TableEmptyState colSpan={8} message="No hay usuarios registrados" />
+                <TableEmptyState colSpan={superAdmin ? 9 : 8} message="No hay usuarios registrados" />
               ) : users.map(u => (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{displayName(u)}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
+                  {superAdmin && (
+                    <TableCell className="text-sm text-muted-foreground">
+                      {u.empresa?.nombre ?? <span className="text-muted-foreground/40">—</span>}
+                    </TableCell>
+                  )}
                   <TableCell className="text-muted-foreground text-sm font-mono">
                     {u.extension ?? <span className="text-muted-foreground/50">—</span>}
                   </TableCell>
@@ -237,8 +256,8 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title="Extensión"
-                        onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setEditCodigoVendedor(u.codigoVendedor ?? ''); setExtOpen(true); }}>
+                      <Button variant="ghost" size="icon" title="Editar"
+                        onClick={() => { setExtUser(u); setEditExtension(u.extension ?? ''); setEditCodigoVendedor(u.codigoVendedor ?? ''); setEditRole(u.role); setEditEmpresaId(u.empresa?.id ?? ''); setExtOpen(true); }}>
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Cambiar contraseña"
@@ -331,10 +350,44 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
         <Dialog open onOpenChange={() => setExtOpen(false)}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
-              <DialogTitle>Datos del vendedor</DialogTitle>
-              <DialogDescription>{displayName(extUser)}</DialogDescription>
+              <DialogTitle>Editar usuario</DialogTitle>
+              <DialogDescription>{displayName(extUser)} · {extUser.email}</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSaveExtension} className="space-y-4">
+              {superAdmin && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Rol</label>
+                    <select
+                      value={editRole}
+                      onChange={e => setEditRole(e.target.value)}
+                      disabled={extLoading}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="user">Vendedor</option>
+                      <option value="teamlead">Team Lead</option>
+                      <option value="admin">Admin</option>
+                      <option value="superadmin">Superadmin</option>
+                      <option value="developer">Desarrollador</option>
+                      <option value="inactive">Inactivo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Empresa</label>
+                    <select
+                      value={editEmpresaId}
+                      onChange={e => setEditEmpresaId(e.target.value)}
+                      disabled={extLoading}
+                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">— Sin empresa —</option>
+                      {empresas.map(e => (
+                        <option key={e.id} value={e.id}>{e.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
               <div>
                 <label className="text-sm font-medium block mb-1">Extensión Interphone</label>
                 <Input
@@ -343,7 +396,7 @@ function TabUsuarios({ users, onRefresh }: { users: User[]; onRefresh: () => voi
                   value={editExtension}
                   onChange={e => setEditExtension(e.target.value)}
                   className="font-mono"
-                  autoFocus
+                  autoFocus={!superAdmin}
                 />
               </div>
               <div>
@@ -1734,7 +1787,7 @@ export default function ConfiguracionPage() {
 
         {/* Contenido del tab */}
         {tab === 'usuarios' && (
-          <TabUsuarios users={users} onRefresh={fetchUsers} />
+          <TabUsuarios users={users} onRefresh={fetchUsers} superAdmin={isSuperAdminUser} />
         )}
         {tab === 'equipos' && (
           <Card>
