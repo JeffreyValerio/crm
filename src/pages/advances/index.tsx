@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePermisos } from '@/contexts/permisos-context';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
 import { formatearColones } from '@/lib/formatters';
@@ -52,6 +53,7 @@ interface Advance {
 
 export default function AdvancesPage() {
   const router = useRouter();
+  const { can } = usePermisos();
   const [loading, setLoading] = useState(true);
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [currentUser, setCurrentUser] = useState<{ role?: string } | null>(null);
@@ -213,10 +215,12 @@ export default function AdvancesPage() {
               Solicita adelantos de salario y consulta el estado de tus solicitudes
             </p>
           </div>
-          <Button onClick={handleOpenRequestDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Solicitar Adelanto
-          </Button>
+          {can('adelantos', 'solicitar') && (
+            <Button onClick={handleOpenRequestDialog}>
+              <Plus className="mr-2 h-4 w-4" />
+              Solicitar Adelanto
+            </Button>
+          )}
         </div>
 
         {/* Filtros */}

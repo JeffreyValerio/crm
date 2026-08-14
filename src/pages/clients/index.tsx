@@ -1,5 +1,6 @@
 import { isAdmin } from '@/lib/roles';
 import { useEffect, useState } from 'react';
+import { usePermisos } from '@/contexts/permisos-context';
 import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -126,6 +127,7 @@ interface ClientFormData {
 
 export default function ClientsPage() {
   const router = useRouter();
+  const { can } = usePermisos();
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -977,14 +979,18 @@ Comentario: En espera de Instalacion`;
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => handleOpenDialog(undefined, 'POSTPAGO')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Plan Postpago
-            </Button>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo GPON
-            </Button>
+            {can('clientes_postpago', 'crear') && (
+              <Button variant="outline" onClick={() => handleOpenDialog(undefined, 'POSTPAGO')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Plan Postpago
+              </Button>
+            )}
+            {can('clientes_gpon', 'crear') && (
+              <Button onClick={() => handleOpenDialog()}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo GPON
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1379,17 +1385,19 @@ Comentario: En espera de Instalacion`;
                         <Eye className="h-4 w-4" />
                         Ver detalles
                       </button>
-                      <button
-                        onClick={() => {
-                          handleOpenDialog(client);
-                          setOpenMenuId(null);
-                          setMenuPosition(null);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-                      >
-                        <Edit className="h-4 w-4" />
-                        Editar
-                      </button>
+                      {can(client.tipo === 'POSTPAGO' ? 'clientes_postpago' : 'clientes_gpon', 'editar') && (
+                        <button
+                          onClick={() => {
+                            handleOpenDialog(client);
+                            setOpenMenuId(null);
+                            setMenuPosition(null);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Editar
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           handleDownloadPDF(client);
@@ -1411,20 +1419,22 @@ Comentario: En espera de Instalacion`;
                         WhatsApp
                       </button>
                       {isAdmin(currentUser?.role) && (
+                        <button
+                          onClick={() => {
+                            setReassignClientId(client.id);
+                            setReassignUserId(client.creator?.id ?? '');
+                            setReassignOriginalUserId(client.creator?.id ?? '');
+                            setOpenMenuId(null);
+                            setMenuPosition(null);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                        >
+                          <UserCheck className="h-4 w-4" />
+                          Mover a usuario
+                        </button>
+                      )}
+                      {can(client.tipo === 'POSTPAGO' ? 'clientes_postpago' : 'clientes_gpon', 'eliminar') && (
                         <>
-                          <button
-                            onClick={() => {
-                              setReassignClientId(client.id);
-                              setReassignUserId(client.creator?.id ?? '');
-                              setReassignOriginalUserId(client.creator?.id ?? '');
-                              setOpenMenuId(null);
-                              setMenuPosition(null);
-                            }}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-                          >
-                            <UserCheck className="h-4 w-4" />
-                            Mover a usuario
-                          </button>
                           <div className="h-px bg-border my-1" />
                           <button
                             onClick={() => {

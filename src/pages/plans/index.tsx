@@ -1,5 +1,6 @@
 import { isAdmin } from '@/lib/roles';
 import { useEffect, useState } from 'react';
+import { usePermisos } from '@/contexts/permisos-context';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -36,6 +37,7 @@ interface Plan {
 
 export default function PlansPage() {
   const router = useRouter();
+  const { can } = usePermisos();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'types' | 'products'>('types');
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
@@ -289,10 +291,12 @@ export default function PlansPage() {
                     Gestiona los tipos de producto (categorías padre)
                   </CardDescription>
                 </div>
-                <Button onClick={() => handleOpenTypeDialog()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nuevo Tipo
-                </Button>
+                {can('oferta_comercial', 'crear') && (
+                  <Button onClick={() => handleOpenTypeDialog()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo Tipo
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -330,20 +334,24 @@ export default function PlansPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenTypeDialog(type)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteType(type.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            {can('oferta_comercial', 'editar') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleOpenTypeDialog(type)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {can('oferta_comercial', 'eliminar') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteType(type.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -366,10 +374,12 @@ export default function PlansPage() {
                     Gestiona los productos (hijos de tipos de producto)
                   </CardDescription>
                 </div>
-                <Button onClick={() => handleOpenProductDialog()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nuevo Producto
-                </Button>
+                {can('oferta_comercial', 'crear') && (
+                  <Button onClick={() => handleOpenProductDialog()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo Producto
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -405,25 +415,29 @@ export default function PlansPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleToggleProductActive(plan.id, plan.activo)}
-                              title={plan.activo ? 'Desactivar' : 'Activar'}
-                            >
-                              {plan.activo ? (
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              ) : (
-                                <XCircle className="h-4 w-4 text-gray-600" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenProductDialog(plan)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            {can('oferta_comercial', 'editar') && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleToggleProductActive(plan.id, plan.activo)}
+                                  title={plan.activo ? 'Desactivar' : 'Activar'}
+                                >
+                                  {plan.activo ? (
+                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4 text-gray-600" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleOpenProductDialog(plan)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

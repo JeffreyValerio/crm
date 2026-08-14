@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { isAdmin } from '@/lib/roles';
+import { usePermisos } from '@/contexts/permisos-context';
 import {
   LayoutDashboard,
   LogOut,
@@ -136,8 +137,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const [empresaNombre, setEmpresaNombre] = React.useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
-  // Permisos del usuario actual, indexados por pantalla → acciones[]
-  const [permisos, setPermisos] = React.useState<Record<string, string[]>>({});
+  // Permisos desde el contexto compartido (evita fetch duplicado)
+  const { permisos, loading: permisosLoading } = usePermisos();
 
   React.useEffect(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
@@ -146,18 +147,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
 
   React.useEffect(() => {
     async function checkRole() {
-      const [meRes, permisosRes] = await Promise.all([
-        fetch('/api/auth/me'),
-        fetch('/api/mis-permisos'),
-      ]);
+      const meRes = await fetch('/api/auth/me');
       if (meRes.ok) {
         const data = await meRes.json();
         setUserRole(data.user?.role || null);
         setEmpresaNombre(data.user?.empresaNombre || null);
-      }
-      if (permisosRes.ok) {
-        const data = await permisosRes.json();
-        setPermisos(data.permisos ?? {});
       }
       setRoleLoaded(true);
     }
@@ -240,7 +234,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         )}
       </div>
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-        {!roleLoaded ? null : filteredSections.map((section, sectionIndex) => {
+        {(!roleLoaded || permisosLoading) ? null : filteredSections.map((section, sectionIndex) => {
           const filteredItems = section.items.filter(itemVisible);
 
           if (filteredItems.length === 0) return null;

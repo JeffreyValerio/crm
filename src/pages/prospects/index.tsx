@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePermisos } from '@/contexts/permisos-context';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -132,6 +133,7 @@ function diasSinContacto(p: Prospecto): number {
 
 export default function ProspectsPage() {
   const router = useRouter();
+  const { can } = usePermisos();
   const [loading, setLoading] = useState(true);
   const [prospectos, setProspectos] = useState<Prospecto[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -424,7 +426,7 @@ export default function ProspectsPage() {
   if (!session) return <TableSkeleton cols={7} rows={10} showFilters />;
 
   // ── permisos derivados ────────────────────────────────────────────────────
-  const canAssign = isAdmin(session.role);
+  const canAssign = can('prospectos', 'asignar');
   const canSeeAgentCol = isAdmin(session.role) || session.role === 'teamlead';
   const isVendedor = session.role === 'user' || session.role === 'teamlead';
   const esPiki = session.empresaNombre?.toUpperCase() === 'PIKI';

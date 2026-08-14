@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { usePermisos } from '@/contexts/permisos-context';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,7 @@ const FILTROS: { value: Filtro; label: string }[] = [
 ];
 
 export default function SimsPage() {
+  const { can } = usePermisos();
   const [loading, setLoading] = useState(true);
   const [sims, setSims] = useState<SimCard[]>([]);
   const [filtro, setFiltro] = useState<Filtro>('SIN_ASIGNAR');
@@ -143,8 +145,8 @@ export default function SimsPage() {
           </p>
         </div>
 
-        {/* Formulario agregar */}
-        <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-start flex-wrap">
+        {/* Formulario agregar — solo si tiene permiso */}
+        {can('inventario_sim', 'agregar') && <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-start flex-wrap">
           <Input
             placeholder="Número de SIM"
             value={numero}
@@ -195,7 +197,7 @@ export default function SimsPage() {
           <Button type="submit" disabled={saving || uploading || !numero.trim()}>
             {saving ? 'Guardando...' : 'Agregar'}
           </Button>
-        </form>
+        </form>}
 
         {/* Filtros */}
         <div className="flex flex-wrap gap-2 items-center">
@@ -280,17 +282,19 @@ export default function SimsPage() {
                       {new Date(sim.createdAt).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(sim)}
-                        disabled={deletingId === sim.id}
-                        className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                      >
-                        {deletingId === sim.id
-                          ? <Loader2 className="h-4 w-4 animate-spin" />
-                          : <Trash2 className="h-4 w-4" />}
-                      </Button>
+                      {can('inventario_sim', 'agregar') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(sim)}
+                          disabled={deletingId === sim.id}
+                          className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                        >
+                          {deletingId === sim.id
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <Trash2 className="h-4 w-4" />}
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
