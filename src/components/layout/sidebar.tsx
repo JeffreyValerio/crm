@@ -122,6 +122,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const router = useRouter();
   const [userRole, setUserRole] = React.useState<string | null>(null);
+  const [empresaNombre, setEmpresaNombre] = React.useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   React.useEffect(() => {
@@ -135,6 +136,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
       if (response.ok) {
         const data = await response.json();
         setUserRole(data.user?.role || null);
+        setEmpresaNombre(data.user?.empresaNombre || null);
       }
     }
     checkRole();
@@ -249,11 +251,13 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
                   ? 'bg-primary text-primary-foreground'
                   : 'text-foreground hover:bg-accent hover:text-accent-foreground'
               )}
-              title={collapsed ? item.title : undefined}
+              title={collapsed ? (item.href === '/interphone' && empresaNombre?.toUpperCase() === 'PIKI' ? 'Call My Way' : item.title) : undefined}
             >
               <Icon className="h-5 w-5 flex-shrink-0" />
               {!collapsed && (
-                <span className="whitespace-nowrap">{item.title}</span>
+                <span className="whitespace-nowrap">
+                  {item.href === '/interphone' && empresaNombre?.toUpperCase() === 'PIKI' ? 'Call My Way' : item.title}
+                </span>
               )}
             </Link>
                   );
