@@ -635,8 +635,7 @@ export default function ClientsPage() {
       const res = await fetch('/api/sims/disponible');
       if (!res.ok) { toast.error('No hay SIMs disponibles en inventario'); return; }
       const data = await res.json();
-      // Solo para postpago el número SIM va al campo de medidor
-      if (isPostpago) setValue('numeroMedidor', data.sim.numero);
+      setValue('numeroMedidor', data.sim.numero);
       if (data.sim.fotoUrl) setValue('simUrl', data.sim.fotoUrl);
       setSelectedSimId(data.sim.id);
       toast.success(`SIM ${data.sim.numero} asignada`);
