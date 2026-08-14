@@ -7,7 +7,8 @@ const nextConfig: NextConfig = {
   // @prisma/client/runtime/* no están en el exports map del paquete y fallan
   // en build time. Con serverExternalPackages se dejan para Node.js en runtime.
   serverExternalPackages: ['@prisma/client', '@prisma/adapter-pg'],
-  output: process.env.SKIP_STANDALONE === 'true' ? undefined : 'standalone',
+  // standalone solo para Docker; en Vercel (VERCEL=1) se omite
+  output: (process.env.SKIP_STANDALONE === 'true' || process.env.VERCEL === '1') ? undefined : 'standalone',
   images: {
     remotePatterns: [
       {
