@@ -62,8 +62,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
       if (p.metodoContacto) {
-        // Usar la etiqueta legible si existe, si no el valor raw
-        const label = etiquetaMap.get(p.metodoContacto) ?? p.metodoContacto;
+        // 1. Intentar resolver contra la tabla Tipificacion (valor → etiqueta)
+        let label = etiquetaMap.get(p.metodoContacto);
+        // 2. Si no existe (tipificación eliminada), extraer nombre legible del formato CUSTOM_NOMBRE_TIMESTAMP
+        if (!label) {
+          const customMatch = p.metodoContacto.match(/^CUSTOM_(.+?)_\d+$/);
+          if (customMatch) {
+            label = customMatch[1]
+              .split('_')
+              .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+              .join(' ');
+          } else {
+            label = p.metodoContacto;
+          }
+        }
         porTipificacionMap.set(
           label,
           (porTipificacionMap.get(label) ?? 0) + 1,
