@@ -43,6 +43,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       porDiaMap.set(key, 0);
     }
 
+    // Cargar todas las tipificaciones para resolver valor → etiqueta
+    const tipificaciones = await prisma.tipificacion.findMany({
+      select: { valor: true, etiqueta: true },
+    });
+    const etiquetaMap = new Map(tipificaciones.map(t => [t.valor, t.etiqueta]));
+
     // Agrupar por tipificación
     const porTipificacionMap = new Map<string, number>();
 
@@ -56,9 +62,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
       if (p.metodoContacto) {
+        // Usar la etiqueta legible si existe, si no el valor raw
+        const label = etiquetaMap.get(p.metodoContacto) ?? p.metodoContacto;
         porTipificacionMap.set(
-          p.metodoContacto,
-          (porTipificacionMap.get(p.metodoContacto) ?? 0) + 1,
+          label,
+          (porTipificacionMap.get(label) ?? 0) + 1,
         );
       }
     }
