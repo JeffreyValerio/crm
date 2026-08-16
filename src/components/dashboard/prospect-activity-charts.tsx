@@ -11,8 +11,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  PieChart,
-  Pie,
   CartesianGrid,
   Dot,
 } from 'recharts';
@@ -226,57 +224,48 @@ export function ProspectActivityCharts({ stats, porDia, porTipificacion }: Props
             <p className="text-sm text-muted-foreground text-center py-8">
               Sin datos de tipificación este mes
             </p>
-          ) : (
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={porTipificacion}
-                    dataKey="count"
-                    nameKey="tipificacion"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={2}
-                  >
-                    {porTipificacion.map((_, i) => (
+          ) : (() => {
+            const total = porTipificacion.reduce((s, x) => s + x.count, 0);
+            const chartData = porTipificacion.map(d => ({
+              ...d,
+              label: TIPIFICACION_LABELS[d.tipificacion] ?? d.tipificacion,
+            }));
+            const barHeight = 28;
+            const chartHeight = Math.max(160, chartData.length * barHeight + 16);
+            return (
+              <ResponsiveContainer width="100%" height={chartHeight}>
+                <BarChart
+                  data={chartData}
+                  layout="vertical"
+                  margin={{ top: 0, right: 60, left: 8, bottom: 0 }}
+                  barSize={14}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    width={160}
+                    tick={{ fontSize: 12, fill: isDark ? '#cbd5e1' : '#475569' }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }}
+                    contentStyle={tooltipStyle}
+                    formatter={(value: number) => [
+                      `${value} (${total > 0 ? Math.round((value / total) * 100) : 0}%)`,
+                      'Contactos',
+                    ]}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {chartData.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value, name) => [
-                      value ?? 0,
-                      TIPIFICACION_LABELS[String(name)] ?? String(name),
-                    ]}
-                    contentStyle={tooltipStyle}
-                  />
-                </PieChart>
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
-
-              {/* Leyenda manual */}
-              <div className="space-y-1.5 min-w-[180px] w-full md:w-auto">
-                {porTipificacion.map((d, i) => {
-                  const total = porTipificacion.reduce((s, x) => s + x.count, 0);
-                  const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
-                  return (
-                    <div key={d.tipificacion} className="flex items-center gap-2 text-xs">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                        style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
-                      />
-                      <span className="flex-1 truncate text-foreground">
-                        {TIPIFICACION_LABELS[d.tipificacion] ?? d.tipificacion}
-                      </span>
-                      <span className="font-medium tabular-nums text-muted-foreground">
-                        {d.count} ({pct}%)
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>
