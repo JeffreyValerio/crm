@@ -53,12 +53,15 @@ async function main() {
   let sinCoords = 0;
 
   for (const r of registros) {
-    if (!r.nro_orden || r._error || !r.latitud || !r.longitud) {
-      sinCoords++;
-      continue;
-    }
+    // Registros sin nro_orden o con error explícito se descartan siempre
+    if (!r.nro_orden || r._error) continue;
+
+    const sinCoordenadas = !r.latitud || !r.longitud;
+    if (sinCoordenadas) sinCoords++;
 
     const datos = {
+      // Sin coordenadas → van como prospectos POSTPAGO
+      tipo:             sinCoordenadas ? 'POSTPAGO' : 'GPON',
       estado:           r.estado           || null,
       prioridad:        r.prioridad        || null,
       idCliente:        r.id_cliente       || null,

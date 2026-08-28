@@ -61,7 +61,7 @@ async function main() {
             <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.yaExistian.toLocaleString('es-CR')}</td>
           </tr>
           <tr>
-            <td style="padding: 12px 16px; color: #d97706;">📍 Sin coordenadas (omitidos)</td>
+            <td style="padding: 12px 16px; color: #d97706;">📍 Sin coordenadas (→ Postpago)</td>
             <td style="padding: 12px 16px; text-align: right; font-weight: 600;">${importStats.sinCoords.toLocaleString('es-CR')}</td>
           </tr>
         </table>
