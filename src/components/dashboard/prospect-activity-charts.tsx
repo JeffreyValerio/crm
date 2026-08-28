@@ -252,10 +252,10 @@ export function ProspectActivityCharts({ stats, porDia, porTipificacion }: Props
                   <Tooltip
                     cursor={{ fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }}
                     contentStyle={tooltipStyle}
-                    formatter={(value: number) => [
-                      `${value} (${total > 0 ? Math.round((value / total) * 100) : 0}%)`,
-                      'Contactos',
-                    ]}
+                    formatter={(value) => {
+                      const n = Number(value);
+                      return [`${n} (${total > 0 ? Math.round((n / total) * 100) : 0}%)`, 'Contactos'];
+                    }}
                   />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {chartData.map((_, i) => (
