@@ -2148,11 +2148,11 @@ Comentario: En espera de Instalacion`;
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <label className="text-sm font-medium mb-2 block">
-                        Coordenadas Latitud <span className="text-destructive">*</span>
+                        Coordenadas Latitud {!isPostpago && <span className="text-destructive">*</span>}
                       </label>
                       <div className="relative">
                         <Input
-                          {...register('coordenadasLat', { required: 'Las coordenadas de latitud son obligatorias' })}
+                          {...register('coordenadasLat', { required: !isPostpago ? 'Las coordenadas de latitud son obligatorias' : false })}
                           placeholder="Ej: 9.9281"
                           type="text"
                           className="pr-10"
@@ -2178,11 +2178,11 @@ Comentario: En espera de Instalacion`;
                     </div>
                     <div>
                       <label className="text-sm font-medium mb-2 block">
-                        Coordenadas Longitud <span className="text-destructive">*</span>
+                        Coordenadas Longitud {!isPostpago && <span className="text-destructive">*</span>}
                       </label>
                       <div className="relative">
                         <Input
-                          {...register('coordenadasLng', { required: 'Las coordenadas de longitud son obligatorias' })}
+                          {...register('coordenadasLng', { required: !isPostpago ? 'Las coordenadas de longitud son obligatorias' : false })}
                           placeholder="Ej: -84.0907"
                           type="text"
                           className="pr-10"
