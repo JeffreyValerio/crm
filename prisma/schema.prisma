@@ -292,6 +292,7 @@ model Tipificacion {
   orden            Int      @default(0)
   eliminaProspecto Boolean  @default(false)
   creaCliente      Boolean  @default(false)
+  marcaPostpago    Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

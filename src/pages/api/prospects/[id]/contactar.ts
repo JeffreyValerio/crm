@@ -36,6 +36,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ eliminado: true });
   }
 
+  // Mover a POSTPAGO y limpiar datos de contactación si la tipificación lo indica
+  if (tipificacion.marcaPostpago) {
+    const movido = await prisma.prospecto.update({
+      where: { id },
+      data: {
+        tipo: 'POSTPAGO',
+        // Limpiar todo rastro de contactación para que el vendedor postpago lo vea fresco
+        metodoContacto: null,
+        totalContactos: 0,
+        ultimoContacto: null,
+        asignadoA: null,
+        asignadoAt: null,
+        proveedorCompetidor: null,
+        observacionesInternas: null,
+      },
+      include: {
+        asignado: { select: { id: true, nombre: true, apellidos: true, email: true } },
+      },
+    });
+    return res.status(200).json({ prospecto: movido, movidoAPostpago: true });
+  }
+
   // Actualizar el prospecto
   const updated = await prisma.prospecto.update({
     where: { id },
