@@ -47,5 +47,10 @@ jobs:
       - name: Limpiar sin cobertura
         run: npm run prospects:limpiar -- --ejecutar
 
-      - name: Enviar email de resumen
-        run: npx tsx scripts/notify-sync.ts
+      # Apagado: v2 (jenvaltec) ya manda su propio resumen de importación a
+      # los superadmin (lib/correo.ts + scripts/importar-prospectos.ts), y
+      # con los dos corriendo llegaban dos avisos por cada sincronización.
+      # scripts/notify-sync.ts se deja en el repo por si hace falta reactivarlo,
+      # pero deja de ejecutarse.
+      # - name: Enviar email de resumen
+      #   run: npx tsx scripts/notify-sync.ts
