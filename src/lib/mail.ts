@@ -1,5 +1,17 @@
 import nodemailer from 'nodemailer';
 
+/**
+ * Envío de correo de la app DESHABILITADO a propósito (invitaciones,
+ * asignación de prospectos, cambios de estado). No importa qué credenciales
+ * SMTP haya configuradas en ningún lado (local, Vercel, o donde sea): acá se
+ * corta antes de tocar el transportador, así que no depende de recordar
+ * borrar una variable de entorno en cada sitio donde pudiera estar puesta.
+ *
+ * Para reactivarlo: poner esto en `false`. La configuración SMTP de abajo no
+ * se tocó, sigue intacta.
+ */
+const ENVIO_DESHABILITADO = true;
+
 // Configuración del transportador de correo
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -19,6 +31,17 @@ interface SendMailOptions {
 }
 
 export async function sendMail({ to, subject, html, bcc }: SendMailOptions) {
+  if (ENVIO_DESHABILITADO) {
+    console.log('='.repeat(50));
+    console.log('📧 ENVÍO DE CORREO DESHABILITADO');
+    console.log('='.repeat(50));
+    console.log('To:', to);
+    console.log('Subject:', subject);
+    console.log('Content:', html);
+    console.log('='.repeat(50));
+    return { messageId: 'disabled' };
+  }
+
   // Si no hay configuración SMTP, mostrar el enlace en consola para desarrollo
   if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
     console.log('='.repeat(50));
